@@ -1,0 +1,60 @@
+// Seed data fiktif PT Arunika Daya Persada untuk development, test, dan staging.
+// Menolak berjalan di produksi. Kata sandi akun seed diambil dari SEED_PASSWORD (tidak ada sandi default).
+package main
+
+import (
+	"context"
+		"fmt"
+	"os"
+
+	"ats/db/sqlc"
+	"ats/internal/app"
+	"ats/internal/auth"
+	"ats/internal/identity"
+	"ats/internal/platform"
+
+	"github.com/jackc/pgx/v5"
+)
+
+func main() {
+	cfg, err := platform.LoadConfig()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	if cfg.IsProduction() {
+		fmt.Fprintln(os.Stderr, "seed ditolak: APP_ENV=production")
+		os.Exit(2)
+	}
+	pw := os.Getenv("SEED_PASSWORD")
+	if auth.ValidatePassword(pw) != "" {
+		fmt.Fprintln(os.Stderr, "SEED_PASSWORD wajib diisi (min 10 karakter, huruf dan angka)")
+		os.Exit(2)
+	}
+	ctx := context.Background()
+	pool, err := platform.NewPool(ctx, cfg.DatabaseURL, 4, "ats-seed")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+	if _, err := sqlc.New(pool).GetOrganizationBySlug(ctx, cfg.OrgSlug); err == nil {
+		fmt.Println("seed dilewati: organisasi", cfg.OrgSlug, "sudah ada")
+		return
+	}
+	keys := identity.Keys{EncKey: cfg.NIKEncKey, EncVersion: cfg.NIKEncKeyVer, IndexKey: cfg.NIKIndexKey, IndexVersion: cfg.NIKIndexKeyVer}
+	hash, err := auth.HashPassword(ctx, pw)
+	if err != nil {
+		panic(err)
+	}
+	err = platform.WithTx(ctx, pool, func(tx pgx.Tx) error { return app.Seed(ctx, tx, cfg.OrgSlug, hash, keys) })
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "seed gagal:", err)
+		os.Exit(1)
+	}
+	fmt.Println("seed selesai. Akun (sandi = SEED_PASSWORD):")
+	for _, u := range app.SeedUsers {
+		fmt.Printf("  %-28s %s\n", u.Email, u.Label)
+	}
+}
+

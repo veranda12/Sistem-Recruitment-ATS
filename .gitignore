@@ -1,0 +1,16 @@
+# Rahasia dan data lokal
+.env
+.env.*
+!.env.example
+.data/
+*.eml
+
+# Build
+backend/bin/
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+tests/e2e/.auth/
+*.exe
+coverage.out
