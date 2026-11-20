@@ -111,7 +111,7 @@ test.describe.serial("vertical slice karier -> recruiter", () => {
     // Recruiter TI tidak dapat membuka lamaran unit OPS lewat URL langsung.
     await login(page, "rekruter.ti@arunika.example");
     await page.goto(url.replace("http://localhost:15173", ""));
-    await expect(page.getByText("Tidak ditemukan")).toBeVisible();
+    await expect(page.getByText("Tidak ditemukan", { exact: true })).toBeVisible();
   });
 
   test("HR Admin: reveal NIK butuh alasan; kandidat melihat tahap terbaru", async ({ page }) => {
@@ -133,6 +133,7 @@ test.describe.serial("vertical slice karier -> recruiter", () => {
 
   test("keyboard: login hanya dengan keyboard dan skip link", async ({ page }) => {
     await page.goto("/masuk");
+    await expect(page.getByLabel("Email")).toBeVisible();
     await page.keyboard.press("Tab");
     await expect(page.getByRole("link", { name: "Lewati ke konten" })).toBeFocused();
     await page.getByLabel("Email").focus();

@@ -1,5 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
+import { createRequire } from "node:module";
 import { resolve } from "node:path";
+
+// Spec E2E berada di ../tests/e2e (di luar frontend), jadi resolusi modul diarahkan ke node_modules frontend.
+process.env.NODE_PATH = resolve(process.cwd(), "node_modules");
+(createRequire(import.meta.url)("module") as { Module: { _initPaths: () => void } }).Module._initPaths();
 
 // Lingkungan E2E terisolasi: database ats_e2e, API :18080, worker health :18081, Vite :15173.
 // Kunci di bawah khusus E2E dan tidak dipakai di lingkungan lain.
@@ -37,11 +42,12 @@ export default defineConfig({
     timezoneId: "Asia/Jakarta",
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
+    { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } }, testIgnore: /mobile.spec.ts/ },
     { name: "mobile", use: { ...devices["Pixel 7"], viewport: { width: 390, height: 844 } }, testMatch: /mobile\.spec\.ts/ },
   ],
   webServer: [
-    { command: `"${resolve(root, "backend/bin/api" + exe)}"`, url: "http://127.0.0.1:18080/readyz", env: e2eEnv, reuseExistingServer: false, timeout: 60_000 },
+    // Playwright menyalakan webServer sebelum globalSetup, jadi reset + seed dijalankan di sini sebelum API.
+    { command: `"${resolve(root, "backend/bin/seed" + exe)}" --reset && "${resolve(root, "backend/bin/api" + exe)}"`, url: "http://127.0.0.1:18080/readyz", env: e2eEnv, reuseExistingServer: false, timeout: 60_000 },
     { command: `"${resolve(root, "backend/bin/worker" + exe)}"`, url: "http://127.0.0.1:18081/healthz", env: e2eEnv, reuseExistingServer: false, timeout: 60_000 },
     {
       command: "npx vite --port 15173",

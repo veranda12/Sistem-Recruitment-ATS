@@ -21,7 +21,7 @@ Terakhir diperbarui: 2026-11-19. Dokumen ini mencatat hasil **aktual** yang dija
 |---|---|---|
 | 1 Inventaris & rencana | Selesai | `docs/architecture/architecture.md`, `docs/architecture/adr/README.md`, `docs/product/assumptions.md`, `docs/product/plan.md` |
 | 2 Foundation | Backend selesai; design system + 3 layout frontend selesai | config tervalidasi, logger JSON, `/healthz` `/readyz`, sesi + CSRF, RBAC scope, seed |
-| 3 Vertical slice | Backend + test DB riil lulus; UI selesai (typecheck/lint/build lulus); E2E Playwright belum lulus (lihat blocker) | karier -> registrasi -> profil -> apply -> recruiter -> transisi teraudit; workflow publish/simulate/rollback/approval |
+| 3 Vertical slice | Selesai: backend, UI, dan E2E Playwright lulus | karier -> registrasi -> profil -> apply -> recruiter -> transisi teraudit; workflow publish/simulate/rollback/approval |
 | 4-10 | Belum dimulai | |
 
 ## Migrasi terakhir
@@ -54,15 +54,16 @@ DATABASE_URL_TEST="postgres://pos:pos@localhost:5432/ats_test?sslmode=disable" g
 | Frontend `tsc -b`, `eslint .`, `vite build` (bundle per area: career/auth/candidate/backoffice) | lulus | 2026-11-20 |
 | Vitest kontras token (15 pasangan warna aktual, WCAG 4.5/3) | lulus | 2026-11-20 |
 | `seed --reset` (hanya APP_ENV development/test dan DB *_dev/_test/_e2e) + seluruh `go test ./...` ulang | lulus | 2026-11-20 |
-| Playwright `npx playwright test --project=desktop` (tests/e2e/slice.spec.ts, mobile.spec.ts) | **gagal sebelum tes berjalan**: `Process from config.webServer was not able to start. Exit code: 1` | 2026-11-20 |
+| Playwright run 1 | gagal sebelum tes: webServer API start sebelum globalSetup, DB e2e belum dimigrasi | 2026-11-20 |
+| Playwright `cd frontend && npx playwright test` (desktop 1440: portal+filter URL+tutup; registrasi->verifikasi email->profil->apply 2 lowongan->apply ulang ditolak; recruiter OPS pindah tahap beralasan, histori setelah refresh, recruiter TI 404; HR reveal NIK; kandidat lihat tahap + inbox; keyboard + skip link + menu sesuai peran. Mobile 390: tanpa scroll horizontal, CTA terlihat, menu drawer staf) | **8 lulus**, diulang 3x stabil | 2026-11-20 |
+| Tinjauan screenshot (`frontend/test-results/screens/`) | temuan: sidebar staf tidak setinggi halaman, peran tampil sebagai kunci mentah; keduanya diperbaiki | 2026-11-20 |
 
 ## Blocker / keterbatasan saat ini
 
-- E2E: salah satu webServer di `frontend/playwright.config.ts` keluar dengan kode 1 (belum didiagnosis). Dugaan pertama: proses API/worker dev lama masih berjalan dari sesi sebelumnya (port 8080/8081 tidak bentrok, tetapi periksa), atau path binary `backend/bin/*.exe` dari `process.cwd()`, atau `globalSetup` (seed --reset) gagal. Jalankan tiap perintah webServer manual dengan env `e2eEnv` untuk melihat pesan errornya.
 
 - Redis tidak tersedia di mesin ini: cache publik dan limiter global belum teruji end-to-end; jalur degraded (limiter lokal) yang dipakai.
 - Frontend belum ada.
 
 ## Langkah konkret berikutnya
 
-Diagnosis kegagalan webServer Playwright (jalankan `backend/bin/api.exe` dengan env E2E secara manual), buat `slice.spec.ts` dan `mobile.spec.ts` lulus, lalu lanjut ke fase 4 (exam slice: undangan -> start -> autosave -> submit -> receipt).
+Fase 4: exam slice (undangan -> start idempoten -> resume -> autosave batch berevisi + receipt -> submit sekali -> expiry), lalu skoring, rilis nilai yang memicu event workflow.

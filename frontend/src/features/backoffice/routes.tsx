@@ -7,6 +7,8 @@ import { JobsPage } from "./jobs";
 import { WorkflowEditor, WorkflowsPage } from "./workflows";
 
 type NavItem = { to: string; label: string; perm: string };
+const roleLabel: Record<string, string> = { super_admin: "Super Admin", hr_admin: "HR Admin", recruiter: "Recruiter", hiring_manager: "Hiring Manager", examiner: "Examiner" };
+
 const items: NavItem[] = [
   { to: "/staf/lamaran", label: "Lamaran", perm: "applications.read" },
   { to: "/staf/lowongan", label: "Lowongan", perm: "jobs.read" },
@@ -36,7 +38,7 @@ export default function BackofficeRoutes() {
   );
 
   return (
-    <div className="min-h-dvh bg-white">
+    <div className="flex min-h-dvh flex-col bg-white">
       <a href="#konten" className="skip-link">
         Lewati ke konten
       </a>
@@ -51,7 +53,7 @@ export default function BackofficeRoutes() {
         </div>
         <div className="flex items-center gap-2 text-sm">
           <span className="hidden text-ink-2 sm:inline">
-            {session?.user.name} · {session?.roles.join(", ")}
+            {session?.user.name} · {session?.roles.map((r) => roleLabel[r] ?? r).join(", ")}
           </span>
           <Button
             variant="ghost"
@@ -64,7 +66,7 @@ export default function BackofficeRoutes() {
           </Button>
         </div>
       </header>
-      <div className="flex">
+      <div className="flex flex-1">
         <aside className="hidden w-56 shrink-0 border-r border-line bg-surface p-3 lg:block">{sidebar}</aside>
         {menu ? (
           <div id="menu-staf" className="fixed inset-x-0 top-[61px] z-30 border-b border-line bg-surface p-3 lg:hidden">
