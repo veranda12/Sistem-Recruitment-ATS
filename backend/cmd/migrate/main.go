@@ -3,16 +3,10 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
-	"strings"
 
 	"ats/db"
-
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
 func main() {
@@ -21,46 +15,17 @@ func main() {
 		fmt.Fprintln(os.Stderr, "DATABASE_URL wajib diisi")
 		os.Exit(2)
 	}
-	cmd := "up"
-	if len(os.Args) > 1 {
-		cmd = os.Args[1]
+	if len(os.Args) > 1 && os.Args[1] != "up" {
+		fmt.Fprintf(os.Stderr, "perintah tidak dikenal %q (gunakan: up)\n", os.Args[1])
+		os.Exit(2)
 	}
-	src, err := iofs.New(db.Migrations, "migrations")
+	v, dirty, err := db.MigrateUp(dsn)
 	if err != nil {
-		fail(err)
-	}
-	// Driver pgx/v5 memakai skema URL pgx5://
-	url := dsn
-	for _, p := range []string{"postgres://", "postgresql://"} {
-		if strings.HasPrefix(url, p) {
-			url = "pgx5://" + strings.TrimPrefix(url, p)
-		}
-	}
-	m, err := migrate.NewWithSourceInstance("iofs", src, url)
-	if err != nil {
-		fail(err)
-	}
-	defer m.Close()
-	switch cmd {
-	case "up":
-		if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-			fail(err)
-		}
-	case "version":
-	default:
-		fail(fmt.Errorf("perintah tidak dikenal %q (gunakan: up | version)", cmd))
-	}
-	v, dirty, err := m.Version()
-	if err != nil && !errors.Is(err, migrate.ErrNilVersion) {
-		fail(err)
+		fmt.Fprintln(os.Stderr, "migrasi gagal:", err)
+		os.Exit(1)
 	}
 	fmt.Printf("versi skema: %d dirty=%v\n", v, dirty)
 	if dirty {
 		os.Exit(1)
 	}
-}
-
-func fail(err error) {
-	fmt.Fprintln(os.Stderr, "migrasi gagal:", err)
-	os.Exit(1)
 }

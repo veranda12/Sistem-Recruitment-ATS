@@ -75,7 +75,6 @@ func Fail(c *gin.Context, err error) {
 	c.AbortWithStatusJSON(ae.Status, gin.H{"error": ae, "requestId": RequestID(c)})
 }
 
-
 // BindJSON membaca body JSON dengan pesan error yang aman.
 func BindJSON(c *gin.Context, dst any) error {
 	if err := c.ShouldBindJSON(dst); err != nil {

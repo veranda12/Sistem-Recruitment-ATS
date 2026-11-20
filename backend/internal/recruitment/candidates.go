@@ -387,4 +387,3 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, out)
 }
-

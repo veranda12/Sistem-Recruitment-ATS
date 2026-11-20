@@ -4,9 +4,13 @@ package main
 
 import (
 	"context"
-		"fmt"
+	"errors"
+	"fmt"
+	"net/url"
 	"os"
+	"strings"
 
+	"ats/db"
 	"ats/db/sqlc"
 	"ats/internal/app"
 	"ats/internal/auth"
@@ -32,6 +36,12 @@ func main() {
 		os.Exit(2)
 	}
 	ctx := context.Background()
+	if len(os.Args) > 1 && os.Args[1] == "--reset" {
+		if err := reset(ctx, cfg); err != nil {
+			fmt.Fprintln(os.Stderr, "reset ditolak/gagal:", err)
+			os.Exit(2)
+		}
+	}
 	pool, err := platform.NewPool(ctx, cfg.DatabaseURL, 4, "ats-seed")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -58,3 +68,32 @@ func main() {
 	}
 }
 
+// reset menghapus skema public lalu menerapkan migrasi. Hanya untuk APP_ENV development/test dan
+// database yang namanya berakhiran _dev, _test, atau _e2e, agar tidak pernah menyentuh data nyata.
+func reset(ctx context.Context, cfg platform.Config) error {
+	if cfg.Env != "development" && cfg.Env != "test" {
+		return errors.New("hanya untuk APP_ENV development atau test")
+	}
+	u, err := url.Parse(cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	name := strings.TrimPrefix(u.Path, "/")
+	if !strings.HasSuffix(name, "_dev") && !strings.HasSuffix(name, "_test") && !strings.HasSuffix(name, "_e2e") {
+		return fmt.Errorf("nama database %q harus berakhiran _dev, _test, atau _e2e", name)
+	}
+	conn, err := pgx.Connect(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	if _, err := conn.Exec(ctx, "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"); err != nil {
+		conn.Close(ctx)
+		return err
+	}
+	conn.Close(ctx)
+	v, _, err := db.MigrateUp(cfg.DatabaseURL)
+	if err == nil {
+		fmt.Printf("database %s direset, versi skema %d\n", name, v)
+	}
+	return err
+}

@@ -8,10 +8,10 @@ import (
 )
 
 const (
-	MaxStages    = 50
-	MaxEdges     = 200
-	MaxRuleDepth = 4
-	MaxRuleNodes = 32
+	MaxStages        = 50
+	MaxEdges         = 200
+	MaxRuleDepth     = 4
+	MaxRuleNodes     = 32
 	MaxEvalsPerEvent = 100
 )
 

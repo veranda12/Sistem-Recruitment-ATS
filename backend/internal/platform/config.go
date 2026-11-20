@@ -33,10 +33,10 @@ type Config struct {
 	CandidateIdleTimeout time.Duration
 	SessionAbsolute      time.Duration
 
-	MailDir        string // sink email dev (file .eml)
-	SMTPAddr       string
-	MailFrom       string
-	ObjectDir      string
+	MailDir               string // sink email dev (file .eml)
+	SMTPAddr              string
+	MailFrom              string
+	ObjectDir             string
 	StrictSensitiveLimits bool
 
 	WorkerPollInterval time.Duration

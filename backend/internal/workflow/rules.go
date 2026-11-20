@@ -16,17 +16,17 @@ type Rule struct {
 }
 
 type fieldSpec struct {
-	Type   string // number | string | bool
-	Values []string
+	Type   string   `json:"type"` // number | string | bool
+	Values []string `json:"values,omitempty"`
 }
 
 // Fields adalah allowlist field fakta yang boleh dipakai rule.
 var Fields = map[string]fieldSpec{
-	"assessment.score":   {Type: "number"},
-	"assessment.status":  {Type: "string", Values: []string{"pending", "graded", "released"}},
-	"assessment.passed":  {Type: "bool"},
+	"assessment.score":          {Type: "number"},
+	"assessment.status":         {Type: "string", Values: []string{"pending", "graded", "released"}},
+	"assessment.passed":         {Type: "bool"},
 	"assessment.pending_manual": {Type: "bool"},
-	"approval.outcome":   {Type: "string", Values: []string{"approved", "rejected"}},
+	"approval.outcome":          {Type: "string", Values: []string{"approved", "rejected"}},
 }
 
 var opsByType = map[string][]string{

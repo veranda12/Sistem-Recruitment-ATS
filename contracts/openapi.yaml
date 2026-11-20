@@ -1,0 +1,999 @@
+openapi: 3.1.0
+info:
+  title: ATS Arunika API
+  version: 0.1.0
+  description: |
+    Kontrak API sistem rekrutmen. Semua rute relatif terhadap `/api/v1`.
+
+    **Autentikasi:** cookie sesi `ats_session` (HttpOnly, SameSite=Lax, Secure di produksi).
+    **CSRF:** setiap mutasi (POST/PUT/PATCH/DELETE) wajib `Origin` sama dengan origin portal; bila bersesi,
+    wajib header `X-CSRF-Token` berisi `csrfToken` dari `GET /auth/session` atau respons login.
+    **Error:** bentuk stabil `{ error: { code, message, fieldErrors?, details? }, requestId }`.
+    Kode HTTP: 400 bad_request, 401 unauthenticated, 403 forbidden/csrf_failed, 404 not_found,
+    409 conflict (stale_version, already_applied, job_closed, ...), 413 payload_too_large,
+    422 validation_failed, 429 rate_limited (dengan Retry-After), 503 unavailable.
+    **Idempotensi:** operasi penting menerima header `Idempotency-Key` (8-128 karakter), di-scope per aktor + operasi + resource.
+    Ulangan identik mengembalikan hasil lama (header `Idempotent-Replay: true`), payload berbeda -> 409 idempotency_mismatch.
+    **Pagination:** keyset; parameter `cursor` opaque dan `limit` dengan batas per endpoint.
+servers:
+  - url: /api/v1
+tags:
+  - name: publik
+  - name: akun
+  - name: kandidat
+  - name: staf
+  - name: workflow
+paths:
+  /org:
+    get:
+      tags: [publik]
+      summary: Profil organisasi, brand, master unit dan lokasi untuk filter
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicOrg" }
+  /jobs:
+    get:
+      tags: [publik]
+      summary: Daftar lowongan terbit
+      parameters:
+        - { name: unit, in: query, schema: { type: string }, description: Kode unit }
+        - { name: location, in: query, schema: { type: string }, description: Kode lokasi }
+        - { name: type, in: query, schema: { $ref: "#/components/schemas/EmploymentType" } }
+        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/PublicJob" } }
+                  nextCursor: { type: [string, "null"] }
+        "422": { $ref: "#/components/responses/Error" }
+  /jobs/{slug}:
+    get:
+      tags: [publik]
+      summary: Detail lowongan (draft = 404; tutup tetap tampil dengan status)
+      parameters: [{ $ref: "#/components/parameters/Slug" }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicJobDetail" }
+        "404": { $ref: "#/components/responses/Error" }
+  /jobs/{slug}/apply:
+    post:
+      tags: [kandidat]
+      summary: Melamar lowongan
+      parameters:
+        - { $ref: "#/components/parameters/Slug" }
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+        - { $ref: "#/components/parameters/CSRF" }
+      responses:
+        "201":
+          description: Lamaran dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [applicationId, stage, appliedAt]
+                properties:
+                  applicationId: { type: string, format: uuid }
+                  stage: { type: string }
+                  appliedAt: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409":
+          description: email_unverified | profile_incomplete | identity_pending | already_applied | job_closed | idempotency_mismatch
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorBody" }
+  /auth/session:
+    get:
+      tags: [akun]
+      responses:
+        "200":
+          description: Sesi aktif
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "401": { $ref: "#/components/responses/Error" }
+  /auth/login:
+    post:
+      tags: [akun]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "200":
+          description: Login berhasil; cookie sesi diset (rotasi)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "401": { description: invalid_credentials, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+        "429": { $ref: "#/components/responses/Error" }
+  /auth/logout:
+    post:
+      tags: [akun]
+      parameters: [{ $ref: "#/components/parameters/CSRF" }]
+      responses:
+        "204": { description: Sesi dicabut }
+  /auth/register:
+    post:
+      tags: [akun]
+      summary: Pendaftaran kandidat; respons selalu netral
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegisterRequest" }
+      responses:
+        "202": { $ref: "#/components/responses/Message" }
+        "422": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+  /auth/verify-email:
+    post:
+      tags: [akun]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/TokenRequest" } } }
+      responses:
+        "200":
+          description: Terverifikasi
+          content: { application/json: { schema: { type: object, required: [verified], properties: { verified: { type: boolean } } } } }
+        "400": { $ref: "#/components/responses/Error" }
+  /auth/resend-verification:
+    post:
+      tags: [akun]
+      parameters: [{ $ref: "#/components/parameters/CSRF" }]
+      responses:
+        "200": { description: Sudah terverifikasi, content: { application/json: { schema: { $ref: "#/components/schemas/Queued" } } } }
+        "202": { description: Diantrikan, content: { application/json: { schema: { $ref: "#/components/schemas/Queued" } } } }
+  /auth/forgot-password:
+    post:
+      tags: [akun]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [email], properties: { email: { type: string } } } } }
+      responses:
+        "202": { $ref: "#/components/responses/Message" }
+  /auth/reset-password:
+    post:
+      tags: [akun]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/TokenRequest" } } }
+      responses:
+        "200": { description: Sandi diganti, semua sesi dicabut, content: { application/json: { schema: { type: object, required: [reset], properties: { reset: { type: boolean } } } } } }
+        "400": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /me/profile:
+    get:
+      tags: [kandidat]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Profile" } } } }
+    put:
+      tags: [kandidat]
+      parameters: [{ $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ProfileInput" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Profile" } } } }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /me/applications:
+    get:
+      tags: [kandidat]
+      responses:
+        "200":
+          description: Lamaran milik kandidat
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/MyApplication" } }
+  /me/applications/{id}/timeline:
+    get:
+      tags: [kandidat]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Timeline" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+  /me/applications/{id}/withdraw:
+    post:
+      tags: [kandidat]
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              properties:
+                reason: { type: string, maxLength: 500 }
+                version: { type: integer }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/TransitionResult" } } } }
+        "409": { $ref: "#/components/responses/Error" }
+  /me/notifications:
+    get:
+      tags: [kandidat]
+      responses:
+        "200":
+          description: Inbox
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Notification" } }
+  /me/notifications/{id}/read:
+    post:
+      tags: [kandidat]
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      responses:
+        "204": { description: Ditandai dibaca }
+  /staff/jobs:
+    get:
+      tags: [staf]
+      summary: Lowongan dalam scope staf (jobs.read)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/StaffJob" } }
+    post:
+      tags: [staf]
+      parameters: [{ $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/JobInput" } } }
+      responses:
+        "201": { description: Dibuat sebagai draft }
+        "403": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /staff/jobs/{id}/publish:
+    post:
+      tags: [staf]
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody: { $ref: "#/components/requestBodies/VersionReason" }
+      responses:
+        "200": { description: Terbit; cache publik diinvalidasi }
+        "409": { $ref: "#/components/responses/Error" }
+  /staff/jobs/{id}/close:
+    post:
+      tags: [staf]
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody: { $ref: "#/components/requestBodies/VersionReason" }
+      responses:
+        "200": { description: Ditutup }
+        "409": { $ref: "#/components/responses/Error" }
+  /applications:
+    get:
+      tags: [staf]
+      summary: Lamaran dalam scope (deny-by-default di query)
+      parameters:
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/ApplicationStatus" } }
+        - { name: stage, in: query, schema: { type: string } }
+        - { name: job, in: query, schema: { type: string, format: uuid } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/StaffApplication" } }
+                  nextCursor: { type: [string, "null"] }
+        "403": { $ref: "#/components/responses/Error" }
+  /applications/{id}:
+    get:
+      tags: [staf]
+      summary: Detail lamaran (di luar scope dijawab 404)
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/ApplicationDetail" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+  /applications/{id}/transitions:
+    post:
+      tags: [staf]
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, expectedVersion]
+              properties:
+                kind: { type: string, enum: [manual, reject] }
+                to: { type: string }
+                reason: { type: string, maxLength: 1000 }
+                expectedVersion: { type: integer }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/TransitionResult" } } } }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { description: stale_version | transition_not_allowed | guard_failed | application_inactive, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+  /applications/{id}/approvals:
+    post:
+      tags: [staf]
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, expectedVersion]
+              properties:
+                decision: { type: string, enum: [approve, reject] }
+                comment: { type: string, maxLength: 2000 }
+                expectedVersion: { type: integer }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/TransitionResult" } } } }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { description: self_approval | already_decided | not_in_approval | application_inactive, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+  /applications/{id}/reveal-identity:
+    post:
+      tags: [staf]
+      summary: Membuka NIK (izin identity.reveal, alasan wajib, teraudit)
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [reason], properties: { reason: { type: string, minLength: 10 } } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object, required: [nik], properties: { nik: { type: string } } } } } }
+        "403": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /workflows:
+    get:
+      tags: [workflow]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, key, name, draftRevision, activeVersionNo]
+                      properties:
+                        id: { type: string, format: uuid }
+                        key: { type: string }
+                        name: { type: string }
+                        draftRevision: { type: integer }
+                        activeVersionNo: { type: [integer, "null"] }
+  /workflows/{id}:
+    get:
+      tags: [workflow]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/WorkflowDetail" } } } }
+  /workflows/{id}/draft:
+    put:
+      tags: [workflow]
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, definition, draftRevision]
+              properties:
+                name: { type: string }
+                definition: { $ref: "#/components/schemas/WorkflowDefinition" }
+                draftRevision: { type: integer }
+      responses:
+        "200":
+          description: Tersimpan (boleh masih punya temuan)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [draftRevision, issues]
+                properties:
+                  draftRevision: { type: integer }
+                  issues: { type: array, items: { $ref: "#/components/schemas/Issue" } }
+        "409": { $ref: "#/components/responses/Error" }
+  /workflows/{id}/validate:
+    post:
+      tags: [workflow]
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        content: { application/json: { schema: { type: object, properties: { definition: { $ref: "#/components/schemas/WorkflowDefinition" } } } } }
+      responses:
+        "200":
+          description: Hasil validasi
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [valid, issues]
+                properties:
+                  valid: { type: boolean }
+                  issues: { type: array, items: { $ref: "#/components/schemas/Issue" } }
+  /workflows/{id}/simulate:
+    post:
+      tags: [workflow]
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [steps]
+              properties:
+                definition: { $ref: "#/components/schemas/WorkflowDefinition" }
+                steps: { type: array, maxItems: 50, items: { $ref: "#/components/schemas/SimStep" } }
+      responses:
+        "200":
+          description: Langkah simulasi tanpa side effect
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [steps]
+                properties:
+                  steps:
+                    type: array
+                    items:
+                      type: object
+                      required: [stage, matched, ok]
+                      properties:
+                        stage: { type: string }
+                        edgeId: { type: string }
+                        matched: { type: string }
+                        ok: { type: boolean }
+        "409": { $ref: "#/components/responses/Error" }
+  /workflows/{id}/publish:
+    post:
+      tags: [workflow]
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [draftRevision]
+              properties:
+                draftRevision: { type: integer }
+                notes: { type: string }
+      responses:
+        "201":
+          description: Versi immutable baru aktif untuk lamaran baru
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [versionId, versionNo]
+                properties:
+                  versionId: { type: string, format: uuid }
+                  versionNo: { type: integer }
+        "409": { description: workflow_invalid | stale_version, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+  /workflows/{id}/versions:
+    get:
+      tags: [workflow]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/WorkflowVersion" } }
+  /workflows/{id}/rollback:
+    post:
+      tags: [workflow]
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [versionId, reason]
+              properties:
+                versionId: { type: string, format: uuid }
+                reason: { type: string, minLength: 5 }
+      responses:
+        "200": { description: Versi diaktifkan untuk lamaran baru }
+components:
+  parameters:
+    Slug: { name: slug, in: path, required: true, schema: { type: string, pattern: "^[a-z0-9-]{3,120}$" } }
+    Id: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    IdempotencyKey: { name: Idempotency-Key, in: header, required: false, schema: { type: string, minLength: 8, maxLength: 128 } }
+    CSRF: { name: X-CSRF-Token, in: header, required: true, schema: { type: string } }
+  requestBodies:
+    VersionReason:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [version]
+            properties:
+              version: { type: integer }
+              reason: { type: string }
+  responses:
+    Error:
+      description: Error terstruktur
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } }
+    Message:
+      description: Pesan netral
+      content: { application/json: { schema: { type: object, required: [message], properties: { message: { type: string } } } } }
+  schemas:
+    ErrorBody:
+      type: object
+      required: [error, requestId]
+      properties:
+        requestId: { type: string }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string, examples: [validation_failed] }
+            message: { type: string, examples: ["Periksa kembali isian yang ditandai."] }
+            fieldErrors: { type: object, additionalProperties: { type: string } }
+            details: {}
+    EmploymentType: { type: string, enum: [full_time, contract, internship, part_time] }
+    ApplicationStatus: { type: string, enum: [active, withdrawn, rejected, hired] }
+    CodeName:
+      type: object
+      required: [code, name]
+      properties: { code: { type: string }, name: { type: string } }
+    Location:
+      type: object
+      required: [code, name, city]
+      properties: { code: { type: string }, name: { type: string }, city: { type: string } }
+    PublicOrg:
+      type: object
+      required: [name, timezone, profile, brand, units, locations]
+      properties:
+        name: { type: string }
+        timezone: { type: string }
+        profile: { type: object, properties: { tagline: { type: string }, about: { type: string } } }
+        brand: { type: object, properties: { primaryColor: { type: string }, displayName: { type: string } } }
+        units: { type: array, items: { $ref: "#/components/schemas/CodeName" } }
+        locations: { type: array, items: { $ref: "#/components/schemas/Location" } }
+    PublicJob:
+      type: object
+      required: [id, slug, title, employmentType, publishedAt, closesAt, unit, location]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        employmentType: { $ref: "#/components/schemas/EmploymentType" }
+        publishedAt: { type: [string, "null"], format: date-time }
+        closesAt: { type: [string, "null"], format: date-time }
+        unit: { $ref: "#/components/schemas/CodeName" }
+        location: { $ref: "#/components/schemas/Location" }
+    PublicJobDetail:
+      allOf:
+        - $ref: "#/components/schemas/PublicJob"
+        - type: object
+          required: [description, requirements, status, acceptingApplications]
+          properties:
+            description: { type: string }
+            requirements: { type: string }
+            status: { type: string, enum: [published, closed] }
+            acceptingApplications: { type: boolean }
+    Session:
+      type: object
+      required: [user, csrfToken, roles, permissions]
+      properties:
+        user:
+          type: object
+          required: [id, kind, email, name, emailVerified]
+          properties:
+            id: { type: string, format: uuid }
+            kind: { type: string, enum: [staff, candidate] }
+            email: { type: string }
+            name: { type: string }
+            emailVerified: { type: boolean }
+        csrfToken: { type: string }
+        roles: { type: array, items: { type: string } }
+        permissions: { type: array, items: { type: string } }
+    RegisterRequest:
+      type: object
+      required: [email, password, fullName, nik, acceptPrivacy]
+      properties:
+        email: { type: string }
+        password: { type: string, minLength: 10, maxLength: 128 }
+        fullName: { type: string }
+        nik: { type: string, description: 16 digit; spasi, titik, strip diabaikan }
+        acceptPrivacy: { type: boolean }
+    TokenRequest:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string }
+        password: { type: string }
+    Queued:
+      type: object
+      required: [queued]
+      properties: { queued: { type: boolean } }
+    Education:
+      type: object
+      required: [level, institution, major, startYear, endYear, gpa]
+      properties:
+        level: { type: string, enum: [SMA, SMK, D3, D4, S1, S2, S3, Lainnya] }
+        institution: { type: string }
+        major: { type: string }
+        startYear: { type: [integer, "null"] }
+        endYear: { type: [integer, "null"] }
+        gpa: { type: [number, "null"] }
+    Experience:
+      type: object
+      required: [company, title, startDate, endDate, description]
+      properties:
+        company: { type: string }
+        title: { type: string }
+        startDate: { type: string, format: date }
+        endDate: { type: [string, "null"], format: date }
+        description: { type: string }
+    Certification:
+      type: object
+      required: [name, issuer, issuedOn, expiresOn]
+      properties:
+        name: { type: string }
+        issuer: { type: string }
+        issuedOn: { type: [string, "null"], format: date }
+        expiresOn: { type: [string, "null"], format: date }
+    ProfileInput:
+      type: object
+      required: [fullName, phone, birthDate, city, address, summary, education, experiences, certifications, version]
+      properties:
+        fullName: { type: string }
+        phone: { type: string }
+        birthDate: { type: [string, "null"], format: date }
+        city: { type: string }
+        address: { type: string }
+        summary: { type: string }
+        education: { type: array, maxItems: 10, items: { $ref: "#/components/schemas/Education" } }
+        experiences: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/Experience" } }
+        certifications: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/Certification" } }
+        version: { type: integer }
+    Profile:
+      allOf:
+        - $ref: "#/components/schemas/ProfileInput"
+        - type: object
+          required: [email, emailVerified, identity, complete, missing, updatedAt]
+          properties:
+            email: { type: string }
+            emailVerified: { type: boolean }
+            identity:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [linked, pending_verification] }
+                nikMasked: { type: string }
+            complete: { type: boolean }
+            missing: { type: array, items: { type: string } }
+            updatedAt: { type: string, format: date-time }
+    MyApplication:
+      type: object
+      required: [id, status, stageKey, appliedAt, stageEnteredAt, version, jobTitle, jobSlug, jobStatus, stageName, stageType]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: "#/components/schemas/ApplicationStatus" }
+        stageKey: { type: string }
+        appliedAt: { type: string, format: date-time }
+        stageEnteredAt: { type: string, format: date-time }
+        version: { type: integer }
+        jobTitle: { type: string }
+        jobSlug: { type: string }
+        jobStatus: { type: string }
+        stageName: { type: string }
+        stageType: { type: string }
+    Timeline:
+      type: object
+      required: [jobTitle, status, stageName, items, version]
+      properties:
+        jobTitle: { type: string }
+        status: { $ref: "#/components/schemas/ApplicationStatus" }
+        stageName: { type: string }
+        version: { type: integer }
+        items:
+          type: array
+          items:
+            type: object
+            required: [stage, stageName, status, at]
+            properties:
+              stage: { type: string }
+              stageName: { type: string }
+              status: { type: string }
+              at: { type: string, format: date-time }
+    Notification:
+      type: object
+      required: [id, templateKey, subject, body, readAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        templateKey: { type: string }
+        subject: { type: string }
+        body: { type: string }
+        readAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+    StaffJob:
+      type: object
+      required: [id, slug, title, employmentType, status, publishedAt, closesAt, unitId, version, unitName, locationName, applicationCount]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        employmentType: { $ref: "#/components/schemas/EmploymentType" }
+        status: { type: string, enum: [draft, published, closed] }
+        publishedAt: { type: [string, "null"], format: date-time }
+        closesAt: { type: [string, "null"], format: date-time }
+        unitId: { type: string, format: uuid }
+        version: { type: integer }
+        unitName: { type: string }
+        locationName: { type: string }
+        applicationCount: { type: integer }
+    JobInput:
+      type: object
+      required: [unitCode, locationCode, workflowKey, title, slug, employmentType, description, requirements]
+      properties:
+        unitCode: { type: string }
+        locationCode: { type: string }
+        workflowKey: { type: string }
+        title: { type: string }
+        slug: { type: string }
+        employmentType: { $ref: "#/components/schemas/EmploymentType" }
+        description: { type: string }
+        requirements: { type: string }
+        closesAt: { type: [string, "null"], format: date-time }
+    StaffApplication:
+      type: object
+      required: [id, jobId, status, stageKey, appliedAt, stageEnteredAt, unitId, version, shortlisted, jobTitle, candidateName, stageName, stageType, recruiterUserId]
+      properties:
+        id: { type: string, format: uuid }
+        jobId: { type: string, format: uuid }
+        status: { $ref: "#/components/schemas/ApplicationStatus" }
+        stageKey: { type: string }
+        appliedAt: { type: string, format: date-time }
+        stageEnteredAt: { type: string, format: date-time }
+        unitId: { type: string, format: uuid }
+        version: { type: integer }
+        shortlisted: { type: boolean }
+        jobTitle: { type: string }
+        candidateName: { type: string }
+        stageName: { type: string }
+        stageType: { type: string }
+        recruiterUserId: { type: [string, "null"], format: uuid }
+    TransitionHistory:
+      type: object
+      required: [id, executionId, fromStage, toStage, fromStatus, toStatus, trigger, actorKind, actorName, reason, createdAt]
+      properties:
+        id: { type: integer }
+        executionId: { type: string, format: uuid }
+        fromStage: { type: [string, "null"] }
+        toStage: { type: string }
+        fromStatus: { type: [string, "null"] }
+        toStatus: { type: string }
+        trigger: { type: string }
+        actorKind: { type: string }
+        actorName: { type: [string, "null"] }
+        reason: { type: string }
+        ruleRef: {}
+        inputSummary: {}
+        createdAt: { type: string, format: date-time }
+    Approval:
+      type: object
+      required: [id, stageKey, decision, comment, approverName, createdAt, invalidatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        stageKey: { type: string }
+        decision: { type: string, enum: [approve, reject] }
+        comment: { type: string }
+        approverName: { type: string }
+        createdAt: { type: string, format: date-time }
+        invalidatedAt: { type: [string, "null"], format: date-time }
+    ApplicationDetail:
+      type: object
+      required: [id, jobId, jobTitle, unitName, status, stage, appliedAt, stageEnteredAt, version, shortlisted, candidate, snapshot, snapshotAt, history, approvals, otherApplications, hiddenOtherApplications, actions, stages, canRevealIdentity]
+      properties:
+        id: { type: string, format: uuid }
+        jobId: { type: string, format: uuid }
+        jobTitle: { type: string }
+        unitName: { type: string }
+        status: { $ref: "#/components/schemas/ApplicationStatus" }
+        stage:
+          type: object
+          required: [key, name, type]
+          properties: { key: { type: string }, name: { type: string }, type: { type: string } }
+        appliedAt: { type: string, format: date-time }
+        stageEnteredAt: { type: string, format: date-time }
+        version: { type: integer }
+        shortlisted: { type: boolean }
+        candidate:
+          type: object
+          required: [id, name, email]
+          properties: { id: { type: string, format: uuid }, name: { type: string }, email: { type: string } }
+        snapshot:
+          type: object
+          required: [email, profile, nikMasked, privacyNoticeVersion]
+          properties:
+            email: { type: string }
+            profile: { $ref: "#/components/schemas/ProfileInput" }
+            nikMasked: { type: string }
+            privacyNoticeVersion: { type: string }
+        snapshotAt: { type: string, format: date-time }
+        history: { type: array, items: { $ref: "#/components/schemas/TransitionHistory" } }
+        approvals: { type: array, items: { $ref: "#/components/schemas/Approval" } }
+        otherApplications:
+          type: array
+          items:
+            type: object
+            required: [id, status, stageKey, appliedAt, jobTitle]
+            properties:
+              id: { type: string, format: uuid }
+              status: { type: string }
+              stageKey: { type: string }
+              appliedAt: { type: string, format: date-time }
+              jobTitle: { type: string }
+        hiddenOtherApplications: { type: integer }
+        actions:
+          type: array
+          items:
+            type: object
+            required: [kind, label]
+            properties:
+              kind: { type: string, enum: [manual, reject, approve, decline] }
+              to: { type: string }
+              label: { type: string }
+        stages:
+          type: array
+          items:
+            type: object
+            required: [key, name, type]
+            properties: { key: { type: string }, name: { type: string }, type: { type: string } }
+        canRevealIdentity: { type: boolean }
+    TransitionResult:
+      type: object
+      required: [duplicate, changed, fromStage, toStage, status, version, note]
+      properties:
+        duplicate: { type: boolean }
+        changed: { type: boolean }
+        fromStage: { type: string }
+        toStage: { type: string }
+        status: { type: string }
+        version: { type: integer }
+        note: { type: string }
+    Rule:
+      type: object
+      properties:
+        all: { type: array, items: { $ref: "#/components/schemas/Rule" } }
+        any: { type: array, items: { $ref: "#/components/schemas/Rule" } }
+        field: { type: string }
+        op: { type: string, enum: [eq, neq, gt, gte, lt, lte, in] }
+        value: {}
+    WorkflowStage:
+      type: object
+      required: [key, name, type]
+      properties:
+        key: { type: string }
+        name: { type: string }
+        type: { type: string, enum: [screening, interview, assessment, approval, decision, terminal] }
+        outcome: { type: string, enum: [hired, rejected] }
+        assessmentKey: { type: string }
+        approval:
+          type: object
+          required: [roles, quorum, allowSelfApproval]
+          properties:
+            roles: { type: array, items: { type: string } }
+            quorum: { type: integer, minimum: 1, maximum: 10 }
+            allowSelfApproval: { type: boolean }
+    WorkflowEdge:
+      type: object
+      required: [id, from, to, order, trigger, label]
+      properties:
+        id: { type: string }
+        from: { type: string }
+        to: { type: string }
+        order: { type: integer }
+        trigger: { type: string, enum: [manual, event, approval] }
+        event: { type: string }
+        when: { $ref: "#/components/schemas/Rule" }
+        default: { type: boolean }
+        label: { type: string }
+    WorkflowDefinition:
+      type: object
+      required: [start, stages, edges]
+      properties:
+        start: { type: string }
+        stages: { type: array, maxItems: 50, items: { $ref: "#/components/schemas/WorkflowStage" } }
+        edges: { type: array, maxItems: 200, items: { $ref: "#/components/schemas/WorkflowEdge" } }
+    Issue:
+      type: object
+      required: [path, code, message]
+      properties: { path: { type: string }, code: { type: string }, message: { type: string } }
+    SimStep:
+      type: object
+      required: [kind]
+      properties:
+        kind: { type: string, enum: [manual, event, approval, reject] }
+        to: { type: string }
+        event: { type: string }
+        facts: { type: object, additionalProperties: true }
+    WorkflowVersion:
+      type: object
+      required: [id, versionNo, publishedAt, notes, publishedByName, active]
+      properties:
+        id: { type: string, format: uuid }
+        versionNo: { type: integer }
+        publishedAt: { type: string, format: date-time }
+        notes: { type: string }
+        publishedByName: { type: [string, "null"] }
+        active: { type: boolean }
+    WorkflowDetail:
+      type: object
+      required: [id, key, name, draft, draftRevision, activeVersionId, issues, versions, activations, catalog]
+      properties:
+        id: { type: string, format: uuid }
+        key: { type: string }
+        name: { type: string }
+        draft: { $ref: "#/components/schemas/WorkflowDefinition" }
+        draftRevision: { type: integer }
+        activeVersionId: { type: [string, "null"], format: uuid }
+        issues: { type: array, items: { $ref: "#/components/schemas/Issue" } }
+        versions: { type: array, items: { $ref: "#/components/schemas/WorkflowVersion" } }
+        activations:
+          type: array
+          items:
+            type: object
+            required: [id, action, reason, createdAt, versionNo]
+            properties:
+              id: { type: integer }
+              action: { type: string, enum: [publish, rollback] }
+              reason: { type: string }
+              createdAt: { type: string, format: date-time }
+              versionNo: { type: integer }
+        catalog:
+          type: object
+          required: [stageTypes, triggers, events, fields, ops]
+          properties:
+            stageTypes: { type: array, items: { type: string } }
+            triggers: { type: array, items: { type: string } }
+            events: { type: array, items: { type: string } }
+            fields: { type: object, additionalProperties: { type: object, required: [type], properties: { type: { type: string }, values: { type: array, items: { type: string } } } } }
+            ops: { type: object, additionalProperties: { type: array, items: { type: string } } }

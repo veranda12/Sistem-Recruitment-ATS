@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,9 +24,6 @@ import (
 	"ats/internal/notify"
 	"ats/internal/platform"
 
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
-	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -99,19 +95,9 @@ func resetSchema(t *testing.T, dsn string) {
 		t.Fatal(err)
 	}
 	conn.Close(ctx)
-	src, err := iofs.New(db.Migrations, "migrations")
-	if err != nil {
-		t.Fatal(err)
-	}
-	url := "pgx5://" + strings.TrimPrefix(strings.TrimPrefix(dsn, "postgres://"), "postgresql://")
-	m, err := migrate.NewWithSourceInstance("iofs", src, url)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+	if _, _, err := db.MigrateUp(dsn); err != nil {
 		t.Fatalf("migrasi: %v", err)
 	}
-	m.Close()
 }
 
 // client adalah browser tiruan: cookie jar + token CSRF dari respons sesi.
@@ -255,4 +241,3 @@ func completeProfile(name, city string, version int) map[string]any {
 }
 
 func idOf(r resp, k string) string { return fmt.Sprint(r.Body[k]) }
-

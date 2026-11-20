@@ -36,9 +36,9 @@ func Normalize(raw string) (string, error) {
 
 // Keys memegang kunci enkripsi dan kunci blind index secara terpisah, masing-masing berversi.
 type Keys struct {
-	EncKey      []byte
-	EncVersion  int
-	IndexKey    []byte
+	EncKey       []byte
+	EncVersion   int
+	IndexKey     []byte
 	IndexVersion int
 }
 

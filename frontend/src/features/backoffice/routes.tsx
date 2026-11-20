@@ -1,0 +1,91 @@
+import { useState } from "react";
+import { Link, NavLink, Navigate, Route, Routes, useNavigate } from "react-router";
+import { useSession } from "../../lib/session";
+import { Button, cx } from "../../ui";
+import { ApplicationDetail, ApplicationsPage } from "./applications";
+import { JobsPage } from "./jobs";
+import { WorkflowEditor, WorkflowsPage } from "./workflows";
+
+type NavItem = { to: string; label: string; perm: string };
+const items: NavItem[] = [
+  { to: "/staf/lamaran", label: "Lamaran", perm: "applications.read" },
+  { to: "/staf/lowongan", label: "Lowongan", perm: "jobs.read" },
+  { to: "/staf/workflow", label: "Workflow", perm: "workflows.read" },
+];
+
+export default function BackofficeRoutes() {
+  const { session, can, logout } = useSession();
+  const nav = useNavigate();
+  const [menu, setMenu] = useState(false);
+  const visible = items.filter((i) => can(i.perm));
+  const first = visible[0]?.to;
+
+  const sidebar = (
+    <nav aria-label="Menu back office" className="flex flex-col gap-1">
+      {visible.map((i) => (
+        <NavLink
+          key={i.to}
+          to={i.to}
+          onClick={() => setMenu(false)}
+          className={({ isActive }) => cx("flex min-h-11 items-center rounded-md px-3 font-medium", isActive ? "bg-primary-soft text-primary" : "text-ink hover:bg-white")}
+        >
+          {i.label}
+        </NavLink>
+      ))}
+    </nav>
+  );
+
+  return (
+    <div className="min-h-dvh bg-white">
+      <a href="#konten" className="skip-link">
+        Lewati ke konten
+      </a>
+      <header className="flex items-center justify-between gap-2 border-b border-line px-4 py-2">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" className="lg:hidden" aria-expanded={menu} aria-controls="menu-staf" onClick={() => setMenu((m) => !m)}>
+            Menu
+          </Button>
+          <Link to="/staf" className="text-lg font-bold">
+            Back office rekrutmen
+          </Link>
+        </div>
+        <div className="flex items-center gap-2 text-sm">
+          <span className="hidden text-ink-2 sm:inline">
+            {session?.user.name} · {session?.roles.join(", ")}
+          </span>
+          <Button
+            variant="ghost"
+            onClick={async () => {
+              await logout();
+              nav("/masuk");
+            }}
+          >
+            Keluar
+          </Button>
+        </div>
+      </header>
+      <div className="flex">
+        <aside className="hidden w-56 shrink-0 border-r border-line bg-surface p-3 lg:block">{sidebar}</aside>
+        {menu ? (
+          <div id="menu-staf" className="fixed inset-x-0 top-[61px] z-30 border-b border-line bg-surface p-3 lg:hidden">
+            {sidebar}
+          </div>
+        ) : null}
+        <main id="konten" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 lg:px-8">
+          <Routes>
+            <Route index element={first ? <Navigate to={first} replace /> : <NoAccess />} />
+            <Route path="lamaran" element={<ApplicationsPage />} />
+            <Route path="lamaran/:id" element={<ApplicationDetail />} />
+            <Route path="lowongan" element={<JobsPage />} />
+            <Route path="workflow" element={<WorkflowsPage />} />
+            <Route path="workflow/:id" element={<WorkflowEditor />} />
+          </Routes>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function NoAccess() {
+  return <p className="text-ink-2">Peran Anda belum memiliki menu di back office. Hubungi pengelola akses.</p>;
+}

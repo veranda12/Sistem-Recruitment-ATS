@@ -390,7 +390,7 @@ func (h *Handler) GetApplication(c *gin.Context) {
 		"stage": gin.H{"key": app.StageKey, "name": app.StageName, "type": app.StageType}, "appliedAt": app.AppliedAt,
 		"stageEnteredAt": app.StageEnteredAt, "version": app.Version, "shortlisted": app.Shortlisted,
 		"candidate": gin.H{"id": app.CandidateUserID, "name": app.CandidateName, "email": app.CandidateEmail},
-		"snapshot": json.RawMessage(snap.Profile), "snapshotAt": snap.CapturedAt,
+		"snapshot":  json.RawMessage(snap.Profile), "snapshotAt": snap.CapturedAt,
 		"history": ts, "approvals": approvals, "otherApplications": visible, "hiddenOtherApplications": hidden,
 		"actions": actions, "stages": stages, "canRevealIdentity": p.Can(auth.PermIdentityReveal, res),
 	})
@@ -534,4 +534,3 @@ func strp(s string) *string {
 	}
 	return &s
 }
-

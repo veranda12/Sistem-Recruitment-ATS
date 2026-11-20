@@ -116,7 +116,7 @@ func Seed(ctx context.Context, tx pgx.Tx, slug, pwHash string, keys identity.Key
 
 	type job struct {
 		slug, title, unit, loc, etype, status, desc, req string
-		closesInDays                                      int
+		closesInDays                                     int
 	}
 	jobs := []job{
 		{"operator-produksi-karawang", "Operator Produksi", "OPS", "KRW", "contract", "published",

@@ -41,10 +41,10 @@ func (p *Principal) IsCandidate() bool { return p != nil && p.Kind == "candidate
 
 // Sessions mengelola cookie, validasi sesi dan CSRF.
 type Sessions struct {
-	Pool       *pgxpool.Pool
-	Q          *sqlc.Queries
-	Cfg        platform.Config
-	secure     bool
+	Pool   *pgxpool.Pool
+	Q      *sqlc.Queries
+	Cfg    platform.Config
+	secure bool
 }
 
 func NewSessions(pool *pgxpool.Pool, cfg platform.Config) *Sessions {
