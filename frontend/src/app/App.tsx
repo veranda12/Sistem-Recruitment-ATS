@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router";
-import { SessionProvider, useSession } from "../lib/session";
+import { onLogout, SessionProvider, useSession } from "../lib/session";
 import { ToastProvider } from "../ui";
 import { PublicLayout } from "./PublicLayout";
 
@@ -9,6 +9,20 @@ const Career = lazy(() => import("../features/career/routes"));
 const AuthPages = lazy(() => import("../features/auth/routes"));
 const Candidate = lazy(() => import("../features/candidate/routes"));
 const Backoffice = lazy(() => import("../features/backoffice/routes"));
+const Exam = lazy(() => import("../features/exam/routes"));
+
+// Draft ujian lokal dihapus saat logout atau ganti akun (perangkat bersama).
+onLogout(
+  () =>
+    new Promise<void>((resolve) => {
+      try {
+        const r = indexedDB.deleteDatabase("ats-exam");
+        r.onsuccess = r.onerror = r.onblocked = () => resolve();
+      } catch {
+        resolve();
+      }
+    }),
+);
 
 function Loading() {
   return (
@@ -47,6 +61,14 @@ export function App() {
                 element={
                   <RequireKind kind="staff">
                     <Backoffice />
+                  </RequireKind>
+                }
+              />
+              <Route
+                path="/ujian/*"
+                element={
+                  <RequireKind kind="candidate">
+                    <Exam />
                   </RequireKind>
                 }
               />

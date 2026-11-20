@@ -23,6 +23,8 @@ tags:
   - name: kandidat
   - name: staf
   - name: workflow
+  - name: ujian
+  - name: ujian-staf
 paths:
   /org:
     get:
@@ -537,6 +539,214 @@ paths:
                 reason: { type: string, minLength: 5 }
       responses:
         "200": { description: Versi diaktifkan untuk lamaran baru }
+  /me/exam-invitations:
+    get:
+      tags: [ujian]
+      summary: Undangan ujian milik kandidat
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, serverTime]
+                properties:
+                  serverTime: { type: string, format: date-time }
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, status, extraMinutes, scheduleName, opensAt, closesAt, durationMinutes, packageName, jobTitle, attemptId, attemptStatus]
+                      properties:
+                        id: { type: string, format: uuid }
+                        status: { type: string, enum: [invited, started, submitted, expired, cancelled] }
+                        extraMinutes: { type: integer }
+                        scheduleName: { type: string }
+                        opensAt: { type: string, format: date-time }
+                        closesAt: { type: string, format: date-time }
+                        durationMinutes: { type: integer }
+                        packageName: { type: string }
+                        jobTitle: { type: string }
+                        attemptId: { type: [string, "null"], format: uuid }
+                        attemptStatus: { type: [string, "null"] }
+  /exam-invitations/{id}/start:
+    post:
+      tags: [ujian]
+      summary: Mulai attempt. Retry mengembalikan attempt yang sama (200); attempt baru 201.
+      description: Mengunci undangan, memeriksa peserta, jendela jadwal, kuota attempt. started_at dan deadline_at dari jam server (termasuk akomodasi).
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      responses:
+        "200": { description: Attempt berjalan, content: { application/json: { schema: { $ref: "#/components/schemas/Attempt" } } } }
+        "201": { description: Attempt baru, content: { application/json: { schema: { $ref: "#/components/schemas/Attempt" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { description: schedule_not_open | schedule_closed | attempts_exhausted | invitation_cancelled, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+  /exam-attempts/{id}:
+    get:
+      tags: [ujian]
+      summary: Resume. Cache-Control private, no-store. Tidak memuat kunci, bobot, rubric, seed, atau ID opsi asli.
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/Attempt" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+  /exam-attempts/{id}/answers:
+    put:
+      tags: [ujian]
+      summary: Autosave batch atomik (maks 50 item, body 256 KiB). ACK setelah commit.
+      description: |
+        Retry dengan opId sama mengembalikan ACK yang sama byte-per-byte (receipt), termasuk setelah deadline.
+        opId sama dengan payload berbeda menghasilkan 409 idempotency_mismatch.
+        baseRevision tiap item harus sama dengan revisi server; bila tidak, 409 answer_conflict dengan state server dan tidak ada item yang diterapkan.
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [opId, answers]
+              properties:
+                opId: { type: string, minLength: 8, maxLength: 100 }
+                answers: { type: array, minItems: 1, maxItems: 50, items: { $ref: "#/components/schemas/AnswerInput" } }
+      responses:
+        "200":
+          description: ACK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [revision, savedAt, items]
+                properties:
+                  revision: { type: integer }
+                  savedAt: { type: string, format: date-time }
+                  items: { type: array, items: { type: object, required: [itemId, revision], properties: { itemId: { type: string, format: uuid }, revision: { type: integer } } } }
+        "409": { description: answer_conflict | deadline_passed | attempt_finalized | idempotency_mismatch, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+        "422": { $ref: "#/components/responses/Error" }
+  /exam-attempts/{id}/submit:
+    post:
+      tags: [ujian]
+      summary: Finalisasi sekali. Idempotency-Key wajib. Retry identik mengembalikan receipt sama.
+      description: Lewat deadline, attempt difinalisasi dengan jawaban committed terakhir dan dijawab 409 deadline_passed dengan details.receipt.
+      parameters:
+        - { $ref: "#/components/parameters/Id" }
+        - { $ref: "#/components/parameters/CSRF" }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 8, maxLength: 128 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expectedRevision]
+              properties:
+                expectedRevision: { type: integer }
+                opId: { type: string }
+                answers: { type: array, items: { $ref: "#/components/schemas/AnswerInput" } }
+      responses:
+        "200": { description: Receipt, content: { application/json: { schema: { $ref: "#/components/schemas/Receipt" } } } }
+        "409": { description: stale_revision | deadline_passed | attempt_finalized, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+  /exam-attempts/{id}/heartbeat:
+    post:
+      tags: [ujian]
+      summary: Best-effort, tidak memperpanjang sesi. Dibatasi 10 per menit per attempt.
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object, required: [serverTime], properties: { serverTime: { type: string, format: date-time } } } } } }
+  /exam-schedules:
+    get:
+      tags: [ujian-staf]
+      responses: { "200": { description: Daftar jadwal } }
+    post:
+      tags: [ujian-staf]
+      summary: Jadwal baru memakai versi paket terbit terbaru (exams.manage)
+      parameters: [{ $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [packageKey, name, opensAt, closesAt]
+              properties:
+                packageKey: { type: string }
+                name: { type: string }
+                opensAt: { type: string, format: date-time }
+                closesAt: { type: string, format: date-time }
+                maxAttempts: { type: integer, minimum: 1, maximum: 5 }
+      responses:
+        "201": { description: Dibuat }
+        "422": { $ref: "#/components/responses/Error" }
+  /exam-schedules/{id}/invitations:
+    post:
+      tags: [ujian-staf]
+      summary: Undangan massal; scope diperiksa per lamaran (applications.transition atau exams.manage)
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [applicationIds]
+              properties:
+                applicationIds: { type: array, minItems: 1, maxItems: 500, items: { type: string, format: uuid } }
+                extraMinutes: { type: integer, minimum: 0, maximum: 240 }
+                reason: { type: string }
+      responses:
+        "200":
+          description: Hasil per lamaran
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results]
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      required: [applicationId, outcome]
+                      properties:
+                        applicationId: { type: string, format: uuid }
+                        outcome: { type: string, enum: [invited, already_invited, not_found, wrong_stage] }
+  /exam-schedules/{id}/monitor:
+    get:
+      tags: [ujian-staf]
+      summary: Monitoring agregat (satu query); membedakan last_seen, jawaban committed, dan status submit
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses: { "200": { description: OK } }
+  /exam-schedules/{id}/release:
+    post:
+      tags: [ujian-staf]
+      summary: Rilis nilai (results.release per scope). Tiap rilis menulis event outbox yang memicu workflow.
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object, required: [released], properties: { released: { type: integer } } } } } }
+  /exam-attempts/{id}/review:
+    get:
+      tags: [ujian-staf]
+      summary: Tampilan penilai esai tanpa identitas kandidat (exams.grade)
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses: { "200": { description: OK } }
+  /exam-attempts/{id}/essay-grades:
+    post:
+      tags: [ujian-staf]
+      summary: Nilai esai (append-only). Regrade wajib alasan dan tidak memicu transisi workflow kedua.
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [itemId, points]
+              properties:
+                itemId: { type: string, format: uuid }
+                points: { type: number, minimum: 0 }
+                reason: { type: string }
+      responses:
+        "200": { description: Hasil terbaru }
+        "422": { $ref: "#/components/responses/Error" }
 components:
   parameters:
     Slug: { name: slug, in: path, required: true, schema: { type: string, pattern: "^[a-z0-9-]{3,120}$" } }
@@ -562,6 +772,66 @@ components:
       description: Pesan netral
       content: { application/json: { schema: { type: object, required: [message], properties: { message: { type: string } } } } }
   schemas:
+    AnswerValue:
+      type: [object, "null"]
+      properties:
+        selected: { type: array, items: { type: string }, description: ID opsi opaque per attempt }
+        text: { type: string, maxLength: 10000 }
+    AnswerInput:
+      type: object
+      required: [itemId, value, baseRevision]
+      properties:
+        itemId: { type: string, format: uuid }
+        value: { $ref: "#/components/schemas/AnswerValue" }
+        baseRevision: { type: integer, minimum: 0 }
+    Receipt:
+      type: object
+      required: [code, reason, submittedAt, finalRevision, answerDigest, answered, total]
+      properties:
+        code: { type: string }
+        reason: { type: string, enum: [submitted, expired] }
+        submittedAt: { type: string, format: date-time }
+        finalRevision: { type: integer }
+        answerDigest: { type: string }
+        answered: { type: integer }
+        total: { type: integer }
+    Attempt:
+      type: object
+      required: [id, status, serverTime, startedAt, deadlineAt, revision, title, items, answers, receipt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [in_progress, submitted, expired] }
+        serverTime: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time }
+        deadlineAt: { type: string, format: date-time }
+        revision: { type: integer }
+        title: { type: string }
+        items:
+          type: array
+          items:
+            type: object
+            required: [itemId, number, kind, stem, options]
+            properties:
+              itemId: { type: string, format: uuid }
+              number: { type: integer }
+              kind: { type: string, enum: [single, multiple, essay] }
+              stem: { type: string }
+              options: { type: array, items: { type: object, required: [id, text], properties: { id: { type: string }, text: { type: string } } } }
+              maxChars: { type: integer }
+        answers:
+          type: array
+          items:
+            type: object
+            required: [itemId, value, revision, updatedAt]
+            properties:
+              itemId: { type: string, format: uuid }
+              value: { $ref: "#/components/schemas/AnswerValue" }
+              revision: { type: integer }
+              updatedAt: { type: string, format: date-time }
+        receipt:
+          oneOf:
+            - $ref: "#/components/schemas/Receipt"
+            - type: "null"
     ErrorBody:
       type: object
       required: [error, requestId]

@@ -52,6 +52,9 @@ export function PublicLayout() {
                 <NavLink to="/akun" end className={navCls}>
                   Lamaran saya
                 </NavLink>
+                <NavLink to="/akun/ujian" className={navCls}>
+                  Ujian
+                </NavLink>
                 <NavLink to="/akun/profil" className={navCls}>
                   Profil
                 </NavLink>

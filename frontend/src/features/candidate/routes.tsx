@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, Route, Routes, useParams, useSearchParams } from "react-router";
+import { Link, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router";
 import { ApiError, post, put, type Schemas } from "../../lib/api";
 import { fmtDate, fmtDateTime, statusLabel } from "../../lib/format";
 import { useSession } from "../../lib/session";
@@ -13,6 +13,7 @@ export default function CandidateRoutes() {
       <Route path="profil" element={<ProfilePage />} />
       <Route path="lamaran/:id" element={<ApplicationPage />} />
       <Route path="notifikasi" element={<Inbox />} />
+      <Route path="ujian" element={<ExamInvitations />} />
     </Routes>
   );
 }
@@ -384,6 +385,85 @@ function Inbox() {
               <p className="mt-2 whitespace-pre-line text-[15px]">{n.body}</p>
             </li>
           ))}
+        </ul>
+      </PageState>
+    </div>
+  );
+}
+
+type Invitation = {
+  id: string;
+  status: string;
+  extraMinutes: number;
+  scheduleName: string;
+  opensAt: string;
+  closesAt: string;
+  durationMinutes: number;
+  packageName: string;
+  jobTitle: string;
+  attemptId: string | null;
+  attemptStatus: string | null;
+};
+
+const invStatus: Record<string, string> = { invited: "Belum dimulai", started: "Sedang berjalan", submitted: "Sudah dikirim", expired: "Waktu habis", cancelled: "Dibatalkan" };
+
+function ExamInvitations() {
+  const q = useQuery<{ items: Invitation[]; serverTime: string }>("/me/exam-invitations");
+  const nav = useNavigate();
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState<ApiError | null>(null);
+  const start = async (inv: Invitation) => {
+    setBusy(inv.id);
+    setErr(null);
+    try {
+      const a = await post<{ id: string }>(`/exam-invitations/${inv.id}/start`);
+      nav(`/ujian/${a.id}`);
+    } catch (e) {
+      setErr(e as ApiError);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const serverNow = q.data ? Date.parse(q.data.serverTime) : 0;
+  return (
+    <div className="max-w-3xl">
+      <PageHeader title="Ujian" subtitle="Kerjakan dengan koneksi stabil. Jawaban disimpan otomatis dan waktu dihitung oleh server." />
+      {err ? (
+        <div className="mb-4">
+          <Alert tone="danger">{err.message}</Alert>
+        </div>
+      ) : null}
+      <PageState loading={q.loading} error={q.error} onRetry={q.reload} empty={q.data?.items.length === 0} emptyText="Belum ada undangan ujian.">
+        <ul className="divide-y divide-line border-y border-line">
+          {q.data?.items.map((inv) => {
+            const open = serverNow >= Date.parse(inv.opensAt) && serverNow < Date.parse(inv.closesAt);
+            return (
+              <li key={inv.id} className="flex flex-wrap items-center justify-between gap-3 py-4">
+                <div>
+                  <p className="text-[17px] font-semibold">{inv.packageName}</p>
+                  <p className="text-sm text-ink-2">
+                    {inv.jobTitle} · {inv.scheduleName} · {inv.durationMinutes + inv.extraMinutes} menit
+                  </p>
+                  <p className="text-sm text-ink-2">
+                    Dibuka {fmtDateTime(inv.opensAt)} sampai {fmtDateTime(inv.closesAt)} · {invStatus[inv.status] ?? inv.status}
+                  </p>
+                </div>
+                {inv.status === "started" && inv.attemptId ? (
+                  <Button variant="primary" onClick={() => nav(`/ujian/${inv.attemptId}`)}>
+                    Lanjutkan ujian
+                  </Button>
+                ) : inv.status === "invited" ? (
+                  <Button variant="primary" disabled={!open} busy={busy === inv.id} onClick={() => start(inv)}>
+                    {open ? "Mulai ujian" : "Belum dibuka"}
+                  </Button>
+                ) : inv.attemptId ? (
+                  <Link className="font-semibold text-primary underline" to={`/ujian/${inv.attemptId}`}>
+                    Lihat bukti penerimaan
+                  </Link>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       </PageState>
     </div>

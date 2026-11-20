@@ -25,6 +25,8 @@ export const e2eEnv: Record<string, string> = {
   WORKER_POLL_INTERVAL: "300ms",
   SEED_PASSWORD: "Uji-Sandi-2026",
   LOG_LEVEL: "warn",
+  // Seluruh suite login dari satu IP; kuota dikalikan agar limiter tidak memblokir uji. Bukan untuk produksi.
+  RATE_LIMIT_SCALE: "20",
 };
 
 export default defineConfig({

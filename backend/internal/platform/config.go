@@ -41,6 +41,9 @@ type Config struct {
 
 	WorkerPollInterval time.Duration
 	WorkerConcurrency  int
+
+	// RateLimitScale mengalikan semua kuota rate limit. Hanya untuk uji otomatis dari satu IP; wajib 1 di produksi.
+	RateLimitScale int
 }
 
 func (c Config) IsProduction() bool { return c.Env == "production" }
@@ -116,6 +119,7 @@ func LoadConfig() (Config, error) {
 
 		WorkerPollInterval: dur("WORKER_POLL_INTERVAL", time.Second),
 		WorkerConcurrency:  atoi("WORKER_CONCURRENCY", 4),
+		RateLimitScale:     atoi("RATE_LIMIT_SCALE", 1),
 	}
 	if tp := os.Getenv("TRUSTED_PROXIES"); tp != "" {
 		for _, p := range strings.Split(tp, ",") {
@@ -135,6 +139,9 @@ func LoadConfig() (Config, error) {
 		errs = append(errs, "PUBLIC_ORIGIN harus URL absolut, contoh https://karier.contoh.id")
 	} else if c.IsProduction() && u.Scheme != "https" {
 		errs = append(errs, "PUBLIC_ORIGIN wajib https di produksi")
+	}
+	if c.RateLimitScale < 1 || c.RateLimitScale > 100 || (c.IsProduction() && c.RateLimitScale != 1) {
+		errs = append(errs, "RATE_LIMIT_SCALE harus 1..100 dan tepat 1 di produksi")
 	}
 	if c.DBMaxConns < 2 || c.DBMaxConns > 200 {
 		errs = append(errs, "DB_MAX_CONNS di luar rentang 2..200")

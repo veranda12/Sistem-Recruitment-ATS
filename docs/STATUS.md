@@ -22,11 +22,12 @@ Terakhir diperbarui: 2026-11-19. Dokumen ini mencatat hasil **aktual** yang dija
 | 1 Inventaris & rencana | Selesai | `docs/architecture/architecture.md`, `docs/architecture/adr/README.md`, `docs/product/assumptions.md`, `docs/product/plan.md` |
 | 2 Foundation | Backend selesai; design system + 3 layout frontend selesai | config tervalidasi, logger JSON, `/healthz` `/readyz`, sesi + CSRF, RBAC scope, seed |
 | 3 Vertical slice | Selesai: backend, UI, dan E2E Playwright lulus | karier -> registrasi -> profil -> apply -> recruiter -> transisi teraudit; workflow publish/simulate/rollback/approval |
-| 4-10 | Belum dimulai | |
+| 4 Ujian | Inti selesai: protokol start/resume/save/submit/expiry, skoring, esai buta + regrade, rilis -> workflow, monitoring, ruang ujian web (autosave, offline, draft IndexedDB, receipt), halaman staf. Belum: editor bank soal + impor tervalidasi, editor paket/versi via UI (saat ini dari seed), uji race lintas dua instance API | |
+| 5-10 | Belum dimulai | |
 
 ## Migrasi terakhir
 
-`0003_workflow_recruitment` (versi skema 3).
+`0004_exam` (versi skema 4).
 
 ## Hasil uji aktual
 
@@ -58,12 +59,20 @@ DATABASE_URL_TEST="postgres://pos:pos@localhost:5432/ats_test?sslmode=disable" g
 | Playwright `cd frontend && npx playwright test` (desktop 1440: portal+filter URL+tutup; registrasi->verifikasi email->profil->apply 2 lowongan->apply ulang ditolak; recruiter OPS pindah tahap beralasan, histori setelah refresh, recruiter TI 404; HR reveal NIK; kandidat lihat tahap + inbox; keyboard + skip link + menu sesuai peran. Mobile 390: tanpa scroll horizontal, CTA terlihat, menu drawer staf) | **8 lulus**, diulang 3x stabil | 2026-11-20 |
 | Tinjauan screenshot (`frontend/test-results/screens/`) | temuan: sidebar staf tidak setinggi halaman, peran tampil sebagai kunci mentah; keduanya diperbaiki | 2026-11-20 |
 
+| `TestExamProtocolOnRealDB`: start retry = attempt sama; DTO tanpa answerKey/weight/seed/rubric/ID opsi asli; Cache-Control private,no-store; kandidat lain 404; retry opId -> ACK byte-identik; opId sama payload beda 409; revisi basi -> 409 + state server, batch tidak diterapkan; dua tab serentak -> tepat 1 diterima; submit revisi basi 409; retry submit identik -> receipt sama; key lain 409; save setelah final 409; retry ACK lama setelah final tetap dikembalikan; 1 submission; nilai objektif 6/8 + esai pending -> score null; snapshot = revisi committed (rekonsiliasi SQL); review examiner tanpa nama/NIK; nilai > bobot 422; esai 1.5 -> 93.75; examiner tidak bisa rilis; rilis HR -> worker -> interview; regrade wajib alasan; replay event rilis tidak menambah transisi; 1 notifikasi rilis | lulus | 2026-11-20 |
+| `TestExamBranchesDeadlineAndExpiry`: semua salah -> ditolak; esai belum dinilai saat rilis -> review; submit membawa batch terakhir dalam satu transaksi; save lewat deadline 409; ACK sebelum deadline tetap bisa diambil ulang; submit lewat deadline -> finalisasi expired + receipt; expiry worker vs submit serentak -> 1 submission, 1 hasil; nilai 1 benar = 12.5; monitor membedakan submitted/expired | lulus | 2026-11-20 |
+| Vitest `autosave.test.ts` (10): debounce 800 ms, batas 3 detik saat mengetik terus, navigasi tanpa perubahan tanpa write, serialisasi + penggabungan edit, tersimpan hanya setelah ACK, retry opId+payload sama, konflik eksplisit (pakai milik saya / server), flush sebelum submit, final menolak write, pemulihan draft | lulus | 2026-11-20 |
+| Vitest `draftStore.test.ts` (5): kunci user+attempt, TTL, hapus saat finalisasi/logout, kalibrasi offset jam server (jam klien mundur tidak menambah waktu) | lulus | 2026-11-20 |
+| Playwright penuh (13 tes, desktop 1440 + mobile 390): ditambah ujian lewat browser (simpan -> offline "hanya di perangkat" -> reconnect "tersimpan di server" -> refresh memulihkan draft -> tandai ragu -> konfirmasi -> bukti penerimaan, refresh menampilkan bukti sama), monitoring staf + rilis memicu transisi event, examiner tanpa identitas, ruang ujian ponsel (drawer navigator, tanpa scroll horizontal, opsi terakhir dapat diklik di atas action bar) | **13 lulus**, 2 kali berturut-turut | 2026-11-20 |
+| Run E2E pertama setelah ujian ditambah | 3 gagal: 429 rate limit login (seluruh suite dari satu IP). Solusi: `RATE_LIMIT_SCALE` (default 1, ditolak bila bukan 1 di produksi), E2E memakai 20 | 2026-11-20 |
+
 ## Blocker / keterbatasan saat ini
 
 
+- Race detector Go (`go test -race`) tidak dapat dijalankan: butuh cgo + gcc, tidak terpasang di mesin Windows ini.
 - Redis tidak tersedia di mesin ini: cache publik dan limiter global belum teruji end-to-end; jalur degraded (limiter lokal) yang dipakai.
 - Frontend belum ada.
 
 ## Langkah konkret berikutnya
 
-Fase 4: exam slice (undangan -> start idempoten -> resume -> autosave batch berevisi + receipt -> submit sekali -> expiry), lalu skoring, rilis nilai yang memicu event workflow.
+Fase 5: komunikasi (template berversi + riwayat pengiriman + retry di UI), dashboard/laporan + ekspor CSV, admin pengguna/peran (cegah hapus admin terakhir), pengaturan berversi, metrik Prometheus. Sisa fase 4: editor bank soal dan impor tervalidasi.

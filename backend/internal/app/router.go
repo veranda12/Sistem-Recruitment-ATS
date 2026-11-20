@@ -70,8 +70,12 @@ func NewRouter(d Deps) *gin.Engine {
 	r.GET("/readyz", ready)
 
 	ip := func(c *gin.Context) string { return c.ClientIP() }
+	scale := max(d.Cfg.RateLimitScale, 1)
+	rl := func(name string, perMin int, key func(*gin.Context) string) gin.HandlerFunc {
+		return d.Limiter.RateLimit(name, perMin*scale, time.Minute, key)
+	}
 	api := r.Group("/api/v1", platform.BodyLimit(1<<20), sessions.Load(), sessions.CSRF(),
-		d.Limiter.RateLimit("api", 600, time.Minute, ip))
+		rl("api", 600, ip))
 	interactive := platform.Deadline(10 * time.Second)
 	critical := platform.Deadline(5 * time.Second)
 
@@ -83,13 +87,13 @@ func NewRouter(d Deps) *gin.Engine {
 
 	a := api.Group("/auth", interactive)
 	a.GET("/session", authH.Session)
-	a.POST("/login", d.Limiter.RateLimit("login", 20, time.Minute, ip), authH.Login)
+	a.POST("/login", rl("login", 20, ip), authH.Login)
 	a.POST("/logout", authH.Logout)
-	a.POST("/register", d.Limiter.RateLimit("register", 10, time.Minute, ip), rec.Register)
-	a.POST("/verify-email", d.Limiter.RateLimit("verify", 20, time.Minute, ip), authH.VerifyEmail)
-	a.POST("/resend-verification", auth.RequireAuth(), d.Limiter.RateLimit("resend", 3, time.Minute, ip), authH.ResendVerification)
-	a.POST("/forgot-password", d.Limiter.RateLimit("forgot", 5, time.Minute, ip), authH.ForgotPassword)
-	a.POST("/reset-password", d.Limiter.RateLimit("reset", 10, time.Minute, ip), authH.ResetPassword)
+	a.POST("/register", rl("register", 10, ip), rec.Register)
+	a.POST("/verify-email", rl("verify", 20, ip), authH.VerifyEmail)
+	a.POST("/resend-verification", auth.RequireAuth(), rl("resend", 3, ip), authH.ResendVerification)
+	a.POST("/forgot-password", rl("forgot", 5, ip), authH.ForgotPassword)
+	a.POST("/reset-password", rl("reset", 10, ip), authH.ResetPassword)
 
 	me := api.Group("/me", auth.RequireKind("candidate"), interactive)
 	me.GET("/profile", rec.GetProfile)
@@ -108,7 +112,7 @@ func NewRouter(d Deps) *gin.Engine {
 	cand.GET("/exam-attempts/:id", interactive, ex.Resume)
 	cand.PUT("/exam-attempts/:id/answers", platform.BodyLimit(256<<10), critical, ex.Save)
 	cand.POST("/exam-attempts/:id/submit", platform.BodyLimit(256<<10), critical, ex.Submit)
-	cand.POST("/exam-attempts/:id/heartbeat", d.Limiter.RateLimit("heartbeat", 10, time.Minute, func(c *gin.Context) string { return c.Param("id") }), ex.Heartbeat)
+	cand.POST("/exam-attempts/:id/heartbeat", rl("heartbeat", 10, func(c *gin.Context) string { return c.Param("id") }), ex.Heartbeat)
 
 	staff := api.Group("", auth.RequireKind("staff"), interactive)
 	staff.GET("/staff/jobs", auth.RequireAnyPerm(auth.PermJobsRead), rec.ListStaffJobs)

@@ -1534,10 +1534,685 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/exam-invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Undangan ujian milik kandidat */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: date-time */
+                            serverTime: string;
+                            items: {
+                                /** Format: uuid */
+                                id: string;
+                                /** @enum {string} */
+                                status: "invited" | "started" | "submitted" | "expired" | "cancelled";
+                                extraMinutes: number;
+                                scheduleName: string;
+                                /** Format: date-time */
+                                opensAt: string;
+                                /** Format: date-time */
+                                closesAt: string;
+                                durationMinutes: number;
+                                packageName: string;
+                                jobTitle: string;
+                                /** Format: uuid */
+                                attemptId: string | null;
+                                attemptStatus: string | null;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exam-invitations/{id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mulai attempt. Retry mengembalikan attempt yang sama (200); attempt baru 201.
+         * @description Mengunci undangan, memeriksa peserta, jendela jadwal, kuota attempt. started_at dan deadline_at dari jam server (termasuk akomodasi).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Attempt berjalan */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Attempt"];
+                    };
+                };
+                /** @description Attempt baru */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Attempt"];
+                    };
+                };
+                404: components["responses"]["Error"];
+                /** @description schedule_not_open | schedule_closed | attempts_exhausted | invitation_cancelled */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorBody"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exam-attempts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Resume. Cache-Control private, no-store. Tidak memuat kunci, bobot, rubric, seed, atau ID opsi asli. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Attempt"];
+                    };
+                };
+                404: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exam-attempts/{id}/answers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Autosave batch atomik (maks 50 item, body 256 KiB). ACK setelah commit.
+         * @description Retry dengan opId sama mengembalikan ACK yang sama byte-per-byte (receipt), termasuk setelah deadline.
+         *     opId sama dengan payload berbeda menghasilkan 409 idempotency_mismatch.
+         *     baseRevision tiap item harus sama dengan revisi server; bila tidak, 409 answer_conflict dengan state server dan tidak ada item yang diterapkan.
+         *
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        opId: string;
+                        answers: components["schemas"]["AnswerInput"][];
+                    };
+                };
+            };
+            responses: {
+                /** @description ACK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            revision: number;
+                            /** Format: date-time */
+                            savedAt: string;
+                            items: {
+                                /** Format: uuid */
+                                itemId: string;
+                                revision: number;
+                            }[];
+                        };
+                    };
+                };
+                /** @description answer_conflict | deadline_passed | attempt_finalized | idempotency_mismatch */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorBody"];
+                    };
+                };
+                422: components["responses"]["Error"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exam-attempts/{id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finalisasi sekali. Idempotency-Key wajib. Retry identik mengembalikan receipt sama.
+         * @description Lewat deadline, attempt difinalisasi dengan jawaban committed terakhir dan dijawab 409 deadline_passed dengan details.receipt.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                    "Idempotency-Key": string;
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        expectedRevision: number;
+                        opId?: string;
+                        answers?: components["schemas"]["AnswerInput"][];
+                    };
+                };
+            };
+            responses: {
+                /** @description Receipt */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Receipt"];
+                    };
+                };
+                /** @description stale_revision | deadline_passed | attempt_finalized */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorBody"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exam-attempts/{id}/heartbeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Best-effort, tidak memperpanjang sesi. Dibatasi 10 per menit per attempt. */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: date-time */
+                            serverTime: string;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exam-schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Daftar jadwal */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        /** Jadwal baru memakai versi paket terbit terbaru (exams.manage) */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        packageKey: string;
+                        name: string;
+                        /** Format: date-time */
+                        opensAt: string;
+                        /** Format: date-time */
+                        closesAt: string;
+                        maxAttempts?: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Dibuat */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                422: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exam-schedules/{id}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undangan massal; scope diperiksa per lamaran (applications.transition atau exams.manage) */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        applicationIds: string[];
+                        extraMinutes?: number;
+                        reason?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Hasil per lamaran */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            results: {
+                                /** Format: uuid */
+                                applicationId: string;
+                                /** @enum {string} */
+                                outcome: "invited" | "already_invited" | "not_found" | "wrong_stage";
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exam-schedules/{id}/monitor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Monitoring agregat (satu query); membedakan last_seen, jawaban committed, dan status submit */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exam-schedules/{id}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rilis nilai (results.release per scope). Tiap rilis menulis event outbox yang memicu workflow. */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            released: number;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exam-attempts/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tampilan penilai esai tanpa identitas kandidat (exams.grade) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/exam-attempts/{id}/essay-grades": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Nilai esai (append-only). Regrade wajib alasan dan tidak memicu transisi workflow kedua. */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        itemId: string;
+                        points: number;
+                        reason?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Hasil terbaru */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                422: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AnswerValue: {
+            /** @description ID opsi opaque per attempt */
+            selected?: string[];
+            text?: string;
+        } | null;
+        AnswerInput: {
+            /** Format: uuid */
+            itemId: string;
+            value: components["schemas"]["AnswerValue"];
+            baseRevision: number;
+        };
+        Receipt: {
+            code: string;
+            /** @enum {string} */
+            reason: "submitted" | "expired";
+            /** Format: date-time */
+            submittedAt: string;
+            finalRevision: number;
+            answerDigest: string;
+            answered: number;
+            total: number;
+        };
+        Attempt: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "in_progress" | "submitted" | "expired";
+            /** Format: date-time */
+            serverTime: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            deadlineAt: string;
+            revision: number;
+            title: string;
+            items: {
+                /** Format: uuid */
+                itemId: string;
+                number: number;
+                /** @enum {string} */
+                kind: "single" | "multiple" | "essay";
+                stem: string;
+                options: {
+                    id: string;
+                    text: string;
+                }[];
+                maxChars?: number;
+            }[];
+            answers: {
+                /** Format: uuid */
+                itemId: string;
+                value: components["schemas"]["AnswerValue"];
+                revision: number;
+                /** Format: date-time */
+                updatedAt: string;
+            }[];
+            receipt: components["schemas"]["Receipt"] | null;
+        };
         ErrorBody: {
             requestId: string;
             error: {

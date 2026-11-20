@@ -3,6 +3,7 @@ import { Link, NavLink, Navigate, Route, Routes, useNavigate } from "react-route
 import { useSession } from "../../lib/session";
 import { Button, cx } from "../../ui";
 import { ApplicationDetail, ApplicationsPage } from "./applications";
+import { EssayGrading, ScheduleMonitor, SchedulesPage } from "./exams";
 import { JobsPage } from "./jobs";
 import { WorkflowEditor, WorkflowsPage } from "./workflows";
 
@@ -13,6 +14,7 @@ const items: NavItem[] = [
   { to: "/staf/lamaran", label: "Lamaran", perm: "applications.read" },
   { to: "/staf/lowongan", label: "Lowongan", perm: "jobs.read" },
   { to: "/staf/workflow", label: "Workflow", perm: "workflows.read" },
+  { to: "/staf/ujian", label: "Ujian", perm: "exams.manage" },
 ];
 
 export default function BackofficeRoutes() {
@@ -81,6 +83,9 @@ export default function BackofficeRoutes() {
             <Route path="lowongan" element={<JobsPage />} />
             <Route path="workflow" element={<WorkflowsPage />} />
             <Route path="workflow/:id" element={<WorkflowEditor />} />
+            <Route path="ujian" element={<SchedulesPage />} />
+            <Route path="ujian/:id" element={<ScheduleMonitor />} />
+            <Route path="penilaian/:id" element={<EssayGrading />} />
           </Routes>
         </main>
       </div>
