@@ -30,6 +30,15 @@ type Approval struct {
 	InvalidatedAt  *time.Time `json:"invalidatedAt"`
 }
 
+type AttemptItem struct {
+	AttemptID         uuid.UUID       `json:"attemptId"`
+	ItemID            uuid.UUID       `json:"itemId"`
+	Position          int32           `json:"position"`
+	QuestionVersionID uuid.UUID       `json:"questionVersionId"`
+	OptionOrder       json.RawMessage `json:"optionOrder"`
+	OptionMap         json.RawMessage `json:"optionMap"`
+}
+
 type AuditLog struct {
 	ID          int64           `json:"id"`
 	OrgID       uuid.UUID       `json:"orgId"`
@@ -135,6 +144,125 @@ type EmailToken struct {
 	ExpiresAt   time.Time  `json:"expiresAt"`
 	UsedAt      *time.Time `json:"usedAt"`
 	CreatedAt   time.Time  `json:"createdAt"`
+}
+
+type EssayGrade struct {
+	ID            int64     `json:"id"`
+	AttemptID     uuid.UUID `json:"attemptId"`
+	ItemID        uuid.UUID `json:"itemId"`
+	Points        float64   `json:"points"`
+	RubricVersion int32     `json:"rubricVersion"`
+	AssessorID    uuid.UUID `json:"assessorId"`
+	Reason        string    `json:"reason"`
+	CreatedAt     time.Time `json:"createdAt"`
+}
+
+type ExamAnswer struct {
+	AttemptID uuid.UUID       `json:"attemptId"`
+	ItemID    uuid.UUID       `json:"itemId"`
+	Value     json.RawMessage `json:"value"`
+	Revision  int32           `json:"revision"`
+	OpID      string          `json:"opId"`
+	UpdatedAt time.Time       `json:"updatedAt"`
+}
+
+type ExamAttempt struct {
+	ID               uuid.UUID  `json:"id"`
+	OrgID            uuid.UUID  `json:"orgId"`
+	ParticipantID    uuid.UUID  `json:"participantId"`
+	AttemptNo        int32      `json:"attemptNo"`
+	CandidateUserID  uuid.UUID  `json:"candidateUserId"`
+	PackageVersionID uuid.UUID  `json:"packageVersionId"`
+	Status           string     `json:"status"`
+	StartedAt        time.Time  `json:"startedAt"`
+	DeadlineAt       time.Time  `json:"deadlineAt"`
+	Seed             []byte     `json:"-"`
+	AlgoVersion      int32      `json:"algoVersion"`
+	Revision         int64      `json:"revision"`
+	LastSeenAt       *time.Time `json:"lastSeenAt"`
+	FinalizedAt      *time.Time `json:"finalizedAt"`
+}
+
+type ExamPackage struct {
+	ID        uuid.UUID `json:"id"`
+	OrgID     uuid.UUID `json:"orgId"`
+	Key       string    `json:"key"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type ExamPackageVersion struct {
+	ID                 uuid.UUID   `json:"id"`
+	OrgID              uuid.UUID   `json:"orgId"`
+	PackageID          uuid.UUID   `json:"packageId"`
+	VersionNo          int32       `json:"versionNo"`
+	QuestionVersionIds []uuid.UUID `json:"questionVersionIds"`
+	DurationMinutes    int32       `json:"durationMinutes"`
+	PassScore          float64     `json:"passScore"`
+	ShuffleItems       bool        `json:"shuffleItems"`
+	ShuffleOptions     bool        `json:"shuffleOptions"`
+	PublishedBy        *uuid.UUID  `json:"publishedBy"`
+	PublishedAt        time.Time   `json:"publishedAt"`
+}
+
+type ExamParticipant struct {
+	ID              uuid.UUID  `json:"id"`
+	OrgID           uuid.UUID  `json:"orgId"`
+	ScheduleID      uuid.UUID  `json:"scheduleId"`
+	ApplicationID   uuid.UUID  `json:"applicationId"`
+	CandidateUserID uuid.UUID  `json:"candidateUserId"`
+	ExtraMinutes    int32      `json:"extraMinutes"`
+	Status          string     `json:"status"`
+	InvitedBy       *uuid.UUID `json:"invitedBy"`
+	InvitedAt       time.Time  `json:"invitedAt"`
+}
+
+type ExamResult struct {
+	AttemptID     uuid.UUID  `json:"attemptId"`
+	OrgID         uuid.UUID  `json:"orgId"`
+	ApplicationID uuid.UUID  `json:"applicationId"`
+	Earned        float64    `json:"earned"`
+	MaxPoints     float64    `json:"maxPoints"`
+	Score         *float64   `json:"score"`
+	EssayPending  int32      `json:"essayPending"`
+	Passed        *bool      `json:"passed"`
+	Status        string     `json:"status"`
+	ReleasedAt    *time.Time `json:"releasedAt"`
+	ReleasedBy    *uuid.UUID `json:"releasedBy"`
+	Version       int32      `json:"version"`
+	UpdatedAt     time.Time  `json:"updatedAt"`
+}
+
+type ExamSaveReceipt struct {
+	AttemptID     uuid.UUID `json:"attemptId"`
+	OpID          string    `json:"opId"`
+	PayloadDigest []byte    `json:"-"`
+	Revision      int64     `json:"revision"`
+	Response      []byte    `json:"response"`
+	CreatedAt     time.Time `json:"createdAt"`
+}
+
+type ExamSchedule struct {
+	ID               uuid.UUID  `json:"id"`
+	OrgID            uuid.UUID  `json:"orgId"`
+	PackageVersionID uuid.UUID  `json:"packageVersionId"`
+	Name             string     `json:"name"`
+	OpensAt          time.Time  `json:"opensAt"`
+	ClosesAt         time.Time  `json:"closesAt"`
+	MaxAttempts      int32      `json:"maxAttempts"`
+	CreatedBy        *uuid.UUID `json:"createdBy"`
+	CreatedAt        time.Time  `json:"createdAt"`
+}
+
+type ExamSubmission struct {
+	AttemptID      uuid.UUID       `json:"attemptId"`
+	IdempotencyKey *string         `json:"idempotencyKey"`
+	Reason         string          `json:"reason"`
+	ReceiptCode    string          `json:"receiptCode"`
+	AnswersDigest  []byte          `json:"-"`
+	Snapshot       json.RawMessage `json:"snapshot"`
+	FinalRevision  int64           `json:"finalRevision"`
+	SubmittedAt    time.Time       `json:"submittedAt"`
 }
 
 type Experience struct {
@@ -270,6 +398,36 @@ type ProcessedEvent struct {
 	Consumer    string    `json:"consumer"`
 	EventID     uuid.UUID `json:"eventId"`
 	ProcessedAt time.Time `json:"processedAt"`
+}
+
+type Question struct {
+	ID        uuid.UUID `json:"id"`
+	OrgID     uuid.UUID `json:"orgId"`
+	BankID    uuid.UUID `json:"bankId"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type QuestionBank struct {
+	ID        uuid.UUID  `json:"id"`
+	OrgID     uuid.UUID  `json:"orgId"`
+	Name      string     `json:"name"`
+	Category  string     `json:"category"`
+	CreatedBy *uuid.UUID `json:"createdBy"`
+	CreatedAt time.Time  `json:"createdAt"`
+}
+
+type QuestionVersion struct {
+	ID         uuid.UUID       `json:"id"`
+	QuestionID uuid.UUID       `json:"questionId"`
+	VersionNo  int32           `json:"versionNo"`
+	Kind       string          `json:"kind"`
+	Stem       string          `json:"stem"`
+	Options    json.RawMessage `json:"options"`
+	AnswerKey  json.RawMessage `json:"-"`
+	Weight     float64         `json:"weight"`
+	Rubric     string          `json:"rubric"`
+	CreatedBy  *uuid.UUID      `json:"createdBy"`
+	CreatedAt  time.Time       `json:"createdAt"`
 }
 
 type Requisition struct {

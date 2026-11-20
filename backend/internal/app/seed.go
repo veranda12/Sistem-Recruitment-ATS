@@ -220,7 +220,74 @@ func Seed(ctx context.Context, tx pgx.Tx, slug, pwHash string, keys identity.Key
 			return err
 		}
 	}
+	if err := seedExam(ctx, q, orgID, users["penguji@arunika.example"]); err != nil {
+		return fmt.Errorf("seed ujian: %w", err)
+	}
 	return platform.WriteAudit(ctx, q, platform.AuditEntry{OrgID: orgID, ActorKind: "system", Action: "seed.run", TargetType: "organization", TargetID: orgID.String()})
 }
 
 func ptr[T any](v T) *T { return &v }
+
+// ExamFixture: kunci jawaban fixture. Bobot: pilihan tunggal 1, pilihan jamak 2, esai 2 (maks 8 poin).
+// Dipakai seed dan test untuk menghitung nilai yang diharapkan secara independen.
+type ExamFixtureQuestion struct {
+	Kind    string
+	Stem    string
+	Options [][2]string // {id, teks}
+	Key     []string
+	Weight  float64
+	Rubric  string
+}
+
+var ExamFixture = []ExamFixtureQuestion{
+	{"single", "Berapakah hasil 12 x 3?", [][2]string{{"a", "32"}, {"b", "36"}, {"c", "38"}, {"d", "34"}}, []string{"b"}, 1, ""},
+	{"single", "Alat pelindung diri yang wajib saat bekerja di dekat mesin press adalah", [][2]string{{"a", "Sarung tangan dan kacamata pelindung"}, {"b", "Topi kain"}, {"c", "Sandal"}, {"d", "Jam tangan"}}, []string{"a"}, 1, ""},
+	{"single", "Langkah pertama dalam metode 5S adalah", [][2]string{{"a", "Seiso (bersihkan)"}, {"b", "Seiri (pilah)"}, {"c", "Shitsuke (rawat)"}, {"d", "Seiketsu (standarkan)"}}, []string{"b"}, 1, ""},
+	{"single", "Jika produksi 480 unit per 8 jam, berapa unit per jam?", [][2]string{{"a", "50"}, {"b", "60"}, {"c", "70"}, {"d", "80"}}, []string{"b"}, 1, ""},
+	{"multiple", "Pilih semua tindakan yang benar saat terjadi kebocoran oli di lantai produksi.", [][2]string{{"a", "Pasang tanda peringatan"}, {"b", "Lapor ke supervisor"}, {"c", "Biarkan sampai shift berikutnya"}, {"d", "Bersihkan dengan bahan penyerap"}}, []string{"a", "b", "d"}, 2, ""},
+	{"essay", "Jelaskan langkah Anda bila menemukan produk cacat di lini produksi.", nil, nil, 2,
+		"2 poin: hentikan/pisahkan produk, lapor, catat. 1 poin: sebagian langkah. 0: tidak relevan."},
+}
+
+func seedExam(ctx context.Context, q *sqlc.Queries, orgID, examiner uuid.UUID) error {
+	bank, err := q.CreateQuestionBank(ctx, sqlc.CreateQuestionBankParams{OrgID: orgID, Name: "Tes Dasar Operasional", Category: "Operasional", CreatedBy: &examiner})
+	if err != nil {
+		return err
+	}
+	var ids []uuid.UUID
+	for _, f := range ExamFixture {
+		qu, err := q.CreateQuestion(ctx, sqlc.CreateQuestionParams{OrgID: orgID, BankID: bank.ID})
+		if err != nil {
+			return err
+		}
+		opts := []map[string]string{}
+		for _, o := range f.Options {
+			opts = append(opts, map[string]string{"id": o[0], "text": o[1]})
+		}
+		ob, _ := json.Marshal(opts)
+		key := f.Key
+		if key == nil {
+			key = []string{}
+		}
+		kb, _ := json.Marshal(key)
+		v, err := q.InsertQuestionVersion(ctx, sqlc.InsertQuestionVersionParams{QuestionID: qu.ID, VersionNo: 1, Kind: f.Kind, Stem: f.Stem,
+			Options: ob, AnswerKey: kb, Weight: f.Weight, Rubric: f.Rubric, CreatedBy: &examiner})
+		if err != nil {
+			return err
+		}
+		ids = append(ids, v.ID)
+	}
+	pkg, err := q.CreateExamPackage(ctx, sqlc.CreateExamPackageParams{OrgID: orgID, Key: "tes-dasar", Name: "Tes Dasar Operasional"})
+	if err != nil {
+		return err
+	}
+	pv, err := q.InsertPackageVersion(ctx, sqlc.InsertPackageVersionParams{OrgID: orgID, PackageID: pkg.ID, VersionNo: 1, QuestionVersionIds: ids,
+		DurationMinutes: 30, PassScore: 75, ShuffleItems: true, ShuffleOptions: true, PublishedBy: &examiner})
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	_, err = q.CreateSchedule(ctx, sqlc.CreateScheduleParams{OrgID: orgID, PackageVersionID: pv.ID, Name: "Gelombang November",
+		OpensAt: now.Add(-time.Hour), ClosesAt: now.AddDate(0, 0, 14), MaxAttempts: 1, CreatedBy: &examiner})
+	return err
+}

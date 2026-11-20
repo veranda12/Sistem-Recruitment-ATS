@@ -39,6 +39,10 @@ var Templates = map[string]Template{
 		Body: "Halo {{nama}},\n\nLamaran Anda untuk posisi {{lowongan}} sudah kami terima. Pantau statusnya di:\n{{tautan}}"},
 	"stage_changed": {Key: "stage_changed", Version: 1, Subject: "Pembaruan lamaran: {{lowongan}}",
 		Body: "Halo {{nama}},\n\nLamaran Anda untuk posisi {{lowongan}} kini berada pada tahap {{tahap}}. Detail:\n{{tautan}}"},
+	"exam_invited": {Key: "exam_invited", Version: 1, Subject: "Undangan ujian: {{lowongan}}",
+		Body: "Halo {{nama}},\n\nAnda diundang mengikuti ujian untuk posisi {{lowongan}}. Lihat jadwal dan mulai ujian di:\n{{tautan}}"},
+	"result_released": {Key: "result_released", Version: 1, Subject: "Hasil ujian tersedia: {{lowongan}}",
+		Body: "Halo {{nama}},\n\nHasil ujian Anda untuk posisi {{lowongan}} sudah dirilis. Tahap lamaran saat ini: {{tahap}}. Detail:\n{{tautan}}"},
 	"application_withdrawn": {Key: "application_withdrawn", Version: 1, Subject: "Lamaran ditarik: {{lowongan}}",
 		Body: "Halo {{nama}},\n\nLamaran Anda untuk posisi {{lowongan}} sudah ditarik sesuai permintaan Anda."},
 }
@@ -88,6 +92,10 @@ func (h *Handlers) Handle(ctx context.Context, ev sqlc.Outbox) error {
 		return h.userEmail(ctx, ev, "account_exists", map[string]string{"tautan": h.Origin + "/lupa-sandi"})
 	case "application.submitted":
 		return h.applicationEvent(ctx, ev, "application_submitted", "")
+	case "exam.invited":
+		return h.applicationEvent(ctx, ev, "exam_invited", "")
+	case "exam.result_released":
+		return h.applicationEvent(ctx, ev, "result_released", "")
 	case "application.transitioned":
 		var p struct {
 			From, To, Status, FromStatus string

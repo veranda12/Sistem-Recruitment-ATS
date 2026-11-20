@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"ats/db/sqlc"
+	"ats/internal/app"
 	"ats/internal/notify"
 	"ats/internal/platform"
 )
@@ -61,7 +62,8 @@ func main() {
 		_ = srv.ListenAndServe()
 	}()
 
-	w := &platform.OutboxWorker{Pool: pool, Consumer: "notify", Handle: h.Handle, Interval: cfg.WorkerPollInterval,
+	go app.RunExpiry(ctx, pool, 5*time.Second)
+	w := &platform.OutboxWorker{Pool: pool, Consumer: "worker", Handle: app.WorkerHandler(pool, h), Interval: cfg.WorkerPollInterval,
 		Concurrency: cfg.WorkerConcurrency, Lease: 60 * time.Second}
 	slog.Info("worker mulai", "config", cfg.Redacted(), "mailer", fmt.Sprintf("%T", mailer))
 	w.Run(ctx)

@@ -13,6 +13,14 @@ sql:
         emit_json_tags: true
         json_tags_case_style: camel
         overrides:
+          - column: exam_attempts.seed
+            go_struct_tag: json:"-"
+          - column: question_versions.answer_key
+            go_struct_tag: json:"-"
+          - column: exam_submissions.answers_digest
+            go_struct_tag: json:"-"
+          - column: exam_save_receipts.payload_digest
+            go_struct_tag: json:"-"
           - db_type: jsonb
             go_type: encoding/json.RawMessage
           - db_type: jsonb
@@ -64,6 +72,9 @@ sql:
               pointer: true
           - db_type: date
             go_type: time.Time
+          - db_type: pg_catalog.numeric
+            go_type:
+              type: float64
           - db_type: pg_catalog.numeric
             nullable: true
             go_type:

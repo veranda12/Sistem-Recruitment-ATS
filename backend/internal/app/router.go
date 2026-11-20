@@ -8,6 +8,7 @@ import (
 
 	"ats/db/sqlc"
 	"ats/internal/auth"
+	"ats/internal/exam"
 	"ats/internal/identity"
 	"ats/internal/notify"
 	"ats/internal/platform"
@@ -46,6 +47,7 @@ func NewRouter(d Deps) *gin.Engine {
 		Cache: recruitment.NewPublicCache(d.Cfg.RedisURL, d.Limiter.Global)}
 	wf := &workflow.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID}
 	inbox := &notify.InboxHandler{Q: q}
+	ex := &exam.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID}
 
 	health := func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) }
 	ready := func(c *gin.Context) {
@@ -99,6 +101,15 @@ func NewRouter(d Deps) *gin.Engine {
 	me.POST("/notifications/:id/read", inbox.MarkRead)
 	api.POST("/jobs/:slug/apply", auth.RequireKind("candidate"), critical, rec.Apply)
 
+	// Ujian: start/save/submit diprioritaskan (deadline critical, batch dibatasi); heartbeat best-effort.
+	cand := api.Group("", auth.RequireKind("candidate"))
+	cand.GET("/me/exam-invitations", interactive, ex.MyInvitations)
+	cand.POST("/exam-invitations/:id/start", critical, ex.Start)
+	cand.GET("/exam-attempts/:id", interactive, ex.Resume)
+	cand.PUT("/exam-attempts/:id/answers", platform.BodyLimit(256<<10), critical, ex.Save)
+	cand.POST("/exam-attempts/:id/submit", platform.BodyLimit(256<<10), critical, ex.Submit)
+	cand.POST("/exam-attempts/:id/heartbeat", d.Limiter.RateLimit("heartbeat", 10, time.Minute, func(c *gin.Context) string { return c.Param("id") }), ex.Heartbeat)
+
 	staff := api.Group("", auth.RequireKind("staff"), interactive)
 	staff.GET("/staff/jobs", auth.RequireAnyPerm(auth.PermJobsRead), rec.ListStaffJobs)
 	staff.POST("/staff/jobs", auth.RequireAnyPerm(auth.PermJobsManage), rec.CreateJob)
@@ -118,6 +129,14 @@ func NewRouter(d Deps) *gin.Engine {
 	staff.POST("/workflows/:id/publish", auth.RequireAnyPerm(auth.PermWorkflowsPublish), wf.PublishDraft)
 	staff.GET("/workflows/:id/versions", auth.RequireAnyPerm(auth.PermWorkflowsRead), wf.Versions)
 	staff.POST("/workflows/:id/rollback", auth.RequireAnyPerm(auth.PermWorkflowsPublish), wf.RollbackTo)
+
+	staff.GET("/exam-schedules", auth.RequireAnyPerm(auth.PermExamsManage), ex.ListSchedules)
+	staff.POST("/exam-schedules", auth.RequireAnyPerm(auth.PermExamsManage), ex.CreateSchedule)
+	staff.POST("/exam-schedules/:id/invitations", ex.Invite)
+	staff.GET("/exam-schedules/:id/monitor", auth.RequireAnyPerm(auth.PermExamsManage), ex.Monitor)
+	staff.POST("/exam-schedules/:id/release", auth.RequireAnyPerm(auth.PermResultsRelease), ex.Release)
+	staff.GET("/exam-attempts/:id/review", auth.RequireAnyPerm(auth.PermExamsGrade), ex.Review)
+	staff.POST("/exam-attempts/:id/essay-grades", auth.RequireAnyPerm(auth.PermExamsGrade), ex.Grade)
 
 	r.NoRoute(func(c *gin.Context) { platform.Fail(c, platform.ErrNotFound("Alamat tidak ditemukan.")) })
 	return r

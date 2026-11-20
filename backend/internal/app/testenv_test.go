@@ -80,7 +80,7 @@ func newEnv(t *testing.T) *env {
 	t.Cleanup(srv.Close)
 	mailDir := t.TempDir()
 	h := &notify.Handlers{Pool: pool, Q: sqlc.New(pool), Mailer: notify.FileMailer{Dir: mailDir, From: "uji@arunika.example"}, Origin: testOrigin}
-	w := &platform.OutboxWorker{Pool: pool, Consumer: "notify", Handle: h.Handle, Interval: time.Second, Concurrency: 2, Lease: 30 * time.Second}
+	w := &platform.OutboxWorker{Pool: pool, Consumer: "worker", Handle: WorkerHandler(pool, h), Interval: time.Second, Concurrency: 2, Lease: 30 * time.Second}
 	return &env{t: t, pool: pool, srv: srv, cfg: cfg, orgID: orgID, mailDir: mailDir, worker: w, keys: keys}
 }
 
