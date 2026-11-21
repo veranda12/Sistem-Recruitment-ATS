@@ -1,0 +1,36 @@
+# Replika API per port: systemctl enable --now ats-api@8080 ats-api@8082
+[Unit]
+Description=ATS API (port %i)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ats
+Group=ats
+EnvironmentFile=/etc/ats/ats.env
+Environment=HTTP_ADDR=127.0.0.1:%i
+# Port metrik internal = 1 diikuti port API (8080 -> 18080).
+Environment=METRICS_ADDR=127.0.0.1:1%i
+ExecStart=/opt/ats/current/bin/api
+# Graceful drain: SIGTERM -> berhenti menerima koneksi, selesaikan request berjalan (maks 20 s di aplikasi).
+KillSignal=SIGTERM
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=65536
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/ats
+CapabilityBoundingSet=
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target

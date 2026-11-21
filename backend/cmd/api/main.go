@@ -15,6 +15,9 @@ import (
 	"ats/internal/platform"
 )
 
+// version diisi saat build rilis: -ldflags "-X main.version=<versi>".
+var version = "dev"
+
 func main() {
 	cfg, err := platform.LoadConfig()
 	if err != nil {
@@ -48,7 +51,7 @@ func main() {
 		MaxHeaderBytes:    64 << 10,
 	}
 	go func() {
-		slog.Info("api mulai", "config", cfg.Redacted(), "redis", limiter.RedisStatus())
+		slog.Info("api mulai", "version", version, "config", cfg.Redacted(), "redis", limiter.RedisStatus())
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("listen", "err", err.Error())
 			stop()

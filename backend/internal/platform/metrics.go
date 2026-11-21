@@ -10,7 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -84,7 +83,8 @@ func ServeMetrics(ctx context.Context, addr, process string, pool *pgxpool.Pool)
 		return
 	}
 	reg := prometheus.NewRegistry()
-	reg.MustRegister(collectors.NewGoCollector(), collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}), newPoolCollector(process, pool))
+	// Collector Go dan proses sudah ada di registry default; di sini hanya statistik pool proses ini.
+	reg.MustRegister(newPoolCollector(process, pool))
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(prometheus.Gatherers{prometheus.DefaultGatherer, reg}, promhttp.HandlerOpts{}))
 	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}

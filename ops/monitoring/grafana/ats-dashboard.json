@@ -1,0 +1,44 @@
+{
+  "title": "ATS - Operasional",
+  "uid": "ats-ops",
+  "schemaVersion": 39,
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "30s",
+  "templating": { "list": [{ "name": "ds", "type": "datasource", "query": "prometheus" }] },
+  "panels": [
+    { "type": "timeseries", "title": "Request per detik per kelas status", "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${ds}" },
+      "targets": [{ "expr": "sum by (code) (rate(ats_http_requests_total[1m]))", "legendFormat": "{{code}}" }] },
+    { "type": "timeseries", "title": "Rasio error 5xx", "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${ds}" }, "fieldConfig": { "defaults": { "unit": "percentunit" } },
+      "targets": [{ "expr": "sum(rate(ats_http_requests_total{code=\"5xx\"}[5m])) / clamp_min(sum(rate(ats_http_requests_total[5m])), 1)" }] },
+    { "type": "timeseries", "title": "Latensi p95 per route (ujian)", "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${ds}" }, "fieldConfig": { "defaults": { "unit": "s" } },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le, route) (rate(ats_http_request_duration_seconds_bucket{route=~\"/api/v1/exam-.*\"}[5m])))", "legendFormat": "{{route}}" }] },
+    { "type": "timeseries", "title": "Commit autosave dan submit", "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${ds}" },
+      "targets": [{ "expr": "sum by (op, outcome) (rate(ats_exam_operations_total[1m]))", "legendFormat": "{{op}} {{outcome}}" }] },
+    { "type": "timeseries", "title": "Pool koneksi DB", "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${ds}" },
+      "targets": [
+        { "expr": "ats_db_pool_acquired_conns", "legendFormat": "dipakai {{process}} {{instance}}" },
+        { "expr": "ats_db_pool_max_conns", "legendFormat": "maks {{process}} {{instance}}" },
+        { "expr": "rate(ats_db_pool_acquire_wait_seconds_total[5m]) / clamp_min(rate(ats_db_pool_empty_acquire_total[5m]), 1)", "legendFormat": "rata tunggu (s) {{instance}}" }
+      ] },
+    { "type": "timeseries", "title": "Outbox: lag dan backlog", "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${ds}" },
+      "targets": [
+        { "expr": "ats_outbox_oldest_pending_seconds", "legendFormat": "lag (s)" },
+        { "expr": "ats_outbox_events", "legendFormat": "{{status}}" }
+      ] },
+    { "type": "timeseries", "title": "Lock wait PostgreSQL (postgres_exporter)", "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${ds}" },
+      "targets": [{ "expr": "sum by (mode) (pg_locks_count{datname=~\"ats.*\"})", "legendFormat": "{{mode}}" }] },
+    { "type": "timeseries", "title": "Memori dan goroutine", "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "${ds}" },
+      "targets": [
+        { "expr": "process_resident_memory_bytes{job=~\"ats-.*\"}", "legendFormat": "RSS {{instance}}" },
+        { "expr": "go_goroutines{job=~\"ats-.*\"}", "legendFormat": "goroutine {{instance}}" }
+      ] }
+  ]
+}

@@ -17,6 +17,9 @@ import (
 	"ats/internal/platform"
 )
 
+// version diisi saat build rilis: -ldflags "-X main.version=<versi>".
+var version = "dev"
+
 func main() {
 	cfg, err := platform.LoadConfig()
 	if err != nil {
@@ -68,7 +71,7 @@ func main() {
 	go platform.ServeMetrics(ctx, os.Getenv("WORKER_METRICS_ADDR"), "worker", pool)
 	w := &platform.OutboxWorker{Pool: pool, Consumer: "worker", Handle: app.WorkerHandler(pool, h, cfg.ObjectDir, documents.CommandScanner(cfg.ScanCommand)), Interval: cfg.WorkerPollInterval,
 		Concurrency: cfg.WorkerConcurrency, Lease: 60 * time.Second}
-	slog.Info("worker mulai", "config", cfg.Redacted(), "mailer", fmt.Sprintf("%T", mailer))
+	slog.Info("worker mulai", "version", version, "config", cfg.Redacted(), "mailer", fmt.Sprintf("%T", mailer))
 	w.Run(ctx)
 	slog.Info("worker selesai")
 }

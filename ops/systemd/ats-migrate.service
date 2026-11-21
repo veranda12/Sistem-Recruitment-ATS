@@ -1,0 +1,17 @@
+# Migrasi sekali per rilis, dijalankan oleh deploy.sh sebelum symlink current dialihkan.
+# Memakai kredensial DB khusus migrasi (DATABASE_URL_MIGRATE) yang berbeda dari kredensial aplikasi.
+[Unit]
+Description=ATS migrasi skema (oneshot)
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=ats
+Group=ats
+EnvironmentFile=/etc/ats/ats.env
+EnvironmentFile=-/etc/ats/migrate.env
+ExecStart=/bin/sh -c 'exec "${ATS_RELEASE:-/opt/ats/next}/bin/migrate" up'
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true

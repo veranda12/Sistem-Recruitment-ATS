@@ -1,0 +1,38 @@
+groups:
+  - name: ats
+    rules:
+      - alert: ATSHighErrorRate
+        expr: sum(rate(ats_http_requests_total{code="5xx"}[5m])) / clamp_min(sum(rate(ats_http_requests_total[5m])), 1) > 0.005
+        for: 5m
+        labels: { severity: high }
+        annotations: { summary: "Error 5xx di atas 0,5% selama 5 menit" }
+      - alert: ATSExamSaveSlow
+        expr: histogram_quantile(0.95, sum by (le) (rate(ats_http_request_duration_seconds_bucket{route="/api/v1/exam-attempts/:id/answers"}[5m]))) > 0.4
+        for: 5m
+        labels: { severity: high }
+        annotations: { summary: "p95 autosave ujian di atas 400 ms" }
+      - alert: ATSOutboxLag
+        expr: ats_outbox_oldest_pending_seconds > 120
+        for: 5m
+        labels: { severity: medium }
+        annotations: { summary: "Event outbox tertua menunggu lebih dari 2 menit (worker tertahan?)" }
+      - alert: ATSDeadLetter
+        expr: ats_outbox_events{status="dead"} > 0
+        for: 1m
+        labels: { severity: medium }
+        annotations: { summary: "Ada event dead-letter; periksa halaman Komunikasi dan antrean" }
+      - alert: ATSPoolSaturated
+        expr: max by (process) (ats_db_pool_acquired_conns / ats_db_pool_max_conns) > 0.9
+        for: 5m
+        labels: { severity: medium }
+        annotations: { summary: "Pool koneksi DB di atas 90% kapasitas" }
+      - alert: ATSPoolWaitGrowing
+        expr: rate(ats_db_pool_acquire_wait_seconds_total[5m]) / clamp_min(rate(ats_db_pool_empty_acquire_total[5m]), 1) > 0.05
+        for: 5m
+        labels: { severity: medium }
+        annotations: { summary: "Rata-rata tunggu akuisisi koneksi di atas 50 ms" }
+      - alert: ATSApiDown
+        expr: up{job="ats-api"} == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations: { summary: "Replika API tidak dapat di-scrape" }

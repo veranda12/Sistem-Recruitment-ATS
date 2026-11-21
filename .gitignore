@@ -14,3 +14,6 @@ frontend/playwright-report/
 tests/e2e/.auth/
 *.exe
 coverage.out
+
+# Artefak rilis
+dist/

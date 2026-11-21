@@ -1,0 +1,19 @@
+# Scrape metrik internal ATS (hanya di loopback/jaringan internal) dan PostgreSQL via postgres_exporter.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - alerts.yml
+
+scrape_configs:
+  - job_name: ats-api
+    static_configs:
+      - targets: ["127.0.0.1:18080", "127.0.0.1:18082"]
+  - job_name: ats-worker
+    static_configs:
+      - targets: ["127.0.0.1:19081"]
+  # postgres_exporter (prometheus-community) untuk lock wait, koneksi, dan query lambat (butuh pg_stat_statements).
+  - job_name: postgres
+    static_configs:
+      - targets: ["127.0.0.1:9187"]
