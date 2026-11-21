@@ -244,6 +244,8 @@ export interface paths {
                         /** Format: email */
                         email: string;
                         password: string;
+                        /** @description Kode TOTP atau kode pemulihan; wajib bila MFA aktif (401 mfa_required / mfa_invalid) */
+                        code?: string;
                     };
                 };
             };
@@ -2910,6 +2912,10 @@ export interface components {
             acceptingApplications: boolean;
         };
         Session: {
+            mfa: {
+                enabled: boolean;
+                required: boolean;
+            };
             user: {
                 /** Format: uuid */
                 id: string;

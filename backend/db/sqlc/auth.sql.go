@@ -30,6 +30,17 @@ func (q *Queries) ConsumeEmailToken(ctx context.Context, arg ConsumeEmailTokenPa
 	return user_id, err
 }
 
+const countRecoveryCodes = `-- name: CountRecoveryCodes :one
+SELECT count(*)::int FROM mfa_recovery_codes WHERE user_id = $1 AND used_at IS NULL
+`
+
+func (q *Queries) CountRecoveryCodes(ctx context.Context, userID uuid.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countRecoveryCodes, userID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createEmailToken = `-- name: CreateEmailToken :one
 INSERT INTO email_tokens (user_id, purpose, token_digest, expires_at)
 VALUES ($1, $2, $3, $4)
@@ -99,7 +110,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (org_id, kind, email, display_name, password_hash, email_verified_at)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, org_id, kind, email, display_name, password_hash, email_verified_at, status, mfa_secret, mfa_enabled_at, password_changed_at, version, created_at, updated_at
+RETURNING id, org_id, kind, email, display_name, password_hash, email_verified_at, status, mfa_secret, mfa_enabled_at, password_changed_at, version, created_at, updated_at, mfa_last_step
 `
 
 type CreateUserParams struct {
@@ -136,13 +147,46 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.MfaLastStep,
 	)
 	return i, err
 }
 
+const deleteRecoveryCodes = `-- name: DeleteRecoveryCodes :exec
+DELETE FROM mfa_recovery_codes WHERE user_id = $1
+`
+
+func (q *Queries) DeleteRecoveryCodes(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteRecoveryCodes, userID)
+	return err
+}
+
+const disableMFA = `-- name: DisableMFA :exec
+UPDATE users SET mfa_secret = NULL, mfa_enabled_at = NULL, mfa_last_step = NULL, updated_at = now() WHERE id = $1
+`
+
+func (q *Queries) DisableMFA(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, disableMFA, id)
+	return err
+}
+
+const enableMFA = `-- name: EnableMFA :exec
+UPDATE users SET mfa_enabled_at = now(), mfa_last_step = $2, updated_at = now() WHERE id = $1
+`
+
+type EnableMFAParams struct {
+	ID          uuid.UUID `json:"id"`
+	MfaLastStep *int64    `json:"mfaLastStep"`
+}
+
+func (q *Queries) EnableMFA(ctx context.Context, arg EnableMFAParams) error {
+	_, err := q.db.Exec(ctx, enableMFA, arg.ID, arg.MfaLastStep)
+	return err
+}
+
 const getActiveSessionByDigest = `-- name: GetActiveSessionByDigest :one
 SELECT s.id AS session_id, s.idle_expires_at, s.absolute_expires_at, s.last_seen_at,
-       u.id AS user_id, u.org_id, u.kind, u.email, u.display_name, u.status, u.email_verified_at
+       u.id AS user_id, u.org_id, u.kind, u.email, u.display_name, u.status, u.email_verified_at, u.mfa_enabled_at
 FROM sessions s
 JOIN users u ON u.id = s.user_id
 WHERE s.token_digest = $1
@@ -163,6 +207,7 @@ type GetActiveSessionByDigestRow struct {
 	DisplayName       string     `json:"displayName"`
 	Status            string     `json:"status"`
 	EmailVerifiedAt   *time.Time `json:"emailVerifiedAt"`
+	MfaEnabledAt      *time.Time `json:"mfaEnabledAt"`
 }
 
 func (q *Queries) GetActiveSessionByDigest(ctx context.Context, tokenDigest []byte) (GetActiveSessionByDigestRow, error) {
@@ -180,6 +225,7 @@ func (q *Queries) GetActiveSessionByDigest(ctx context.Context, tokenDigest []by
 		&i.DisplayName,
 		&i.Status,
 		&i.EmailVerifiedAt,
+		&i.MfaEnabledAt,
 	)
 	return i, err
 }
@@ -227,7 +273,7 @@ func (q *Queries) GetOrganizationBySlug(ctx context.Context, slug string) (Organ
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, org_id, kind, email, display_name, password_hash, email_verified_at, status, mfa_secret, mfa_enabled_at, password_changed_at, version, created_at, updated_at FROM users WHERE id = $1
+SELECT id, org_id, kind, email, display_name, password_hash, email_verified_at, status, mfa_secret, mfa_enabled_at, password_changed_at, version, created_at, updated_at, mfa_last_step FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -248,12 +294,13 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.MfaLastStep,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, org_id, kind, email, display_name, password_hash, email_verified_at, status, mfa_secret, mfa_enabled_at, password_changed_at, version, created_at, updated_at FROM users WHERE org_id = $1 AND email = $2
+SELECT id, org_id, kind, email, display_name, password_hash, email_verified_at, status, mfa_secret, mfa_enabled_at, password_changed_at, version, created_at, updated_at, mfa_last_step FROM users WHERE org_id = $1 AND email = $2
 `
 
 type GetUserByEmailParams struct {
@@ -279,8 +326,23 @@ func (q *Queries) GetUserByEmail(ctx context.Context, arg GetUserByEmailParams) 
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.MfaLastStep,
 	)
 	return i, err
+}
+
+const insertRecoveryCode = `-- name: InsertRecoveryCode :exec
+INSERT INTO mfa_recovery_codes (user_id, code_digest) VALUES ($1, $2)
+`
+
+type InsertRecoveryCodeParams struct {
+	UserID     uuid.UUID `json:"userId"`
+	CodeDigest []byte    `json:"codeDigest"`
+}
+
+func (q *Queries) InsertRecoveryCode(ctx context.Context, arg InsertRecoveryCodeParams) error {
+	_, err := q.db.Exec(ctx, insertRecoveryCode, arg.UserID, arg.CodeDigest)
+	return err
 }
 
 const invalidateEmailTokens = `-- name: InvalidateEmailTokens :exec
@@ -338,6 +400,29 @@ func (q *Queries) ListUserGrants(ctx context.Context, userID uuid.UUID) ([]ListU
 	return items, nil
 }
 
+const lockUserMFA = `-- name: LockUserMFA :one
+SELECT id, mfa_secret, mfa_enabled_at, mfa_last_step FROM users WHERE id = $1 FOR UPDATE
+`
+
+type LockUserMFARow struct {
+	ID           uuid.UUID  `json:"id"`
+	MfaSecret    []byte     `json:"-"`
+	MfaEnabledAt *time.Time `json:"mfaEnabledAt"`
+	MfaLastStep  *int64     `json:"mfaLastStep"`
+}
+
+func (q *Queries) LockUserMFA(ctx context.Context, id uuid.UUID) (LockUserMFARow, error) {
+	row := q.db.QueryRow(ctx, lockUserMFA, id)
+	var i LockUserMFARow
+	err := row.Scan(
+		&i.ID,
+		&i.MfaSecret,
+		&i.MfaEnabledAt,
+		&i.MfaLastStep,
+	)
+	return i, err
+}
+
 const markEmailVerified = `-- name: MarkEmailVerified :exec
 UPDATE users SET email_verified_at = coalesce(email_verified_at, now()), updated_at = now() WHERE id = $1
 `
@@ -378,6 +463,35 @@ func (q *Queries) RevokeUserSessions(ctx context.Context, arg RevokeUserSessions
 	return result.RowsAffected(), nil
 }
 
+const setMFALastStep = `-- name: SetMFALastStep :exec
+UPDATE users SET mfa_last_step = $2 WHERE id = $1
+`
+
+type SetMFALastStepParams struct {
+	ID          uuid.UUID `json:"id"`
+	MfaLastStep *int64    `json:"mfaLastStep"`
+}
+
+func (q *Queries) SetMFALastStep(ctx context.Context, arg SetMFALastStepParams) error {
+	_, err := q.db.Exec(ctx, setMFALastStep, arg.ID, arg.MfaLastStep)
+	return err
+}
+
+const setMFASecret = `-- name: SetMFASecret :exec
+UPDATE users SET mfa_secret = $2, mfa_enabled_at = NULL, mfa_last_step = NULL, updated_at = now() WHERE id = $1
+`
+
+type SetMFASecretParams struct {
+	ID        uuid.UUID `json:"id"`
+	MfaSecret []byte    `json:"-"`
+}
+
+// Rahasia baru (belum aktif) saat pendaftaran; MFA aktif hanya setelah kode pertama terverifikasi.
+func (q *Queries) SetMFASecret(ctx context.Context, arg SetMFASecretParams) error {
+	_, err := q.db.Exec(ctx, setMFASecret, arg.ID, arg.MfaSecret)
+	return err
+}
+
 const touchSession = `-- name: TouchSession :exec
 UPDATE sessions SET last_seen_at = now(), idle_expires_at = least($1::timestamptz, absolute_expires_at)
 WHERE id = $2 AND revoked_at IS NULL
@@ -406,4 +520,21 @@ type UpdatePasswordParams struct {
 func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error {
 	_, err := q.db.Exec(ctx, updatePassword, arg.ID, arg.PasswordHash)
 	return err
+}
+
+const useRecoveryCode = `-- name: UseRecoveryCode :execrows
+UPDATE mfa_recovery_codes SET used_at = now() WHERE user_id = $1 AND code_digest = $2 AND used_at IS NULL
+`
+
+type UseRecoveryCodeParams struct {
+	UserID     uuid.UUID `json:"userId"`
+	CodeDigest []byte    `json:"codeDigest"`
+}
+
+func (q *Queries) UseRecoveryCode(ctx context.Context, arg UseRecoveryCodeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, useRecoveryCode, arg.UserID, arg.CodeDigest)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

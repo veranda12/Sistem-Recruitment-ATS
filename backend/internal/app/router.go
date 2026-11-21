@@ -102,6 +102,9 @@ func NewRouter(d Deps) *gin.Engine {
 	a.POST("/resend-verification", auth.RequireAuth(), rl("resend", 3, ip), authH.ResendVerification)
 	a.POST("/forgot-password", rl("forgot", 5, ip), authH.ForgotPassword)
 	a.POST("/reset-password", rl("reset", 10, ip), authH.ResetPassword)
+	a.GET("/mfa", auth.RequireKind("staff"), authH.MFAStatus)
+	a.POST("/mfa/setup", auth.RequireKind("staff"), authH.MFASetup)
+	a.POST("/mfa/enable", auth.RequireKind("staff"), rl("mfa", 10, ip), authH.MFAEnable)
 
 	me := api.Group("/me", auth.RequireKind("candidate"), interactive)
 	me.GET("/profile", rec.GetProfile)
@@ -127,7 +130,7 @@ func NewRouter(d Deps) *gin.Engine {
 	cand.POST("/exam-attempts/:id/submit", platform.BodyLimit(256<<10), critical, ex.Submit)
 	cand.POST("/exam-attempts/:id/heartbeat", rl("heartbeat", 10, func(c *gin.Context) string { return c.Param("id") }), ex.Heartbeat)
 
-	staff := api.Group("", auth.RequireKind("staff"), interactive)
+	staff := api.Group("", auth.RequireKind("staff"), sessions.RequireMFAEnrollment(), interactive)
 	staff.GET("/staff/jobs", auth.RequireAnyPerm(auth.PermJobsRead), rec.ListStaffJobs)
 	staff.POST("/staff/jobs", auth.RequireAnyPerm(auth.PermJobsManage), rec.CreateJob)
 	staff.POST("/staff/jobs/:id/publish", auth.RequireAnyPerm(auth.PermJobsPublish), rec.SetJobStatus("published"))
@@ -176,7 +179,7 @@ func NewRouter(d Deps) *gin.Engine {
 	staff.POST("/exam-attempts/:id/essay-grades", auth.RequireAnyPerm(auth.PermExamsGrade), ex.Grade)
 
 	// Pelaporan: deadline lebih panjang (background-read).
-	reports := api.Group("/reports", auth.RequireKind("staff"), platform.Deadline(30*time.Second))
+	reports := api.Group("/reports", auth.RequireKind("staff"), sessions.RequireMFAEnrollment(), platform.Deadline(30*time.Second))
 	reports.GET("/recruitment", auth.RequireAnyPerm(auth.PermReportsRead), rep.Recruitment)
 	reports.POST("/exports", rep.CreateExport)
 	reports.GET("/exports", rep.MyExports)
@@ -184,11 +187,12 @@ func NewRouter(d Deps) *gin.Engine {
 	reports.GET("/download", rep.Download)
 
 	// Administrasi akses, audit, pengaturan.
-	admin := api.Group("/admin", auth.RequireKind("staff"), interactive)
+	admin := api.Group("/admin", auth.RequireKind("staff"), sessions.RequireMFAEnrollment(), interactive)
 	admin.GET("/users", auth.RequireAnyPerm(auth.PermUsersManage), adm.ListUsers)
 	admin.POST("/users", auth.RequireAnyPerm(auth.PermUsersManage), adm.CreateUser)
 	admin.POST("/users/:id/assignments", auth.RequireAnyPerm(auth.PermUsersManage), adm.Assign)
 	admin.POST("/users/:id/status", auth.RequireAnyPerm(auth.PermUsersManage), adm.SetStatus)
+	admin.POST("/users/:id/mfa-reset", auth.RequireAnyPerm(auth.PermUsersManage), authH.MFAReset)
 	admin.POST("/assignments/:id/revoke", auth.RequireAnyPerm(auth.PermUsersManage), adm.Revoke)
 	admin.GET("/roles", auth.RequireAnyPerm(auth.PermUsersManage), adm.ListRoles)
 	admin.GET("/audit", auth.RequireAnyPerm(auth.PermAuditRead), adm.Audit)

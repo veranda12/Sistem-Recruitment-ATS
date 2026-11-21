@@ -7,6 +7,7 @@ import { AuditPage, CommsPage, SettingsPage, UsersPage } from "./admin";
 import { BanksPage } from "./banks";
 import { EssayGrading, ScheduleMonitor, SchedulesPage } from "./exams";
 import { ReportsPage } from "./reports";
+import { SecurityPage } from "./security";
 import { RequisitionsPage } from "./interviews";
 import { JobsPage } from "./jobs";
 import { WorkflowEditor, WorkflowsPage } from "./workflows";
@@ -32,12 +33,13 @@ export default function BackofficeRoutes() {
   const { session, can, logout } = useSession();
   const nav = useNavigate();
   const [menu, setMenu] = useState(false);
-  const visible = items.filter((i) => can(i.perm));
+  const mustEnroll = !!session?.mfa.required && !session.mfa.enabled;
+  const visible = mustEnroll ? [] : items.filter((i) => can(i.perm));
   const first = visible[0]?.to;
 
   const sidebar = (
     <nav aria-label="Menu back office" className="flex flex-col gap-1">
-      {visible.map((i) => (
+      {[...visible, { to: "/staf/keamanan", label: "Keamanan akun", perm: "" }].map((i) => (
         <NavLink
           key={i.to}
           to={i.to}
@@ -87,8 +89,12 @@ export default function BackofficeRoutes() {
           </div>
         ) : null}
         <main id="konten" tabIndex={-1} className="min-w-0 flex-1 px-4 py-6 lg:px-8">
+          {mustEnroll ? (
+            <SecurityPage forced />
+          ) : (
           <Routes>
             <Route index element={first ? <Navigate to={first} replace /> : <NoAccess />} />
+            <Route path="keamanan" element={<SecurityPage />} />
             <Route path="lamaran" element={<ApplicationsPage />} />
             <Route path="lamaran/:id" element={<ApplicationDetail />} />
             <Route path="lowongan" element={<JobsPage />} />
@@ -105,6 +111,7 @@ export default function BackofficeRoutes() {
             <Route path="komunikasi" element={<CommsPage />} />
             <Route path="audit" element={<AuditPage />} />
           </Routes>
+          )}
         </main>
       </div>
     </div>

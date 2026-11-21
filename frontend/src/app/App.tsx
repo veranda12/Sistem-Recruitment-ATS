@@ -44,7 +44,10 @@ function RequireKind({ kind, children }: { kind: "candidate" | "staff"; children
 
 function ScrollToTop() {
   const { pathname } = useLocation();
-  useEffect(() => window.scrollTo(0, 0), [pathname]);
+  // Blok kurung kurawal: Chrome baru mengembalikan Promise dari scrollTo, yang tidak boleh menjadi cleanup effect.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
   return null;
 }
 

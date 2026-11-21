@@ -31,6 +31,7 @@ type Principal struct {
 	Email         string
 	Name          string
 	EmailVerified bool
+	MFAEnabled    bool
 	SessionID     uuid.UUID
 	Grants        []Grant
 	token         string
@@ -104,7 +105,7 @@ func (s *Sessions) Load() gin.HandlerFunc {
 		}
 		p := &Principal{
 			UserID: row.UserID, OrgID: row.OrgID, Kind: row.Kind, Email: row.Email, Name: row.DisplayName,
-			EmailVerified: row.EmailVerifiedAt != nil, SessionID: row.SessionID, Grants: grants, token: token,
+			EmailVerified: row.EmailVerifiedAt != nil, MFAEnabled: row.MfaEnabledAt != nil, SessionID: row.SessionID, Grants: grants, token: token,
 		}
 		// Perpanjang idle expiry paling sering sekali per menit untuk menekan write.
 		if time.Since(row.LastSeenAt) > time.Minute {

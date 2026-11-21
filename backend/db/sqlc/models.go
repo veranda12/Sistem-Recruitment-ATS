@@ -411,6 +411,14 @@ type Location struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
+type MfaRecoveryCode struct {
+	ID         uuid.UUID  `json:"id"`
+	UserID     uuid.UUID  `json:"userId"`
+	CodeDigest []byte     `json:"codeDigest"`
+	UsedAt     *time.Time `json:"usedAt"`
+	CreatedAt  time.Time  `json:"createdAt"`
+}
+
 type Notification struct {
 	ID          uuid.UUID  `json:"id"`
 	OrgID       uuid.UUID  `json:"orgId"`
@@ -620,6 +628,7 @@ type User struct {
 	Version           int32      `json:"version"`
 	CreatedAt         time.Time  `json:"createdAt"`
 	UpdatedAt         time.Time  `json:"updatedAt"`
+	MfaLastStep       *int64     `json:"mfaLastStep"`
 }
 
 type Workflow struct {

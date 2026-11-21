@@ -60,6 +60,20 @@ try {
         os = (Get-CimInstance Win32_OperatingSystem).Caption; postgres = $pgv; maxConnections = $maxc; dbMaxConnsApi = $DbMaxConns
         topology = 'API, worker, PostgreSQL, dan generator k6 di satu laptop (bukan staging terpisah)'; redis = 'tidak ada (mode degraded)' }
 
+    # Sampling sumber daya tiap 15 detik: CPU (detik kumulatif) dan working set per proses.
+    $samplesFile = Join-Path $resDir 'resources.csv'
+    $sampler = Start-Job -ArgumentList $samplesFile -ScriptBlock {
+        param($f)
+        'time,process,cpu_seconds,ws_mb' | Set-Content $f
+        while ($true) {
+            $t = (Get-Date).ToString('o')
+            foreach ($n in 'api', 'worker', 'postgres', 'k6') {
+                $ps = Get-Process -Name $n -ErrorAction SilentlyContinue
+                if ($ps) { "$t,$n,$([math]::Round(($ps | Measure-Object CPU -Sum).Sum,1)),$([math]::Round(($ps | Measure-Object WorkingSet64 -Sum).Sum/1MB,0))" | Add-Content $f }
+            }
+            Start-Sleep -Seconds 15
+        }
+    }
     Write-Step "k6 profil $Profile"
     $k6args = @('run', '--quiet', '-e', 'BASE=http://127.0.0.1:8090', '-e', 'ORIGIN=http://localhost:5173', '-e', "FIXTURE=$fixture", '-e', "PASSWORD=$($envs.SEED_PASSWORD)",
         '-e', "PROFILE=$Profile", '-e', "EXAM_SECONDS=$ExamSeconds", '-e', "SEED=$Seed", '-e', "VUS=$Participants", '-e', "SUMMARY=$(Join-Path $resDir 'k6-summary.json')")
@@ -70,6 +84,7 @@ try {
     $info['finishedAt'] = (Get-Date).ToUniversalTime().ToString('o')
     try { (Invoke-WebRequest http://127.0.0.1:19090/metrics -UseBasicParsing).Content | Set-Content (Join-Path $resDir 'api-metrics.txt') } catch {}
 } finally {
+    if ($sampler) { Stop-Job $sampler; Remove-Job $sampler -Force }
     foreach ($p in $api, $wrk) { if ($p -and -not $p.HasExited) { Stop-Process -Id $p.Id -Force } }
 }
 

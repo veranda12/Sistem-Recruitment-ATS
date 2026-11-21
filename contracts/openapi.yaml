@@ -121,6 +121,7 @@ paths:
               properties:
                 email: { type: string, format: email }
                 password: { type: string }
+                code: { type: string, description: Kode TOTP atau kode pemulihan; wajib bila MFA aktif (401 mfa_required / mfa_invalid) }
       responses:
         "200":
           description: Login berhasil; cookie sesi diset (rotasi)
@@ -1104,8 +1105,12 @@ components:
             acceptingApplications: { type: boolean }
     Session:
       type: object
-      required: [user, csrfToken, roles, permissions]
+      required: [user, csrfToken, roles, permissions, mfa]
       properties:
+        mfa:
+          type: object
+          required: [enabled, required]
+          properties: { enabled: { type: boolean }, required: { type: boolean } }
         user:
           type: object
           required: [id, kind, email, name, emailVerified]

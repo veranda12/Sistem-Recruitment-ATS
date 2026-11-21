@@ -19,3 +19,11 @@ coverage.out
 dist/
 tests/load/results/*/
 !tests/load/results/README.md
+
+# Binary pihak ketiga lokal (Redis, tessdata); lihat docs/cv-parsing.md
+/tools/
+
+# Keluaran generator proposal (dibuat ulang dengan docs/proposal/*.mjs)
+/docs/proposal/img/
+/docs/proposal/*.pdf
+/docs/proposal/proposal.html

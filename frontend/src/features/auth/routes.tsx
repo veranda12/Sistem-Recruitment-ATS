@@ -53,7 +53,9 @@ function Login() {
   const [params] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
   const f = useForm();
+  const needCode = f.err?.code === "mfa_required" || f.err?.code === "mfa_invalid" || code !== "";
   const errRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (f.err) errRef.current?.focus();
@@ -62,7 +64,7 @@ function Login() {
   const submit = (e: FormEvent) => {
     e.preventDefault();
     f.run(async () => {
-      const s = await login(email, password);
+      const s = await login(email, password, code || undefined);
       nav(safeNext(params.get("next")) ?? (s.user.kind === "staff" ? "/staf" : "/akun"), { replace: true });
     });
   };
@@ -84,6 +86,11 @@ function Login() {
             <Input id={id} aria-describedby={describedBy} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           )}
         </Field>
+        {needCode ? (
+          <Field label="Kode verifikasi" required hint="Kode 6 digit dari aplikasi autentikator, atau kode pemulihan.">
+            {({ id, describedBy }) => <Input id={id} aria-describedby={describedBy} autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} />}
+          </Field>
+        ) : null}
         <Button type="submit" variant="primary" busy={f.busy}>
           Masuk
         </Button>

@@ -5,7 +5,7 @@ type SessionState = {
   session: Session | null;
   loading: boolean;
   refresh: () => Promise<Session | null>;
-  login: (email: string, password: string) => Promise<Session>;
+  login: (email: string, password: string, code?: string) => Promise<Session>;
   logout: () => Promise<void>;
   can: (perm: string) => boolean;
 };
@@ -45,9 +45,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, code?: string) => {
       const prev = session?.user.id;
-      const s = await post<Session>("/auth/login", { email, password });
+      const s = await post<Session>("/auth/login", { email, password, code });
       if (prev && prev !== s.user.id) await Promise.all([...logoutHooks].map((f) => f()));
       return apply(s)!;
     },

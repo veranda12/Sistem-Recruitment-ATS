@@ -34,7 +34,11 @@ type sessionDTO struct {
 		Name          string    `json:"name"`
 		EmailVerified bool      `json:"emailVerified"`
 	} `json:"user"`
-	CSRFToken   string   `json:"csrfToken"`
+	CSRFToken string `json:"csrfToken"`
+	MFA       struct {
+		Enabled  bool `json:"enabled"`
+		Required bool `json:"required"`
+	} `json:"mfa"`
 	Roles       []string `json:"roles"`
 	Permissions []string `json:"permissions"`
 }
@@ -43,6 +47,7 @@ func (h *Handler) sessionBody(p *Principal) sessionDTO {
 	var d sessionDTO
 	d.User.ID, d.User.Kind, d.User.Email, d.User.Name, d.User.EmailVerified = p.UserID, p.Kind, p.Email, p.Name, p.EmailVerified
 	d.CSRFToken = h.S.CSRFToken(p.token)
+	d.MFA.Enabled, d.MFA.Required = p.MFAEnabled, h.S.MFARequired(p)
 	d.Roles = nonNil(p.Roles())
 	d.Permissions = nonNil(p.Permissions())
 	return d
@@ -77,6 +82,7 @@ func (h *Handler) Session(c *gin.Context) {
 type loginReq struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	Code     string `json:"code"` // TOTP atau kode pemulihan, wajib bila MFA aktif
 }
 
 // POST /auth/login. Respons gagal identik untuk email tidak dikenal, sandi salah, atau akun nonaktif.
@@ -110,6 +116,13 @@ func (h *Handler) Login(c *gin.Context) {
 		platform.Fail(c, invalid)
 		return
 	}
+	if user.MfaEnabledAt != nil {
+		if err := h.S.checkSecondFactor(c, user, req.Code); err != nil {
+			h.audit(c, &user.ID, "auth.login", "denied", "mfa")
+			platform.Fail(c, err)
+			return
+		}
+	}
 	// Rotasi: sesi lama dari cookie yang sama dicabut, sesi baru selalu dibuat.
 	if old := Current(c); old != nil {
 		_ = h.S.Q.RevokeSession(ctx, sqlc.RevokeSessionParams{ID: old.SessionID, RevokeReason: strp("rotated_on_login")})
@@ -135,7 +148,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 	p := &Principal{UserID: user.ID, OrgID: user.OrgID, Kind: user.Kind, Email: user.Email, Name: user.DisplayName,
-		EmailVerified: user.EmailVerifiedAt != nil, SessionID: sess.ID, Grants: grants, token: token}
+		EmailVerified: user.EmailVerifiedAt != nil, MFAEnabled: user.MfaEnabledAt != nil, SessionID: sess.ID, Grants: grants, token: token}
 	h.audit(c, &user.ID, "auth.login", "success", "")
 	c.JSON(http.StatusOK, h.sessionBody(p))
 }

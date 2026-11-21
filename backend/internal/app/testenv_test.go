@@ -42,6 +42,7 @@ type env struct {
 	mailDir string
 	worker  *platform.OutboxWorker
 	keys    identity.Keys
+	limiter *platform.Limiter
 }
 
 func key(b byte) []byte { return bytes.Repeat([]byte{b}, 32) }
@@ -77,11 +78,11 @@ func newEnv(t *testing.T) *env {
 	limiter := platform.NewLimiter("")
 	limiter.DegradedDivisor = 1
 	srv := httptest.NewServer(NewRouter(Deps{Cfg: cfg, Pool: pool, OrgID: orgID, Limiter: limiter}))
-	t.Cleanup(srv.Close)
+	t.Cleanup(func() { e := srv; e.Close() })
 	mailDir := t.TempDir()
 	h := &notify.Handlers{Pool: pool, Q: sqlc.New(pool), Mailer: notify.FileMailer{Dir: mailDir, From: "uji@arunika.example"}, Origin: testOrigin}
 	w := &platform.OutboxWorker{Pool: pool, Consumer: "worker", Handle: WorkerHandler(pool, h, cfg.ObjectDir, testScanner), Interval: time.Second, Concurrency: 2, Lease: 30 * time.Second}
-	return &env{t: t, pool: pool, srv: srv, cfg: cfg, orgID: orgID, mailDir: mailDir, worker: w, keys: keys}
+	return &env{t: t, pool: pool, srv: srv, cfg: cfg, orgID: orgID, mailDir: mailDir, worker: w, keys: keys, limiter: limiter}
 }
 
 func resetSchema(t *testing.T, dsn string) {
@@ -252,4 +253,20 @@ func testScanner(_ context.Context, path string) (string, error) {
 		return "infected", nil
 	}
 	return "clean", nil
+}
+
+// rebuildServer membuat ulang server HTTP dengan e.cfg terbaru (mis. kebijakan MFA berbeda).
+func (e *env) rebuildServer() {
+	e.srv.Close()
+	e.srv = httptest.NewServer(NewRouter(Deps{Cfg: e.cfg, Pool: e.pool, OrgID: e.orgID, Limiter: e.limiter}))
+	e.t.Cleanup(e.srv.Close)
+}
+
+func (e *env) scalarBytes(sql string, args ...any) []byte {
+	e.t.Helper()
+	var b []byte
+	if err := e.pool.QueryRow(context.Background(), sql, args...).Scan(&b); err != nil {
+		e.t.Fatalf("query %q: %v", sql, err)
+	}
+	return b
 }

@@ -49,6 +49,9 @@ type Config struct {
 
 	// ScanCommand: pemindai malware eksternal (mis. "clamdscan --no-summary"). Kosong = dokumen tetap pending.
 	ScanCommand string
+
+	// MFARequiredRoles: peran staf yang wajib MFA. Default produksi: super_admin,hr_admin.
+	MFARequiredRoles []string
 }
 
 func (c Config) IsProduction() bool { return c.Env == "production" }
@@ -127,6 +130,15 @@ func LoadConfig() (Config, error) {
 		RateLimitScale:     atoi("RATE_LIMIT_SCALE", 1),
 		MetricsAddr:        os.Getenv("METRICS_ADDR"),
 		ScanCommand:        os.Getenv("SCAN_COMMAND"),
+	}
+	mfaRoles := os.Getenv("MFA_REQUIRED_ROLES")
+	if mfaRoles == "" && c.IsProduction() {
+		mfaRoles = "super_admin,hr_admin"
+	}
+	for _, r := range strings.Split(mfaRoles, ",") {
+		if r = strings.TrimSpace(r); r != "" && r != "none" {
+			c.MFARequiredRoles = append(c.MFARequiredRoles, r)
+		}
 	}
 	if tp := os.Getenv("TRUSTED_PROXIES"); tp != "" {
 		for _, p := range strings.Split(tp, ",") {

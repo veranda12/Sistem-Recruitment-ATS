@@ -29,7 +29,7 @@ RETURNING *;
 
 -- name: GetActiveSessionByDigest :one
 SELECT s.id AS session_id, s.idle_expires_at, s.absolute_expires_at, s.last_seen_at,
-       u.id AS user_id, u.org_id, u.kind, u.email, u.display_name, u.status, u.email_verified_at
+       u.id AS user_id, u.org_id, u.kind, u.email, u.display_name, u.status, u.email_verified_at, u.mfa_enabled_at
 FROM sessions s
 JOIN users u ON u.id = s.user_id
 WHERE s.token_digest = $1
@@ -67,3 +67,31 @@ FROM scoped_role_assignments a
 JOIN roles r ON r.id = a.role_id
 JOIN role_permissions rp ON rp.role_id = r.id
 WHERE a.user_id = $1 AND a.revoked_at IS NULL;
+
+-- name: SetMFASecret :exec
+-- Rahasia baru (belum aktif) saat pendaftaran; MFA aktif hanya setelah kode pertama terverifikasi.
+UPDATE users SET mfa_secret = $2, mfa_enabled_at = NULL, mfa_last_step = NULL, updated_at = now() WHERE id = $1;
+
+-- name: EnableMFA :exec
+UPDATE users SET mfa_enabled_at = now(), mfa_last_step = $2, updated_at = now() WHERE id = $1;
+
+-- name: DisableMFA :exec
+UPDATE users SET mfa_secret = NULL, mfa_enabled_at = NULL, mfa_last_step = NULL, updated_at = now() WHERE id = $1;
+
+-- name: LockUserMFA :one
+SELECT id, mfa_secret, mfa_enabled_at, mfa_last_step FROM users WHERE id = $1 FOR UPDATE;
+
+-- name: SetMFALastStep :exec
+UPDATE users SET mfa_last_step = $2 WHERE id = $1;
+
+-- name: DeleteRecoveryCodes :exec
+DELETE FROM mfa_recovery_codes WHERE user_id = $1;
+
+-- name: InsertRecoveryCode :exec
+INSERT INTO mfa_recovery_codes (user_id, code_digest) VALUES ($1, $2);
+
+-- name: UseRecoveryCode :execrows
+UPDATE mfa_recovery_codes SET used_at = now() WHERE user_id = $1 AND code_digest = $2 AND used_at IS NULL;
+
+-- name: CountRecoveryCodes :one
+SELECT count(*)::int FROM mfa_recovery_codes WHERE user_id = $1 AND used_at IS NULL;

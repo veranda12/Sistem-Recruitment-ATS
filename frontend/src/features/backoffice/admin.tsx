@@ -20,6 +20,8 @@ export function UsersPage() {
   const [assignFor, setAssignFor] = useState<User | null>(null);
   const [asg, setAsg] = useState({ roleKey: "recruiter", unitCode: "", reason: "" });
   const [busy, setBusy] = useState(false);
+  const [mfaFor, setMfaFor] = useState<User | null>(null);
+  const [mfaReason, setMfaReason] = useState("");
 
   const run = async (fn: () => Promise<unknown>, ok: string, after?: () => void) => {
     setBusy(true);
@@ -39,7 +41,7 @@ export function UsersPage() {
   return (
     <div className="max-w-5xl">
       <PageHeader title="Pengguna dan peran" subtitle="Perubahan peran berlaku pada permintaan berikutnya pengguna tersebut." actions={<Button variant="primary" onClick={() => setCreateOpen(true)}>Tambah pengguna</Button>} />
-      {err && !createOpen && !assignFor ? (
+      {err && !createOpen && !assignFor && !mfaFor ? (
         <div className="mb-4">
           <Alert tone="danger">{err.message}</Alert>
         </div>
@@ -59,6 +61,9 @@ export function UsersPage() {
                   <Badge status={u.status === "active" ? "published" : "closed"}>{u.status === "active" ? "Aktif" : "Nonaktif"}</Badge>
                   <Button size="sm" onClick={() => { setErr(null); setAssignFor(u); }}>
                     Beri peran
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setErr(null); setMfaFor(u); setMfaReason(""); }}>
+                    Reset MFA
                   </Button>
                   <Button
                     size="sm"
@@ -134,6 +139,17 @@ export function UsersPage() {
           <Button onClick={() => setCreateOpen(false)}>Batal</Button>
           <Button variant="primary" busy={busy} onClick={() => run(() => post("/admin/users", nu), "Pengguna dibuat dan undangan dikirim.", () => setCreateOpen(false))}>
             Simpan
+          </Button>
+        </div>
+      </Dialog>
+
+      <Dialog open={!!mfaFor} onOpenChange={(o) => !o && setMfaFor(null)} title={`Reset MFA: ${mfaFor?.displayName ?? ""}`} description="Untuk pengguna yang kehilangan perangkat. Verifikasi identitas pemohon terlebih dahulu; semua sesinya dicabut.">
+        {err && mfaFor ? <Alert tone="danger">{err.fieldErrors.reason ?? err.message}</Alert> : null}
+        <Field label="Alasan dan cara verifikasi identitas" required>{({ id }) => <Textarea id={id} value={mfaReason} onChange={(e) => setMfaReason(e.target.value)} />}</Field>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button onClick={() => setMfaFor(null)}>Batal</Button>
+          <Button variant="danger" busy={busy} onClick={() => run(() => post(`/admin/users/${mfaFor!.id}/mfa-reset`, { reason: mfaReason }), "MFA direset; pengguna harus mendaftar ulang.", () => setMfaFor(null))}>
+            Reset MFA
           </Button>
         </div>
       </Dialog>
