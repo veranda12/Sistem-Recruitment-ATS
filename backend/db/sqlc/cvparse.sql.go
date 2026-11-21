@@ -89,13 +89,13 @@ func (q *Queries) CancelCVRunsForDocument(ctx context.Context, documentID uuid.U
 const claimCVParseRun = `-- name: ClaimCVParseRun :one
 UPDATE cv_parse_runs SET status = 'processing', stage = 'starting', fence = fence + 1, lease_owner = $1,
        lease_until = now() + make_interval(secs => $2::int), heartbeat_at = now(), attempt = attempt + 1,
-       started_at = coalesce(started_at, now()),
+       started_at = coalesce(started_at, now()), claimed_at = now(),
        queue_ms = coalesce(queue_ms, (extract(epoch FROM now() - queued_at) * 1000)::int), updated_at = now()
 WHERE cv_parse_runs.id = $3
   AND attempt < max_attempts
   AND ((status = 'queued' AND next_attempt_at <= now()) OR (status = 'processing' AND lease_until < now()))
   AND EXISTS (SELECT 1 FROM documents d WHERE d.id = cv_parse_runs.document_id AND d.deleted_at IS NULL AND d.scan_status = 'clean')
-RETURNING id, org_id, candidate_user_id, document_id, parser_config_version, status, stage, pages_total, pages_done, attempt, max_attempts, fence, lease_owner, lease_until, heartbeat_at, next_attempt_at, dispatched_at, failure_reason, failure_transient, dead_lettered_at, manifest, review_version, queue_ms, process_ms, queued_at, started_at, finished_at, applied_at, created_at, updated_at
+RETURNING id, org_id, candidate_user_id, document_id, parser_config_version, status, stage, pages_total, pages_done, attempt, max_attempts, fence, lease_owner, lease_until, heartbeat_at, next_attempt_at, dispatched_at, failure_reason, failure_transient, dead_lettered_at, manifest, review_version, queue_ms, process_ms, queued_at, started_at, finished_at, applied_at, created_at, updated_at, claimed_at
 `
 
 type ClaimCVParseRunParams struct {
@@ -139,6 +139,7 @@ func (q *Queries) ClaimCVParseRun(ctx context.Context, arg ClaimCVParseRunParams
 		&i.AppliedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ClaimedAt,
 	)
 	return i, err
 }
@@ -147,7 +148,7 @@ const createCVParseRun = `-- name: CreateCVParseRun :one
 INSERT INTO cv_parse_runs (org_id, candidate_user_id, document_id, parser_config_version, status, stage)
 VALUES ($1, $2, $3, $4, $5, $5)
 ON CONFLICT (candidate_user_id, document_id, parser_config_version) DO UPDATE SET updated_at = cv_parse_runs.updated_at
-RETURNING id, org_id, candidate_user_id, document_id, parser_config_version, status, stage, pages_total, pages_done, attempt, max_attempts, fence, lease_owner, lease_until, heartbeat_at, next_attempt_at, dispatched_at, failure_reason, failure_transient, dead_lettered_at, manifest, review_version, queue_ms, process_ms, queued_at, started_at, finished_at, applied_at, created_at, updated_at
+RETURNING id, org_id, candidate_user_id, document_id, parser_config_version, status, stage, pages_total, pages_done, attempt, max_attempts, fence, lease_owner, lease_until, heartbeat_at, next_attempt_at, dispatched_at, failure_reason, failure_transient, dead_lettered_at, manifest, review_version, queue_ms, process_ms, queued_at, started_at, finished_at, applied_at, created_at, updated_at, claimed_at
 `
 
 type CreateCVParseRunParams struct {
@@ -199,6 +200,7 @@ func (q *Queries) CreateCVParseRun(ctx context.Context, arg CreateCVParseRunPara
 		&i.AppliedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ClaimedAt,
 	)
 	return i, err
 }
@@ -384,7 +386,7 @@ const finishCVParseRun = `-- name: FinishCVParseRun :execrows
 UPDATE cv_parse_runs SET status = $1, stage = 'done', manifest = $2, pages_total = $3,
        pages_done = coalesce($3, pages_done), failure_reason = $4, failure_transient = false,
        lease_owner = NULL, lease_until = NULL, finished_at = now(),
-       process_ms = (extract(epoch FROM now() - heartbeat_at) * 1000)::int + coalesce(process_ms, 0), updated_at = now()
+       process_ms = (extract(epoch FROM now() - claimed_at) * 1000)::int, updated_at = now()
 WHERE cv_parse_runs.id = $5 AND fence = $6 AND status = 'processing'
   AND EXISTS (SELECT 1 FROM documents d WHERE d.id = cv_parse_runs.document_id AND d.deleted_at IS NULL)
 `
@@ -442,7 +444,7 @@ func (q *Queries) GetCVParsePage(ctx context.Context, arg GetCVParsePageParams) 
 }
 
 const getCVParseRun = `-- name: GetCVParseRun :one
-SELECT id, org_id, candidate_user_id, document_id, parser_config_version, status, stage, pages_total, pages_done, attempt, max_attempts, fence, lease_owner, lease_until, heartbeat_at, next_attempt_at, dispatched_at, failure_reason, failure_transient, dead_lettered_at, manifest, review_version, queue_ms, process_ms, queued_at, started_at, finished_at, applied_at, created_at, updated_at FROM cv_parse_runs WHERE id = $1
+SELECT id, org_id, candidate_user_id, document_id, parser_config_version, status, stage, pages_total, pages_done, attempt, max_attempts, fence, lease_owner, lease_until, heartbeat_at, next_attempt_at, dispatched_at, failure_reason, failure_transient, dead_lettered_at, manifest, review_version, queue_ms, process_ms, queued_at, started_at, finished_at, applied_at, created_at, updated_at, claimed_at FROM cv_parse_runs WHERE id = $1
 `
 
 func (q *Queries) GetCVParseRun(ctx context.Context, id uuid.UUID) (CvParseRun, error) {
@@ -479,12 +481,13 @@ func (q *Queries) GetCVParseRun(ctx context.Context, id uuid.UUID) (CvParseRun, 
 		&i.AppliedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ClaimedAt,
 	)
 	return i, err
 }
 
 const getCVParseRunForUpdate = `-- name: GetCVParseRunForUpdate :one
-SELECT id, org_id, candidate_user_id, document_id, parser_config_version, status, stage, pages_total, pages_done, attempt, max_attempts, fence, lease_owner, lease_until, heartbeat_at, next_attempt_at, dispatched_at, failure_reason, failure_transient, dead_lettered_at, manifest, review_version, queue_ms, process_ms, queued_at, started_at, finished_at, applied_at, created_at, updated_at FROM cv_parse_runs WHERE id = $1 FOR UPDATE
+SELECT id, org_id, candidate_user_id, document_id, parser_config_version, status, stage, pages_total, pages_done, attempt, max_attempts, fence, lease_owner, lease_until, heartbeat_at, next_attempt_at, dispatched_at, failure_reason, failure_transient, dead_lettered_at, manifest, review_version, queue_ms, process_ms, queued_at, started_at, finished_at, applied_at, created_at, updated_at, claimed_at FROM cv_parse_runs WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) GetCVParseRunForUpdate(ctx context.Context, id uuid.UUID) (CvParseRun, error) {
@@ -521,6 +524,7 @@ func (q *Queries) GetCVParseRunForUpdate(ctx context.Context, id uuid.UUID) (CvP
 		&i.AppliedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ClaimedAt,
 	)
 	return i, err
 }
@@ -907,7 +911,7 @@ func (q *Queries) ListCVParsePages(ctx context.Context, runID uuid.UUID) ([]CvPa
 }
 
 const listCVParseRunsForCandidate = `-- name: ListCVParseRunsForCandidate :many
-SELECT r.id, r.org_id, r.candidate_user_id, r.document_id, r.parser_config_version, r.status, r.stage, r.pages_total, r.pages_done, r.attempt, r.max_attempts, r.fence, r.lease_owner, r.lease_until, r.heartbeat_at, r.next_attempt_at, r.dispatched_at, r.failure_reason, r.failure_transient, r.dead_lettered_at, r.manifest, r.review_version, r.queue_ms, r.process_ms, r.queued_at, r.started_at, r.finished_at, r.applied_at, r.created_at, r.updated_at, d.file_name AS document_name FROM cv_parse_runs r JOIN documents d ON d.id = r.document_id
+SELECT r.id, r.org_id, r.candidate_user_id, r.document_id, r.parser_config_version, r.status, r.stage, r.pages_total, r.pages_done, r.attempt, r.max_attempts, r.fence, r.lease_owner, r.lease_until, r.heartbeat_at, r.next_attempt_at, r.dispatched_at, r.failure_reason, r.failure_transient, r.dead_lettered_at, r.manifest, r.review_version, r.queue_ms, r.process_ms, r.queued_at, r.started_at, r.finished_at, r.applied_at, r.created_at, r.updated_at, r.claimed_at, d.file_name AS document_name FROM cv_parse_runs r JOIN documents d ON d.id = r.document_id
 WHERE r.candidate_user_id = $1 ORDER BY r.created_at DESC LIMIT 10
 `
 
@@ -942,6 +946,7 @@ type ListCVParseRunsForCandidateRow struct {
 	AppliedAt           *time.Time      `json:"appliedAt"`
 	CreatedAt           time.Time       `json:"createdAt"`
 	UpdatedAt           time.Time       `json:"updatedAt"`
+	ClaimedAt           *time.Time      `json:"claimedAt"`
 	DocumentName        string          `json:"documentName"`
 }
 
@@ -985,6 +990,7 @@ func (q *Queries) ListCVParseRunsForCandidate(ctx context.Context, candidateUser
 			&i.AppliedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ClaimedAt,
 			&i.DocumentName,
 		); err != nil {
 			return nil, err
@@ -1216,11 +1222,12 @@ func (q *Queries) MarkCVRunDismissed(ctx context.Context, id uuid.UUID) (int64, 
 }
 
 const releaseWaitingCVRuns = `-- name: ReleaseWaitingCVRuns :execrows
-UPDATE cv_parse_runs SET status = 'queued', stage = 'queued', next_attempt_at = now(), updated_at = now()
+UPDATE cv_parse_runs SET status = 'queued', stage = 'queued', next_attempt_at = now(), queued_at = now(), updated_at = now()
 WHERE document_id = $1 AND status = 'waiting_scan'
 `
 
 // Dipanggil setelah pemindaian dokumen bersih.
+// queued_at di-reset: waktu antre diukur sejak siap diproses, bukan sejak menunggu pemindaian.
 func (q *Queries) ReleaseWaitingCVRuns(ctx context.Context, documentID uuid.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, releaseWaitingCVRuns, documentID)
 	if err != nil {

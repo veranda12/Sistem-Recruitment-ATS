@@ -205,6 +205,7 @@ type CvParseRun struct {
 	AppliedAt           *time.Time      `json:"appliedAt"`
 	CreatedAt           time.Time       `json:"createdAt"`
 	UpdatedAt           time.Time       `json:"updatedAt"`
+	ClaimedAt           *time.Time      `json:"claimedAt"`
 }
 
 type CvReviewEvent struct {

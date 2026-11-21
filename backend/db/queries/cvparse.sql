@@ -17,7 +17,8 @@ WHERE r.candidate_user_id = $1 ORDER BY r.created_at DESC LIMIT 10;
 
 -- name: ReleaseWaitingCVRuns :execrows
 -- Dipanggil setelah pemindaian dokumen bersih.
-UPDATE cv_parse_runs SET status = 'queued', stage = 'queued', next_attempt_at = now(), updated_at = now()
+-- queued_at di-reset: waktu antre diukur sejak siap diproses, bukan sejak menunggu pemindaian.
+UPDATE cv_parse_runs SET status = 'queued', stage = 'queued', next_attempt_at = now(), queued_at = now(), updated_at = now()
 WHERE document_id = $1 AND status = 'waiting_scan';
 
 -- name: FailWaitingCVRuns :execrows
@@ -55,7 +56,7 @@ UPDATE cv_parse_runs SET dispatched_at = now() WHERE id = $1;
 -- Klaim dengan lease; fence naik. Run yang lease-nya habis boleh diambil alih.
 UPDATE cv_parse_runs SET status = 'processing', stage = 'starting', fence = fence + 1, lease_owner = sqlc.arg(owner),
        lease_until = now() + make_interval(secs => sqlc.arg(lease_seconds)::int), heartbeat_at = now(), attempt = attempt + 1,
-       started_at = coalesce(started_at, now()),
+       started_at = coalesce(started_at, now()), claimed_at = now(),
        queue_ms = coalesce(queue_ms, (extract(epoch FROM now() - queued_at) * 1000)::int), updated_at = now()
 WHERE cv_parse_runs.id = sqlc.arg(id)
   AND attempt < max_attempts
@@ -73,7 +74,7 @@ WHERE id = sqlc.arg(id) AND fence = sqlc.arg(fence) AND status = 'processing';
 UPDATE cv_parse_runs SET status = sqlc.arg(status), stage = 'done', manifest = sqlc.arg(manifest), pages_total = sqlc.narg(pages_total),
        pages_done = coalesce(sqlc.narg(pages_total), pages_done), failure_reason = sqlc.narg(failure_reason), failure_transient = false,
        lease_owner = NULL, lease_until = NULL, finished_at = now(),
-       process_ms = (extract(epoch FROM now() - heartbeat_at) * 1000)::int + coalesce(process_ms, 0), updated_at = now()
+       process_ms = (extract(epoch FROM now() - claimed_at) * 1000)::int, updated_at = now()
 WHERE cv_parse_runs.id = sqlc.arg(id) AND fence = sqlc.arg(fence) AND status = 'processing'
   AND EXISTS (SELECT 1 FROM documents d WHERE d.id = cv_parse_runs.document_id AND d.deleted_at IS NULL);
 

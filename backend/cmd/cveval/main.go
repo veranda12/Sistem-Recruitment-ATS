@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -127,8 +128,7 @@ func main() {
 		for _, r := range rs {
 			fxs = append(fxs, fx{r.Fixture.File, r.Fixture.Expect, r.Outcome, r.OutcomeOK, r.Duration.Milliseconds(), r.PageMethods, r.Mismatches})
 		}
-		host, _ := os.Hostname()
-		b, _ := json.MarshalIndent(map[string]any{"generatedAt": time.Now().Format(time.RFC3339), "host": host, "tools": cvparse.ToolVersions(context.Background(), tools),
+		b, _ := json.MarshalIndent(map[string]any{"generatedAt": time.Now().Format(time.RFC3339), "host": runtime.GOOS + "/" + runtime.GOARCH, "tools": cvparse.ToolVersions(context.Background(), tools),
 			"parser": cvparse.ParserVersion, "rows": rows, "evidence": ev, "fabricated": fabricated, "cer": cer, "cerChars": cerChars, "timings": tims,
 			"fixtures": fxs, "uniqueCV": map[string]int{"dev": len(unique["dev"]), "holdout": len(unique["holdout"])}}, "", "  ")
 		if err := os.WriteFile(*report, b, 0o644); err != nil {

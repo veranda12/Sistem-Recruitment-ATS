@@ -1,6 +1,6 @@
 # Status Implementasi
 
-Terakhir diperbarui: 2026-11-19. Dokumen ini mencatat hasil **aktual** yang dijalankan, bukan rencana.
+Terakhir diperbarui: 2026-11-21. Dokumen ini mencatat hasil **aktual** yang dijalankan, bukan rencana.
 
 ## Lingkungan yang ditemukan (inventaris fase 1)
 
@@ -12,7 +12,10 @@ Terakhir diperbarui: 2026-11-19. Dokumen ini mencatat hasil **aktual** yang dija
 | PostgreSQL | 17.5 (instance lokal port 5432, role `pos`) ; database proyek: `ats_dev`, `ats_test` |
 | sqlc | 1.29.0 (binary rilis Windows) |
 | golang-migrate CLI | v4.18.3 (`go install -tags postgres`); binary `cmd/migrate` memakai migrasi tertanam |
-| Redis | **tidak tersedia** (tidak terpasang, Docker daemon mati, WSL hanya distro docker-desktop) -> API berjalan mode `redis: disabled` |
+| Redis | 2026-11-19: tidak tersedia. 2026-11-21: Redis 8.10.3 (redis-windows, msys2, tanpa service) di `tools\redis`, dijalankan manual `ops\windows\redis-start.ps1`; tidak berjalan otomatis saat boot |
+| Poppler | 24.08.0 (`C:\poppler-24.08.0`) |
+| Tesseract | 5.5.0.20241111 + tessdata_fast ind/eng/osd commit 87416418 (`tools\tessdata`, SHA-256 terverifikasi) |
+| LibreOffice | 26.2.5.2 (winget; 26.8.3.1 gagal diunduh 404) |
 | Git | Repo belum ada; diinisialisasi lokal (`main`), tanpa remote |
 
 ## Fase
@@ -22,12 +25,19 @@ Terakhir diperbarui: 2026-11-19. Dokumen ini mencatat hasil **aktual** yang dija
 | 1 Inventaris & rencana | Selesai | `docs/architecture/architecture.md`, `docs/architecture/adr/README.md`, `docs/product/assumptions.md`, `docs/product/plan.md` |
 | 2 Foundation | Backend selesai; design system + 3 layout frontend selesai | config tervalidasi, logger JSON, `/healthz` `/readyz`, sesi + CSRF, RBAC scope, seed |
 | 3 Vertical slice | Selesai: backend, UI, dan E2E Playwright lulus | karier -> registrasi -> profil -> apply -> recruiter -> transisi teraudit; workflow publish/simulate/rollback/approval |
-| 4 Ujian | Inti selesai: protokol start/resume/save/submit/expiry, skoring, esai buta + regrade, rilis -> workflow, monitoring, ruang ujian web (autosave, offline, draft IndexedDB, receipt), halaman staf. Belum: editor bank soal + impor tervalidasi, editor paket/versi via UI (saat ini dari seed), uji race lintas dua instance API | |
-| 5-10 | Belum dimulai | |
+| 4 Ujian | Selesai: protokol ujian, skoring, esai, rilis, monitoring, ruang ujian web, bank soal + impor CSV + versi paket. Belum: uji race lintas dua instance API (tidak ada staging) | commit 39cb841, b0b79f2, 90c3b4e |
+| 5 Komunikasi, laporan, admin | Selesai | 3f10478, 1d287fe |
+| 6-7 Verifikasi, setup Windows | Selesai (check-all 11/11, clean checkout, uji upgrade skema) | 4b7de38, 7f70641 |
+| 8 Artefak Linux | Artefak dibangun; belum dijalankan di server Linux | 78df906 |
+| 9 Backup/restore | Drill restore lulus | 7fc530c |
+| 10 Handover | Dokumen selesai | e4fbb7e |
+| Tambahan: MFA staf | Selesai + test integrasi | 8f416cd |
+| Tambahan: uji beban 500 VU | Selesai, 0 selisih rekonsiliasi | `docs/operations/load-test-report.md` |
+| Tambahan: pembacaan CV | Selesai: parser semua format, antrean + worker khusus, API review/apply, UI, fixture + evaluasi, benchmark | d64360d, 1a21dff, a218118; `docs/cv-parsing.md` |
 
 ## Migrasi terakhir
 
-`0004_exam` (versi skema 4).
+`0009_cv_parse_timing` (versi skema 9). `ats_dev` dimigrasi ke 9 pada 2026-11-21.
 
 ## Hasil uji aktual
 
@@ -66,13 +76,33 @@ DATABASE_URL_TEST="postgres://pos:pos@localhost:5432/ats_test?sslmode=disable" g
 | Playwright penuh (13 tes, desktop 1440 + mobile 390): ditambah ujian lewat browser (simpan -> offline "hanya di perangkat" -> reconnect "tersimpan di server" -> refresh memulihkan draft -> tandai ragu -> konfirmasi -> bukti penerimaan, refresh menampilkan bukti sama), monitoring staf + rilis memicu transisi event, examiner tanpa identitas, ruang ujian ponsel (drawer navigator, tanpa scroll horizontal, opsi terakhir dapat diklik di atas action bar) | **13 lulus**, 2 kali berturut-turut | 2026-11-20 |
 | Run E2E pertama setelah ujian ditambah | 3 gagal: 429 rate limit login (seluruh suite dari satu IP). Solusi: `RATE_LIMIT_SCALE` (default 1, ditolak bila bukan 1 di produksi), E2E memakai 20 | 2026-11-20 |
 
+| **2026-11-21** | | |
+| `go test ./...` termasuk integrasi PostgreSQL (`DATABASE_URL_TEST`) dan tool CV sungguhan | lulus setelah migrasi 0009: app 55,6 s, auth, cvparse, cvparse/eval 188,8 s, exam, identity, platform, workflow | 2026-11-21 |
+| `TestMFAEnrollmentLoginRecoveryAndReset`, `TestMFAEnforcedForPrivilegedRoles` | lulus | 2026-11-21 |
+| `cvworker preflight` (fixture kecil sungguhan: PDF native+render, OCR ind+eng, konversi DOCX) | semua OK; dengan tessdata tanpa `ind` -> GAGAL exit 1 (terdeteksi) | 2026-11-21 |
+| Unit `internal/cvparse` (tanggal berpresisi, periode, telepon E.164, URL aman, alias skill, dua kolom, data sensitif + instruksi palsu diabaikan, bukti = baris sama, DOCX: XXE/DOCTYPE, makro, bukan Word, batas terurai, tabel tahun-di-kolom, CFB, deteksi format) | lulus | 2026-11-21 |
+| `TestFixtureQuality` (88 fixture, binary sungguhan, ambang email/telepon >=95%/90%, F1 pengalaman >=85%/75%, 0 rekaan, bukti valid) | lulus | 2026-11-21 |
+| `TestCVParseReviewApplyFlow`, `TestCVParseProfileChangedAndPartial`, `TestCVParseFormatsAndFailures`, `TestCVParseFencingAndDeletion` | lulus (30,9 s) | 2026-11-21 |
+| Vitest (36, termasuk `cv/model.test.ts`), `tsc -b`, `tsc -p tsconfig.e2e.json`, `eslint .` | lulus | 2026-11-21 |
+| Playwright penuh (22 tes; termasuk `cv.spec.ts`: unggah -> siap diperiksa -> lihat sumber -> koreksi telepon -> tolak email -> refresh -> simpan -> profil) | **22 lulus**. Run pertama: 2 gagal karena ekspektasi lama (menu "Keamanan akun" sejak MFA, label "Berkas" ambigu) -> test diperbarui | 2026-11-21 |
+| `cveval` | 88/88 hasil sesuai; lihat tabel di `docs/cv-parsing.md`; laporan `docs/cv-parsing-eval.json` | 2026-11-21 |
+| Backlog 20 unggahan CV (`tests/load/cv-backlog.mjs`) | 20/20 siap diperiksa; antre p95 19,0 s; proses p95 10,7 s; API p95 3,1 -> 3,3 ms | 2026-11-21 |
+| Uji beban ujian 500 VU (r1121130857) | 91.446 request, 0 gagal, 0 selisih rekonsiliasi | 2026-11-21 |
+| Bug ditemukan saat uji di Chrome | layar kosong: `useEffect` mengembalikan Promise dari `scrollTo` (Chrome baru); Vite dev mati karena EBUSY saat Playwright menulis report. Keduanya diperbaiki | 2026-11-21 |
+
 ## Blocker / keterbatasan saat ini
 
 
 - Race detector Go (`go test -race`) tidak dapat dijalankan: butuh cgo + gcc, tidak terpasang di mesin Windows ini.
-- Redis tidak tersedia di mesin ini: cache publik dan limiter global belum teruji end-to-end; jalur degraded (limiter lokal) yang dipakai.
-- Frontend belum ada.
+- Redis kini tersedia (manual). Antrean CV via Asynq diuji di dev (backlog); jalur tanpa Redis diuji di Playwright. Cache publik + limiter global lintas instance belum diuji dengan dua instance API.
+- Pembacaan CV: koreksi perspektif foto, OCR per wilayah, batas memori per proses di Windows, UI staf untuk hasil CV, dan korpus CV nyata belum ada/diuji (detail `docs/cv-parsing.md`).
+- Unit systemd (termasuk `ats-cvworker.service`) belum dijalankan di server Linux.
 
 ## Langkah konkret berikutnya
 
-Fase 5: komunikasi (template berversi + riwayat pengiriman + retry di UI), dashboard/laporan + ekspor CSV, admin pengguna/peran (cegah hapus admin terakhir), pengaturan berversi, metrik Prometheus. Sisa fase 4: editor bank soal dan impor tervalidasi.
+1. Uji pembacaan CV dengan sampel CV nyata yang disetujui pemiliknya (tidak di-commit); kalibrasi heading/penanda dari kegagalan nyata.
+2. UI staf untuk melihat hasil pembacaan CV dari detail lamaran (API sudah ada).
+3. Jalankan unit systemd + preflight CV di server Linux staging; ulangi `cveval` dan backlog di host produksi.
+4. Koreksi perspektif foto bila kegagalan nyata menunjukkan kebutuhan.
+
+Reproduksi pembacaan CV: `powershell -File ops\windows\cv-tools.ps1`, isi `CV_*` di `.env`, `powershell -File ops\windows\cv-check.ps1 -Mode all`, `start.ps1`, buka `/akun/profil` -> "Isi profil dari CV".

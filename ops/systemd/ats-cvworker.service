@@ -1,0 +1,52 @@
+[Unit]
+Description=ATS worker pembacaan CV (antrean "cv", terpisah dari worker ujian/outbox)
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ats-cv
+Group=ats
+EnvironmentFile=/etc/ats/ats.env
+Environment=CV_WORKER_HEALTH_ADDR=127.0.0.1:8082
+Environment=CV_WORKER_METRICS_ADDR=127.0.0.1:19082
+Environment=CV_WORK_DIR=/var/lib/ats/cvwork
+Environment=CV_WORKER_CONCURRENCY=2
+Environment=CV_TESSDATA=/usr/share/tesseract-ocr/5/tessdata
+Environment=GOMEMLIMIT=400MiB
+ExecStart=/opt/ats/current/bin/cvworker
+KillSignal=SIGTERM
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=5
+
+# Batas sumber daya berlaku untuk worker DAN semua proses turunan (pdftoppm, tesseract, soffice).
+MemoryMax=1500M
+MemoryHigh=1200M
+CPUQuota=200%
+TasksMax=64
+LimitNOFILE=4096
+IOWeight=50
+
+# Isolasi: konverter tidak dapat menjangkau jaringan selain PostgreSQL/Redis lokal; filesystem hanya-baca
+# kecuali direktori objek (preview) dan direktori kerja job.
+IPAddressDeny=any
+IPAddressAllow=localhost
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+ReadWritePaths=/var/lib/ats/objects/cvparse /var/lib/ats/cvwork
+ReadOnlyPaths=/var/lib/ats/objects
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

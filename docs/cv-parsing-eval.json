@@ -1,0 +1,2571 @@
+{
+  "cer": 0.007994670219853431,
+  "cerChars": 9006,
+  "evidence": {
+    "TP": 1874,
+    "FP": 0,
+    "FN": 0
+  },
+  "fabricated": null,
+  "fixtures": [
+    {
+      "File": "sinta.pdf-1col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 259,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "sinta.pdf-2col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 186,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "sinta.pdf-duplayer.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 187,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "sinta.docx.docx",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 1,
+      "Pages": [
+        "1:docx/ooxml_structured"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "sinta.doc.doc",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 4821,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "sinta.scan.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 2329,
+      "Pages": [
+        "1:ocr/no_text_layer"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "sinta.pdf-mixed.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 2286,
+      "Pages": [
+        "1:native/text_layer_good",
+        "2:ocr/text_layer_mismatch_image:0.01"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "sinta.photo-skew.jpg",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 2597,
+      "Pages": [
+        "1:ocr/image_input"
+      ],
+      "Mismatches": [
+        "skills +PostgreSOL",
+        "skills -postgresql"
+      ]
+    },
+    {
+      "File": "sinta.partial-page2.pdf",
+      "Expect": "partial",
+      "Outcome": "partial",
+      "OK": true,
+      "Ms": 10746,
+      "Pages": [
+        "1:native/text_layer_good",
+        "2:failed/no_text_layer"
+      ],
+      "Mismatches": [
+        "skills -rest api",
+        "skills -git",
+        "skills -go",
+        "skills -postgresql",
+        "skills -docker",
+        "languages -indonesia",
+        "languages -inggris",
+        "certifications -sertifikasi pengembang cloud dasar",
+        "experience_tuple -cv kreasi digital mandiri|junior developer|2020-01..2022-01",
+        "experience_tuple -pt nusantara data teknologi|backend engineer|2022-02..current"
+      ]
+    },
+    {
+      "File": "sinta.photo-blurry.jpg",
+      "Expect": "image_too_blurry",
+      "Outcome": "image_too_blurry",
+      "OK": true,
+      "Ms": 74,
+      "Pages": [
+        "1:failed/image_input"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "sinta.docx-imageonly.docx",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 7461,
+      "Pages": [
+        "1:ocr/no_text_layer"
+      ],
+      "Mismatches": [
+        "skills +PostgreSOL",
+        "skills -postgresql"
+      ]
+    },
+    {
+      "File": "budi.pdf-1col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 177,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "budi.pdf-2col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 176,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "budi.pdf-duplayer.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 176,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "budi.docx.docx",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 1,
+      "Pages": [
+        "1:docx/ooxml_structured"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "budi.doc.doc",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 9801,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "budi.scan.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 2127,
+      "Pages": [
+        "1:ocr/no_text_layer"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "budi.photo-rot90.jpg",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 2346,
+      "Pages": [
+        "1:ocr/image_input"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "dewi.pdf-1col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 180,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "dewi.pdf-2col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 174,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "dewi.pdf-duplayer.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 180,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "dewi.docx.docx",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 1,
+      "Pages": [
+        "1:docx/ooxml_structured"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "dewi.doc.doc",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 4923,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "dewi.photo-rot180.jpg",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 2382,
+      "Pages": [
+        "1:ocr/image_input"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "rahmat.pdf-1col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 167,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "rahmat.pdf-2col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 172,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "rahmat.docx.docx",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 1,
+      "Pages": [
+        "1:docx/ooxml_structured"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "rahmat.doc.doc",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 9045,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "rahmat.scan.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 2008,
+      "Pages": [
+        "1:ocr/no_text_layer"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "ayu.pdf-1col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 172,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "ayu.pdf-2col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 165,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "ayu.docx.docx",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 1,
+      "Pages": [
+        "1:docx/ooxml_structured"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "ayu.doc.doc",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 9551,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "ayu.photo-skew.png",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 3109,
+      "Pages": [
+        "1:ocr/image_input"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "kevin.pdf-1col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 179,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "kevin.pdf-2col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 179,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "kevin.docx.docx",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 1,
+      "Pages": [
+        "1:docx/ooxml_structured"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "kevin.doc.doc",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 8642,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "kevin.photo-exif6.jpg",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 2359,
+      "Pages": [
+        "1:ocr/image_input"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "nur.pdf-1col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 175,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "nur.pdf-2col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 175,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "nur.docx.docx",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 1,
+      "Pages": [
+        "1:docx/ooxml_structured"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "nur.doc.doc",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 4717,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "inject.pdf-1col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 178,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "inject.pdf-2col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 177,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "inject.docx.docx",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 1,
+      "Pages": [
+        "1:docx/ooxml_structured"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "inject.doc.doc",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 9322,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "sari.pdf-1col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 172,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "sari.pdf-2col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 203,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "sari.docx.docx",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 1,
+      "Pages": [
+        "1:docx/ooxml_structured"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "sari.doc.doc",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 5051,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "sari.photo-skew.jpg",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 2232,
+      "Pages": [
+        "1:ocr/image_input"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "joko.pdf-1col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 183,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "joko.pdf-2col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 184,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "joko.docx.docx",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 2,
+      "Pages": [
+        "1:docx/ooxml_structured"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "joko.doc.doc",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 4607,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "joko.scan.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 3967,
+      "Pages": [
+        "1:ocr/no_text_layer",
+        "2:ocr/no_text_layer"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "joko.pdf-mixed.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 2183,
+      "Pages": [
+        "1:native/text_layer_good",
+        "2:ocr/text_layer_mismatch_image:0.01"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "lina.pdf-1col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 176,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "lina.pdf-2col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 174,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "lina.docx.docx",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 1,
+      "Pages": [
+        "1:docx/ooxml_structured"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "lina.doc.doc",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 4944,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "lina.scan.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 1996,
+      "Pages": [
+        "1:ocr/no_text_layer"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "andi.pdf-1col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 174,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "andi.pdf-2col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 174,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "andi.docx.docx",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 1,
+      "Pages": [
+        "1:docx/ooxml_structured"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "andi.doc.doc",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 8581,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "andi.scan.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 3609,
+      "Pages": [
+        "1:ocr/no_text_layer",
+        "2:ocr/no_text_layer"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "andi.pdf-mixed.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 1978,
+      "Pages": [
+        "1:native/text_layer_good",
+        "2:ocr/text_layer_mismatch_image:0.02"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "maya.pdf-1col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 182,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "maya.pdf-2col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 172,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "maya.pdf-duplayer.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 178,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "maya.docx.docx",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 1,
+      "Pages": [
+        "1:docx/ooxml_structured"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "maya.doc.doc",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 4948,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "maya.photo-skew.webp",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 2306,
+      "Pages": [
+        "1:ocr/image_input"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "fajar.pdf-1col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 172,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "fajar.pdf-2col.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 172,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "fajar.docx.docx",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 1,
+      "Pages": [
+        "1:docx/ooxml_structured"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "fajar.doc.doc",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 9413,
+      "Pages": [
+        "1:native/text_layer_good"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "fajar.photo-skew.jpg",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 2092,
+      "Pages": [
+        "1:ocr/image_input"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "broken.truncated.pdf",
+      "Expect": "corrupt_file",
+      "Outcome": "corrupt_file",
+      "OK": true,
+      "Ms": 38,
+      "Pages": null,
+      "Mismatches": null
+    },
+    {
+      "File": "broken.blank.pdf",
+      "Expect": "no_readable_text",
+      "Outcome": "no_readable_text",
+      "OK": true,
+      "Ms": 160,
+      "Pages": [
+        "1:failed/blank_page"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "limit.21pages.pdf",
+      "Expect": "too_many_pages",
+      "Outcome": "too_many_pages",
+      "OK": true,
+      "Ms": 37,
+      "Pages": null,
+      "Mismatches": null
+    },
+    {
+      "File": "limit.20pages.pdf",
+      "Expect": "ok",
+      "Outcome": "ok",
+      "OK": true,
+      "Ms": 1479,
+      "Pages": [
+        "1:native/text_layer_sparse_no_images",
+        "2:native/text_layer_sparse_no_images",
+        "3:native/text_layer_sparse_no_images",
+        "4:native/text_layer_sparse_no_images",
+        "5:native/text_layer_sparse_no_images",
+        "6:native/text_layer_sparse_no_images",
+        "7:native/text_layer_sparse_no_images",
+        "8:native/text_layer_sparse_no_images",
+        "9:native/text_layer_sparse_no_images",
+        "10:native/text_layer_sparse_no_images",
+        "11:native/text_layer_sparse_no_images",
+        "12:native/text_layer_sparse_no_images",
+        "13:native/text_layer_sparse_no_images",
+        "14:native/text_layer_sparse_no_images",
+        "15:native/text_layer_sparse_no_images",
+        "16:native/text_layer_sparse_no_images",
+        "17:native/text_layer_sparse_no_images",
+        "18:native/text_layer_sparse_no_images",
+        "19:native/text_layer_sparse_no_images",
+        "20:native/text_layer_sparse_no_images"
+      ],
+      "Mismatches": null
+    },
+    {
+      "File": "limit.over15mib.pdf",
+      "Expect": "too_large",
+      "Outcome": "too_large",
+      "OK": true,
+      "Ms": 11,
+      "Pages": null,
+      "Mismatches": null
+    },
+    {
+      "File": "broken.macro.docm",
+      "Expect": "macro_not_allowed",
+      "Outcome": "macro_not_allowed",
+      "OK": true,
+      "Ms": 1,
+      "Pages": null,
+      "Mismatches": null
+    },
+    {
+      "File": "unsupported.random.bin",
+      "Expect": "unsupported_format",
+      "Outcome": "unsupported_format",
+      "OK": true,
+      "Ms": 0,
+      "Pages": null,
+      "Mismatches": null
+    },
+    {
+      "File": "broken.locked.pdf",
+      "Expect": "encrypted_file",
+      "Outcome": "encrypted_file",
+      "OK": true,
+      "Ms": 37,
+      "Pages": null,
+      "Mismatches": null
+    }
+  ],
+  "generatedAt": "2026-11-21T19:04:26+07:00",
+  "host": "windows/amd64",
+  "parser": "cvparse-1",
+  "rows": [
+    {
+      "Key": "dev/digital",
+      "Field": "certifications",
+      "TP": 23,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "dev/digital",
+      "Field": "city",
+      "TP": 44,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "dev/digital",
+      "Field": "education_tuple",
+      "TP": 48,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "dev/digital",
+      "Field": "email",
+      "TP": 44,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "dev/digital",
+      "Field": "experience_tuple",
+      "TP": 77,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "dev/digital",
+      "Field": "languages",
+      "TP": 43,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "dev/digital",
+      "Field": "links",
+      "TP": 19,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "dev/digital",
+      "Field": "name",
+      "TP": 44,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "dev/digital",
+      "Field": "phone",
+      "TP": 48,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "dev/digital",
+      "Field": "skills",
+      "TP": 161,
+      "FP": 1,
+      "FN": 1,
+      "P": 0.9938271604938271,
+      "R": 0.9938271604938271,
+      "F1": 0.9938271604938271
+    },
+    {
+      "Key": "dev/ocr",
+      "Field": "certifications",
+      "TP": 7,
+      "FP": 0,
+      "FN": 1,
+      "P": 1,
+      "R": 0.875,
+      "F1": 0.9333333333333333
+    },
+    {
+      "Key": "dev/ocr",
+      "Field": "city",
+      "TP": 13,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "dev/ocr",
+      "Field": "education_tuple",
+      "TP": 14,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "dev/ocr",
+      "Field": "email",
+      "TP": 13,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "dev/ocr",
+      "Field": "experience_tuple",
+      "TP": 25,
+      "FP": 0,
+      "FN": 2,
+      "P": 1,
+      "R": 0.9259259259259259,
+      "F1": 0.9615384615384615
+    },
+    {
+      "Key": "dev/ocr",
+      "Field": "languages",
+      "TP": 14,
+      "FP": 0,
+      "FN": 2,
+      "P": 1,
+      "R": 0.875,
+      "F1": 0.9333333333333333
+    },
+    {
+      "Key": "dev/ocr",
+      "Field": "links",
+      "TP": 7,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "dev/ocr",
+      "Field": "name",
+      "TP": 13,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "dev/ocr",
+      "Field": "phone",
+      "TP": 14,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "dev/ocr",
+      "Field": "skills",
+      "TP": 47,
+      "FP": 1,
+      "FN": 6,
+      "P": 0.9791666666666666,
+      "R": 0.8867924528301887,
+      "F1": 0.9306930693069307
+    },
+    {
+      "Key": "fmt:dev/doc",
+      "Field": "certifications",
+      "TP": 5,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/doc",
+      "Field": "city",
+      "TP": 10,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/doc",
+      "Field": "education_tuple",
+      "TP": 11,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/doc",
+      "Field": "email",
+      "TP": 10,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/doc",
+      "Field": "experience_tuple",
+      "TP": 17,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/doc",
+      "Field": "languages",
+      "TP": 9,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/doc",
+      "Field": "links",
+      "TP": 4,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/doc",
+      "Field": "name",
+      "TP": 10,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/doc",
+      "Field": "phone",
+      "TP": 11,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/doc",
+      "Field": "skills",
+      "TP": 36,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/docx",
+      "Field": "certifications",
+      "TP": 6,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/docx",
+      "Field": "city",
+      "TP": 11,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/docx",
+      "Field": "education_tuple",
+      "TP": 12,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/docx",
+      "Field": "email",
+      "TP": 11,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/docx",
+      "Field": "experience_tuple",
+      "TP": 19,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/docx",
+      "Field": "languages",
+      "TP": 11,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/docx",
+      "Field": "links",
+      "TP": 5,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/docx",
+      "Field": "name",
+      "TP": 11,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/docx",
+      "Field": "phone",
+      "TP": 12,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/docx",
+      "Field": "skills",
+      "TP": 40,
+      "FP": 1,
+      "FN": 1,
+      "P": 0.975609756097561,
+      "R": 0.975609756097561,
+      "F1": 0.975609756097561
+    },
+    {
+      "Key": "fmt:dev/image",
+      "Field": "certifications",
+      "TP": 4,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/image",
+      "Field": "city",
+      "TP": 6,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/image",
+      "Field": "education_tuple",
+      "TP": 7,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/image",
+      "Field": "email",
+      "TP": 6,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/image",
+      "Field": "experience_tuple",
+      "TP": 10,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/image",
+      "Field": "languages",
+      "TP": 9,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/image",
+      "Field": "links",
+      "TP": 4,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/image",
+      "Field": "name",
+      "TP": 6,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/image",
+      "Field": "phone",
+      "TP": 6,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/image",
+      "Field": "skills",
+      "TP": 22,
+      "FP": 1,
+      "FN": 1,
+      "P": 0.9565217391304348,
+      "R": 0.9565217391304348,
+      "F1": 0.9565217391304348
+    },
+    {
+      "Key": "fmt:dev/pdf_mixed",
+      "Field": "certifications",
+      "TP": 1,
+      "FP": 0,
+      "FN": 1,
+      "P": 1,
+      "R": 0.5,
+      "F1": 0.6666666666666666
+    },
+    {
+      "Key": "fmt:dev/pdf_mixed",
+      "Field": "city",
+      "TP": 3,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_mixed",
+      "Field": "education_tuple",
+      "TP": 3,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_mixed",
+      "Field": "email",
+      "TP": 3,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_mixed",
+      "Field": "experience_tuple",
+      "TP": 5,
+      "FP": 0,
+      "FN": 2,
+      "P": 1,
+      "R": 0.7142857142857143,
+      "F1": 0.8333333333333333
+    },
+    {
+      "Key": "fmt:dev/pdf_mixed",
+      "Field": "languages",
+      "TP": 2,
+      "FP": 0,
+      "FN": 2,
+      "P": 1,
+      "R": 0.5,
+      "F1": 0.6666666666666666
+    },
+    {
+      "Key": "fmt:dev/pdf_mixed",
+      "Field": "links",
+      "TP": 2,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_mixed",
+      "Field": "name",
+      "TP": 3,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_mixed",
+      "Field": "phone",
+      "TP": 3,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_mixed",
+      "Field": "skills",
+      "TP": 9,
+      "FP": 0,
+      "FN": 5,
+      "P": 1,
+      "R": 0.6428571428571429,
+      "F1": 0.782608695652174
+    },
+    {
+      "Key": "fmt:dev/pdf_native",
+      "Field": "certifications",
+      "TP": 12,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_native",
+      "Field": "city",
+      "TP": 23,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_native",
+      "Field": "education_tuple",
+      "TP": 25,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_native",
+      "Field": "email",
+      "TP": 23,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_native",
+      "Field": "experience_tuple",
+      "TP": 41,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_native",
+      "Field": "languages",
+      "TP": 23,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_native",
+      "Field": "links",
+      "TP": 10,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_native",
+      "Field": "name",
+      "TP": 23,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_native",
+      "Field": "phone",
+      "TP": 25,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_native",
+      "Field": "skills",
+      "TP": 85,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_scan",
+      "Field": "certifications",
+      "TP": 2,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_scan",
+      "Field": "city",
+      "TP": 4,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_scan",
+      "Field": "education_tuple",
+      "TP": 4,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_scan",
+      "Field": "email",
+      "TP": 4,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_scan",
+      "Field": "experience_tuple",
+      "TP": 10,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_scan",
+      "Field": "languages",
+      "TP": 3,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_scan",
+      "Field": "links",
+      "TP": 1,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_scan",
+      "Field": "name",
+      "TP": 4,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_scan",
+      "Field": "phone",
+      "TP": 5,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:dev/pdf_scan",
+      "Field": "skills",
+      "TP": 16,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/doc",
+      "Field": "city",
+      "TP": 4,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/doc",
+      "Field": "education_tuple",
+      "TP": 4,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/doc",
+      "Field": "email",
+      "TP": 5,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/doc",
+      "Field": "experience_tuple",
+      "TP": 7,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/doc",
+      "Field": "languages",
+      "TP": 2,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/doc",
+      "Field": "links",
+      "TP": 1,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/doc",
+      "Field": "name",
+      "TP": 4,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/doc",
+      "Field": "phone",
+      "TP": 4,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/doc",
+      "Field": "skills",
+      "TP": 12,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/docx",
+      "Field": "city",
+      "TP": 4,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/docx",
+      "Field": "education_tuple",
+      "TP": 4,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/docx",
+      "Field": "email",
+      "TP": 5,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/docx",
+      "Field": "experience_tuple",
+      "TP": 7,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/docx",
+      "Field": "languages",
+      "TP": 2,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/docx",
+      "Field": "links",
+      "TP": 1,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/docx",
+      "Field": "name",
+      "TP": 4,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/docx",
+      "Field": "phone",
+      "TP": 4,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/docx",
+      "Field": "skills",
+      "TP": 12,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/image",
+      "Field": "city",
+      "TP": 2,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/image",
+      "Field": "education_tuple",
+      "TP": 2,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/image",
+      "Field": "email",
+      "TP": 3,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/image",
+      "Field": "experience_tuple",
+      "TP": 3,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/image",
+      "Field": "languages",
+      "TP": 2,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/image",
+      "Field": "links",
+      "TP": 1,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/image",
+      "Field": "name",
+      "TP": 2,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/image",
+      "Field": "phone",
+      "TP": 2,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/image",
+      "Field": "skills",
+      "TP": 6,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_mixed",
+      "Field": "city",
+      "TP": 1,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_mixed",
+      "Field": "education_tuple",
+      "TP": 1,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_mixed",
+      "Field": "email",
+      "TP": 1,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_mixed",
+      "Field": "experience_tuple",
+      "TP": 2,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_mixed",
+      "Field": "links",
+      "TP": 0,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_mixed",
+      "Field": "name",
+      "TP": 1,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_mixed",
+      "Field": "phone",
+      "TP": 1,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_mixed",
+      "Field": "skills",
+      "TP": 3,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_native",
+      "Field": "city",
+      "TP": 9,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_native",
+      "Field": "education_tuple",
+      "TP": 9,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_native",
+      "Field": "email",
+      "TP": 11,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_native",
+      "Field": "experience_tuple",
+      "TP": 16,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_native",
+      "Field": "languages",
+      "TP": 6,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_native",
+      "Field": "links",
+      "TP": 3,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_native",
+      "Field": "name",
+      "TP": 9,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_native",
+      "Field": "phone",
+      "TP": 9,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_native",
+      "Field": "skills",
+      "TP": 27,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_scan",
+      "Field": "city",
+      "TP": 2,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_scan",
+      "Field": "education_tuple",
+      "TP": 2,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_scan",
+      "Field": "email",
+      "TP": 2,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_scan",
+      "Field": "experience_tuple",
+      "TP": 4,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_scan",
+      "Field": "links",
+      "TP": 0,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_scan",
+      "Field": "name",
+      "TP": 2,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_scan",
+      "Field": "phone",
+      "TP": 2,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "fmt:holdout/pdf_scan",
+      "Field": "skills",
+      "TP": 6,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/digital",
+      "Field": "city",
+      "TP": 17,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/digital",
+      "Field": "education_tuple",
+      "TP": 17,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/digital",
+      "Field": "email",
+      "TP": 21,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/digital",
+      "Field": "experience_tuple",
+      "TP": 30,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/digital",
+      "Field": "languages",
+      "TP": 10,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/digital",
+      "Field": "links",
+      "TP": 5,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/digital",
+      "Field": "name",
+      "TP": 17,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/digital",
+      "Field": "phone",
+      "TP": 17,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/digital",
+      "Field": "skills",
+      "TP": 51,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/ocr",
+      "Field": "city",
+      "TP": 5,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/ocr",
+      "Field": "education_tuple",
+      "TP": 5,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/ocr",
+      "Field": "email",
+      "TP": 6,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/ocr",
+      "Field": "experience_tuple",
+      "TP": 9,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/ocr",
+      "Field": "languages",
+      "TP": 2,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/ocr",
+      "Field": "links",
+      "TP": 1,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/ocr",
+      "Field": "name",
+      "TP": 5,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/ocr",
+      "Field": "phone",
+      "TP": 5,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    },
+    {
+      "Key": "holdout/ocr",
+      "Field": "skills",
+      "TP": 15,
+      "FP": 0,
+      "FN": 0,
+      "P": 1,
+      "R": 1,
+      "F1": 1
+    }
+  ],
+  "timings": [
+    {
+      "Format": "doc",
+      "N": 14,
+      "P50": 8581,
+      "P95": 9551
+    },
+    {
+      "Format": "docx",
+      "N": 16,
+      "P50": 1,
+      "P95": 2
+    },
+    {
+      "Format": "image",
+      "N": 9,
+      "P50": 2346,
+      "P95": 3109
+    },
+    {
+      "Format": "pdf_mixed",
+      "N": 4,
+      "P50": 2286,
+      "P95": 10746
+    },
+    {
+      "Format": "pdf_native",
+      "N": 38,
+      "P50": 176,
+      "P95": 203
+    },
+    {
+      "Format": "pdf_scan",
+      "N": 6,
+      "P50": 2329,
+      "P95": 3967
+    },
+    {
+      "Format": "unknown",
+      "N": 1,
+      "P50": 0,
+      "P95": 0
+    }
+  ],
+  "tools": {
+    "poppler": "pdftotext version 24.08.0",
+    "soffice": "soffice.com",
+    "tessdata.eng": "7d4322bd2a774972",
+    "tessdata.ind": "69786901da87ab87",
+    "tessdata.osd": "9cf5d576fcc47564",
+    "tesseract": "tesseract v5.5.0.20241111"
+  },
+  "uniqueCV": {
+    "dev": 10,
+    "holdout": 4
+  }
+}
