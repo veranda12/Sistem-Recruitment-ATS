@@ -32,10 +32,10 @@ async function session(email, opts = {}) {
   return { ctx, page };
 }
 
-async function shot(page, name, { full = false } = {}) {
+async function shot(page, name, { full = false, clip } = {}) {
   await page.waitForLoadState("networkidle");
   await page.waitForTimeout(400);
-  await page.screenshot({ path: join(OUT, `${name}.png`), fullPage: full });
+  await page.screenshot({ path: join(OUT, `${name}.png`), fullPage: full, clip });
   done.push(name);
 }
 
@@ -121,6 +121,115 @@ if (want("ujian")) {
   await page.getByRole("button", { name: "Daftar soal" }).click();
   await shot(page, "15-ujian-ponsel-navigator");
   await ctx.close();
+}
+
+// Pembacaan CV: akun kandidat baru (fiktif) yang mengunggah CV contoh dari fixture.
+if (want("cv")) {
+  const { readdirSync, readFileSync, statSync } = await import("node:fs");
+  const fx = (f) => join(here, "../../tests/cv-fixtures/out/dev", f);
+  const mail = join(here, "../../.data/mail");
+  async function newCandidate(name) {
+    const email = `${name.toLowerCase().replace(/\s+/g, ".")}.${Date.now()}@contoh.test`;
+    const since = Date.now() - 1000;
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1.5, locale: "id-ID", timezoneId: "Asia/Jakarta" });
+    const h = { Origin: BASE };
+    const r = await ctx.request.post(BASE + "/api/v1/auth/register", { headers: h, data: { email, password: PW, fullName: name, nik: `3273014507${String(Date.now()).slice(-6)}`, acceptPrivacy: true } });
+    if (r.status() !== 202) throw new Error("register " + r.status());
+    let token = null;
+    for (let i = 0; i < 60 && !token; i++) {
+      await new Promise((x) => setTimeout(x, 300));
+      for (const f of readdirSync(mail).filter((f) => f.endsWith(".eml") && statSync(join(mail, f)).mtimeMs >= since)) {
+        const b = readFileSync(join(mail, f), "utf8");
+        if (b.includes(`To: ${email}`)) token = /token=([A-Za-z0-9_-]+)/.exec(b)?.[1];
+      }
+    }
+    await ctx.request.post(BASE + "/api/v1/auth/verify-email", { headers: h, data: { token } });
+    const page = await ctx.newPage();
+    await page.goto(BASE + "/masuk");
+    await page.getByLabel("Email").fill(email);
+    await page.getByLabel("Kata sandi").fill(PW);
+    await page.getByRole("button", { name: "Masuk" }).click();
+    await page.waitForURL((u) => !u.pathname.startsWith("/masuk"));
+    return { ctx, page };
+  }
+  async function upload(page, file) {
+    await page.goto(BASE + "/akun/profil");
+    await page.getByLabel("Berkas CV").setInputFiles(fx(file));
+    await page.getByRole("button", { name: "Isi profil dari CV" }).click();
+    await page.waitForURL(/\/akun\/profil\/cv\//);
+    await page.getByText(/Siap diperiksa|Sebagian halaman/).first().waitFor({ timeout: 120000 });
+    return page.url();
+  }
+  {
+    const { ctx, page } = await newCandidate("Sinta Maharani");
+    await page.goto(BASE + "/akun/profil");
+    await page.getByRole("heading", { name: "Isi profil dari CV" }).scrollIntoViewIfNeeded();
+    await page.getByLabel("Berkas CV").setInputFiles(fx("sinta.pdf-2col.pdf"));
+    await page.evaluate(() => window.scrollBy(0, -140));
+    await shot(page, "40-cv-unggah", { clip: { x: 180, y: 0, width: 1080, height: 690 } });
+    const url = await upload(page, "sinta.pdf-2col.pdf");
+    await page.goto(url);
+    await page.getByText("Siap diperiksa").waitFor();
+    await shot(page, "41-cv-review", { clip: { x: 180, y: 0, width: 1080, height: 690 } });
+    const exp = page.getByRole("region", { name: /Junior Developer di CV Kreasi Digital Mandiri/ });
+    await exp.getByRole("button", { name: "Lihat sumber Periode" }).click();
+    await exp.evaluate((e) => e.scrollIntoView({ block: "start" }));
+    await page.evaluate(() => window.scrollBy(0, -20));
+    await page.waitForTimeout(900);
+    await shot(page, "42-cv-sumber", { clip: { x: 180, y: 0, width: 1080, height: 690 } });
+    // Koreksi digit telepon, tolak email CV, terima sisanya, lalu simpan.
+    const contact = page.getByRole("region", { name: "Kontak" });
+    await contact.getByRole("group", { name: "Keputusan untuk Telepon" }).getByRole("button", { name: "Ubah" }).click();
+    await contact.getByLabel("Telepon").fill("0812-3456-7809");
+    await contact.evaluate((e) => e.scrollIntoView({ block: "start" }));
+    await page.evaluate(() => window.scrollBy(0, -20));
+    await shot(page, "43-cv-ubah", { clip: { x: 180, y: 0, width: 1080, height: 690 } });
+    await contact.getByRole("button", { name: "Simpan perubahan" }).click();
+    await contact.getByText("+6281234567809").waitFor();
+    await contact.getByRole("group", { name: "Keputusan untuk Email" }).getByRole("button", { name: "Tolak" }).click();
+    await page.getByRole("button", { name: "Terima semua yang tidak perlu diperiksa" }).click();
+    await page.getByText(/sudah diputuskan/).waitFor();
+    await page.waitForTimeout(500);
+    await page.getByRole("button", { name: "Simpan pilihan ke profil" }).click();
+    await page.getByText("Profil diperbarui").waitFor();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await shot(page, "44-cv-tersimpan", { clip: { x: 180, y: 0, width: 1080, height: 690 } });
+    await page.goto(BASE + "/akun/profil");
+    await page.getByRole("heading", { name: "Pengalaman kerja" }).scrollIntoViewIfNeeded();
+    await page.evaluate(() => window.scrollBy(0, -60));
+    await shot(page, "45-cv-profil-terisi", { clip: { x: 180, y: 0, width: 1080, height: 690 } });
+    await ctx.close();
+  }
+  {
+    const { ctx, page } = await newCandidate("Sinta Maharani");
+    const url = await upload(page, "sinta.photo-skew.jpg");
+    await page.goto(url);
+    await page.getByText("Siap diperiksa").waitFor();
+    const exp = page.getByRole("region", { name: /Junior Developer/ });
+    await exp.getByRole("button", { name: "Lihat sumber Jabatan" }).click();
+    await exp.evaluate((e) => e.scrollIntoView({ block: "start" }));
+    await page.evaluate(() => window.scrollBy(0, -20));
+    await page.waitForTimeout(900);
+    await shot(page, "46-cv-foto", { clip: { x: 180, y: 0, width: 1080, height: 690 } });
+    const state = await ctx.storageState();
+    const m = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: "id-ID", timezoneId: "Asia/Jakarta", storageState: state });
+    const mp = await m.newPage();
+    await mp.goto(url);
+    await mp.getByText("Siap diperiksa").waitFor();
+    await mp.getByRole("region", { name: /Junior Developer/ }).getByRole("button", { name: "Lihat sumber Periode" }).click();
+    await mp.waitForTimeout(900);
+    await shot(mp, "47-cv-ponsel");
+    await m.close();
+    await ctx.close();
+  }
+  {
+    const { ctx, page } = await newCandidate("Sinta Maharani");
+    const url = await upload(page, "sinta.partial-page2.pdf");
+    await page.goto(url);
+    await page.getByText("Sebagian halaman perlu diperiksa").first().waitFor();
+    await shot(page, "48-cv-sebagian", { clip: { x: 180, y: 0, width: 1080, height: 690 } });
+    await ctx.close();
+  }
 }
 
 // Recruiter OPS

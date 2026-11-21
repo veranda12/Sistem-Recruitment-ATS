@@ -28,6 +28,22 @@ const modules = [
     blocks: [["IDENTITAS", "Nama, nomor telepon, tanggal lahir, kota domisili, alamat, dan ringkasan diri."], ["PENDIDIKAN DAN PENGALAMAN", "Riwayat pendidikan dengan IPK opsional, serta pengalaman kerja dengan periode dan uraian tugas."], ["SALINAN LAMARAN", "Lamaran yang sudah terkirim menyimpan salinan profil saat itu. Perubahan profil berikutnya tidak mengubah lamaran lama."]] },
   { eyebrow: "KANDIDAT · DOKUMEN", title: "Dokumen diunggah ke profil dan diperiksa sebelum bisa dibuka.", img: "05-dokumen", cap: "Bagian pengalaman kerja dan dokumen pada profil. Data demo.",
     blocks: [["FORMAT", "PDF, DOCX, JPG, atau PNG, maksimal 5 MB per berkas. Jenis dokumen dipilih saat unggah, misalnya CV."], ["PEMERIKSAAN", "Jenis asli berkas dicek, lalu berkas dipindai. Selama belum lolos, berkas tidak dapat diunduh siapa pun."], ["AKSES", "Recruiter hanya dapat mengunduh dokumen kandidat pada lowongan yang ditugaskan, lewat tautan yang berlaku singkat."]] },
+  { eyebrow: "KANDIDAT · ISI PROFIL DARI CV", title: "Kandidat cukup mengunggah CV, sistem menyiapkan usulan isian profil.", img: "40-cv-unggah", cap: "Panel Isi profil dari CV di halaman profil. Data demo.",
+    blocks: [["FORMAT", "PDF, Word (DOCX dan DOC lama), serta foto JPG, PNG, atau WebP. Maksimal 15 MB dan 20 halaman, tertulis langsung di form."], ["DIPROSES DI SERVER ANDA", "Berkas diperiksa keamanan dulu, lalu dibaca di server perusahaan sendiri tanpa layanan luar berbayar. Status tampil apa adanya, misalnya Membaca halaman 2 dari 4."], ["FORM MANUAL TETAP ADA", "Profil tidak berubah sebelum kandidat memeriksa dan menyetujui usulan. Kandidat tetap bisa mengisi form secara manual."]] },
+  { eyebrow: "KANDIDAT · PERIKSA DATA DARI CV", title: "Setiap usulan bisa diterima, diubah, atau ditolak, dengan nilai profil saat ini di sampingnya.", img: "41-cv-review", cap: "Halaman Periksa data dari CV, bagian kontak. Data demo.",
+    blocks: [["PERLU DIPERIKSA", "Data yang meragukan ditampilkan lebih dulu beserta alasannya, misalnya Ada dua nomor telepon atau Nomor dibaca dari gambar."], ["EMAIL AKUN AMAN", "Email dari CV hanya menjadi email kontak. Email untuk masuk ke akun tidak pernah berubah dari CV."], ["TIDAK MENGGANDAKAN", "Pengalaman yang mirip dengan isi profil bisa dilewati atau mengganti entri lama, sehingga riwayat tidak tercatat dua kali."]] },
+  { eyebrow: "KANDIDAT · SUMBER DI CV", title: "Setiap usulan menunjuk bagian CV yang menjadi sumbernya.", img: "42-cv-sumber", cap: "Lihat sumber untuk periode pengalaman kedua pada CV dua kolom. Data demo.",
+    blocks: [["LIHAT SUMBER", "Potongan halaman CV diperbesar dan bagian sumbernya disorot, sehingga kandidat bisa mencocokkan sendiri."], ["CV DUA KOLOM", "Urutan baca mengikuti kolom. Keahlian di kolom samping tidak tercampur dengan uraian jabatan di kolom utama."], ["DOKUMEN WORD", "Untuk Word, sumber ditampilkan sebagai kutipan beserta lokasinya, misalnya tabel 1, baris 2, kolom 1."]] },
+  { eyebrow: "KANDIDAT · CV DARI FOTO", title: "CV berupa foto atau hasil scan tetap dibaca dan bisa diperiksa sumbernya.", img: "46-cv-foto", cap: "Usulan dari foto CV yang diambil miring dengan bayangan. Data demo.",
+    blocks: [["FOTO PONSEL", "Foto miring, berbayang, atau terbalik diluruskan otomatis. Foto yang terlalu buram ditolak dengan petunjuk untuk memotret ulang."], ["DIBACA DARI GAMBAR", "Sumber dari foto diberi tanda dibaca dari gambar, dan nomor telepon dari gambar diberi pengingat untuk memeriksa setiap digit."], ["SCAN DAN CAMPURAN", "PDF yang sebagian halamannya hasil scan tetap dibaca utuh; teks asli dan hasil pembacaan gambar digabung tanpa menggandakan isi."]] },
+  { eyebrow: "KANDIDAT · PONSEL", title: "Pemeriksaan CV juga nyaman dilakukan dari ponsel.", imgs: ["47-cv-ponsel"], cap: "Sumber di CV pada layar ponsel 390 px. Data demo.",
+    blocks: [["SATU KOLOM", "Di ponsel, usulan tampil satu kolom dan sumber dibuka sebagai jendela dengan potongan halaman yang diperbesar."], ["LANJUT KAPAN SAJA", "Setiap keputusan tersimpan di server. Kandidat bisa menutup halaman dan melanjutkan dari halaman profil."], ["AKSESIBEL", "Tombol keputusan bisa dipakai dengan keyboard dan pembaca layar, dan fokus diarahkan ke pesan bila ada kesalahan."]] },
+  { eyebrow: "KANDIDAT · KOREKSI SEBELUM SIMPAN", title: "Kandidat memperbaiki salah baca sebelum data masuk ke profil.", img: "43-cv-ubah", cap: "Koreksi satu digit nomor telepon sebelum disimpan. Data demo.",
+    blocks: [["UBAH", "Angka atau ejaan yang salah baca bisa diperbaiki langsung. Format email, telepon, tanggal, dan tautan diperiksa sebelum diterima."], ["SIMPAN SEKALI", "Hanya usulan yang disetujui yang diterapkan, dalam satu langkah. Klik ganda tidak membuat data ganda."], ["PROFIL BERUBAH DI TEMPAT LAIN", "Bila profil diubah dari tab lain, perbedaannya ditampilkan dan pilihan kandidat tidak hilang."]] },
+  { eyebrow: "KANDIDAT · PROFIL TERISI", title: "Hasilnya masuk ke profil biasa dan tetap bisa diubah secara manual.", img: "45-cv-profil-terisi", cap: "Profil setelah usulan CV disimpan. Data demo.",
+    blocks: [["TANGGAL APA ADANYA", "Bila CV hanya menulis Feb 2022, sistem menyimpannya sebagai bulan dan tahun, tidak mengarang tanggal. Keterangan ini ditampilkan di form."], ["LENGKAP", "Pengalaman, pendidikan, keahlian, bahasa, tautan profesional, sertifikasi, dan proyek ikut terisi sesuai pilihan kandidat."], ["DATA PRIBADI SENSITIF", "Agama, jenis kelamin, status perkawinan, tanggal lahir, foto, dan NIK di CV tidak diusulkan ke profil."]] },
+  { eyebrow: "KANDIDAT · HALAMAN TIDAK TERBACA", title: "Bila sebagian halaman gagal dibaca, data dari halaman lain tetap bisa dipakai.", img: "48-cv-sebagian", cap: "CV dua halaman dengan halaman kedua tidak terbaca. Data demo.",
+    blocks: [["JELAS", "Halaman yang gagal disebutkan beserta alasannya, tanpa menyatakan seluruh CV berhasil dibaca."], ["TETAP BERGUNA", "Data dari halaman yang terbaca, misalnya pendidikan di halaman pertama, tetap dapat diperiksa dan disimpan."], ["GAGAL TOTAL", "Berkas rusak, terkunci kata sandi, atau terlalu besar ditolak dengan alasan dan langkah perbaikan, bukan profil kosong."]] },
   { eyebrow: "KANDIDAT · LAMARAN SAYA", title: "Kandidat melihat status setiap lamaran dari satu halaman.", img: "06-lamaran-saya", cap: "Daftar lamaran milik kandidat. Data demo.",
     blocks: [["YANG TERLIHAT", "Lowongan, tanggal kirim, tahap saat ini, dan status: Aktif, Diterima, Tidak lolos, atau Ditarik."], ["TARIK LAMARAN", "Lamaran aktif dapat ditarik dengan alasan. Jadwal interview yang terkait dibatalkan otomatis."], ["MANFAAT", "Kandidat tidak perlu menanyakan status ke HR satu per satu."]] },
   { eyebrow: "KANDIDAT · RIWAYAT LAMARAN", title: "Riwayat lamaran menunjukkan tahap yang sudah dilalui beserta waktunya.", img: "07-timeline", cap: "Riwayat lamaran Operator Produksi milik Rina Amelia, status Diterima. Data demo.",
@@ -97,7 +113,7 @@ const header = (section) => `<header><div class="brand">${BRAND}</div><div class
 // Hitung nomor halaman modul untuk daftar isi
 const P_OVERVIEW = 3, P_FLOW = 4, P_ACCESS = 5, P_MOD0 = 6;
 const P_MODN = P_MOD0 + modules.length - 1;
-const P_RELI = P_MODN + 1, P_EXAMPLE = P_RELI + 1, P_PROP0 = P_EXAMPLE + 1, P_PROPN = P_PROP0 + 2;
+const P_RELI = P_MODN + 1, P_EXAMPLE = P_RELI + 2, P_PROP0 = P_EXAMPLE + 1, P_PROPN = P_PROP0 + 2;
 const firstOf = (prefix) => P_MOD0 + modules.findIndex((m) => m.eyebrow.startsWith(prefix));
 const lastOf = (prefix) => P_MOD0 + modules.length - 1 - [...modules].reverse().findIndex((m) => m.eyebrow.startsWith(prefix));
 const range = (p) => { const a = firstOf(p), b = lastOf(p); return a === b ? `${a}` : `${a} sampai ${b}`; };
@@ -121,7 +137,7 @@ const toc = [
   ["Alur kerja antar peran", `${P_FLOW}`],
   ["Hak akses per peran", `${P_ACCESS}`],
   ["Modul per peran", `${P_MOD0} sampai ${P_MODN}`],
-  ["Keandalan ujian dan perlindungan data", `${P_RELI}`],
+  ["Keandalan ujian, pembacaan CV, dan perlindungan data", `${P_RELI} dan ${P_RELI + 1}`],
   ["Contoh alur satu lamaran hingga keputusan", `${P_EXAMPLE}`],
   ["Proposal dan implementasi", `${P_PROP0} sampai ${P_PROPN}`],
 ];
@@ -141,7 +157,7 @@ add("1. Gambaran singkat sistem", `
   <div class="col"><h3>Portal karier dan kandidat</h3><ul>
     <li>Lowongan terbuka dengan pencarian per unit, lokasi, dan jenis kerja</li>
     <li>Satu akun kandidat per NIK, dengan verifikasi email</li>
-    <li>Profil dan dokumen diisi sekali untuk semua lamaran</li>
+    <li>Profil terisi dari CV (PDF, Word, foto) dengan bukti, atau manual</li>
     <li>Status, riwayat lamaran, dan kotak masuk pemberitahuan</li></ul></div>
   <div class="col"><h3>Seleksi dan ujian online</h3><ul>
     <li>Workflow tahapan yang dapat diatur, disimulasikan, dan diberi versi</li>
@@ -165,7 +181,7 @@ add("1. Gambaran singkat sistem", `
 const steps = [
   ["Hiring Manager", "Mengajukan permintaan tenaga kerja: posisi, unit, lokasi, jumlah orang, dan alasan.", "Permintaan yang disetujui HR."],
   ["HR Admin", "Membuat lowongan, memilih workflow dan paket ujian, lalu menerbitkannya ke portal.", "Lowongan tampil di portal karier."],
-  ["Kandidat", "Mendaftar dengan NIK, melengkapi profil dan dokumen, lalu melamar.", "Lamaran dengan salinan profil saat melamar."],
+  ["Kandidat", "Mendaftar dengan NIK, mengisi profil dari CV atau manual, lalu melamar.", "Lamaran dengan salinan profil saat melamar."],
   ["Recruiter", "Membuka lamaran dalam cakupannya, memeriksa berkas, lalu memindahkan ke tahap ujian.", "Kandidat terpilih diundang ujian."],
   ["Ujian", "Kandidat mengerjakan ujian. Examiner menilai esai, HR merilis nilai.", "Lamaran berpindah otomatis sesuai nilai."],
   ["Interview dan keputusan", "Recruiter menjadwalkan interview, interviewer mengisi penilaian, hiring manager menyetujui.", "Diterima atau ditolak, dengan pemberitahuan."],
@@ -174,7 +190,7 @@ add("2. Alur kerja antar peran", `
 <div class="eyebrow">ALUR KERJA</div>
 <h2>Dari permintaan tenaga kerja sampai keputusan dalam satu alur.</h2>
 <div class="flow">${steps.map(([t, d, r], i) => `<div class="step"><div class="num">${i + 1}</div><h4>${t}</h4><p>${d}</p><div class="lbl">HASIL</div><p>${r}</p></div>${i < steps.length - 1 ? '<div class="arrow">&rarr;</div>' : ""}`).join("")}</div>
-<div class="note"><b>Yang berjalan otomatis:</b> perpindahan tahap setelah nilai dirilis sesuai aturan workflow, penilaian soal pilihan, penilaian jawaban tersimpan saat waktu habis, pembatalan interview saat lamaran ditarik atau diputuskan, serta email dan pesan kotak masuk untuk setiap perubahan penting. <b>Yang dikerjakan pengguna:</b> persetujuan permintaan tenaga kerja, screening berkas, undangan ujian, penilaian esai, rilis nilai, jadwal dan penilaian interview, persetujuan kandidat, dan pengiriman pemberitahuan keputusan.</div>`);
+<div class="note"><b>Yang berjalan otomatis:</b> pembacaan CV menjadi usulan profil (diterapkan setelah disetujui kandidat), perpindahan tahap setelah nilai dirilis sesuai aturan workflow, penilaian soal pilihan, penilaian jawaban tersimpan saat waktu habis, pembatalan interview saat lamaran ditarik atau diputuskan, serta email dan pesan kotak masuk untuk setiap perubahan penting. <b>Yang dikerjakan pengguna:</b> persetujuan permintaan tenaga kerja, screening berkas, undangan ujian, penilaian esai, rilis nilai, jadwal dan penilaian interview, persetujuan kandidat, dan pengiriman pemberitahuan keputusan.</div>`);
 
 // 5. Hak akses
 const roles = [
@@ -183,7 +199,7 @@ const roles = [
   ["Recruiter", "3 menu: Lamaran, Lowongan (lihat), dan Permintaan tenaga kerja (lihat)", "Tahap lamaran dan jadwal interview, hanya untuk unit atau lowongan yang ditugaskan"],
   ["Hiring Manager", "2 menu: Lamaran dan Permintaan tenaga kerja", "Permintaan tenaga kerja, penilaian interview, dan persetujuan kandidat pada lowongannya"],
   ["Examiner", "2 menu: Ujian dan Bank soal", "Bank soal, paket ujian, dan penilaian esai. Tanpa akses NIK dan data kontak kandidat"],
-  ["Kandidat", "Portal karier: Lowongan, Lamaran saya, Ujian, Profil, dan Kotak masuk", "Profil, dokumen, dan lamaran milik sendiri, serta jawaban ujian selama waktu berjalan"],
+  ["Kandidat", "Portal karier: Lowongan, Lamaran saya, Ujian, Profil, dan Kotak masuk", "Profil (termasuk dari CV), dokumen, dan lamaran milik sendiri, serta jawaban ujian selama waktu berjalan"],
 ];
 add("3. Hak akses per peran", `
 <div class="eyebrow">HAK AKSES</div>
@@ -226,11 +242,33 @@ add("5. Keandalan dan perlindungan data", `
 </div>
 <div class="note"><b>Catatan:</b> uji beban dijalankan di satu laptop pengembang (Intel Core i5 6 core, RAM 16 GB) dengan aplikasi, database, dan generator beban pada mesin yang sama. Angka ini menunjukkan perilaku sistem, bukan jaminan kapasitas produksi. Kapasitas untuk server Anda diukur ulang saat implementasi. Dokumen ini tidak menyatakan sertifikasi atau kepatuhan standar tertentu.</div>`);
 
+add("5. Keandalan dan perlindungan data", `
+<div class="eyebrow">KEANDALAN PEMBACAAN CV</div>
+<h2>Diuji dengan 88 berkas CV dari 14 CV contoh, termasuk foto dan Word lama.</h2>
+<div class="two">
+  <div>
+    <table class="grid"><thead><tr><th>DATA</th><th class="r">DOKUMEN DIGITAL</th><th class="r">FOTO DAN SCAN</th></tr></thead>
+    <tbody>
+      <tr><td>Email dan telepon terbaca benar</td><td class="r">100%</td><td class="r">100%</td></tr>
+      <tr><td>Jabatan, perusahaan, dan periode pada entri yang sama</td><td class="r">100%</td><td class="r">96%</td></tr>
+      <tr><td>Usulan yang memiliki bukti di CV</td><td class="r">100%</td><td class="r">100%</td></tr>
+      <tr><td>Data karangan atau data sensitif yang ikut diusulkan</td><td class="r">0</td><td class="r">0</td></tr>
+    </tbody></table>
+    <p class="small">Waktu baca di komputer uji: PDF digital sekitar 0,2 detik, scan dua halaman sekitar 4 detik, foto 2 sampai 3 detik, Word lama sekitar 9 detik. Saat 20 CV diunggah bersamaan, kecepatan bagian aplikasi lain tidak berubah.</p>
+  </div>
+  <div class="side">
+    <div class="blk"><div class="eyebrow sm">FORMAT YANG DIUJI</div><p>PDF satu dan dua kolom, PDF hasil scan, PDF campuran, foto miring dan terbalik, foto buram, Word DOCX dengan tabel dan kotak teks, serta Word DOC lama.</p></div>
+    <div class="blk"><div class="eyebrow sm">TETAP DI SERVER ANDA</div><p>CV tidak dikirim ke layanan luar. Pembacaan memakai perangkat lunak terbuka yang dipasang di server perusahaan.</p></div>
+    <div class="blk"><div class="eyebrow sm">TERPISAH DARI UJIAN</div><p>Pembacaan CV berjalan di antrean dan proses tersendiri, sehingga lonjakan unggahan tidak mengganggu peserta ujian.</p></div>
+  </div>
+</div>
+<div class="note"><b>Catatan:</b> CV contoh dibuat khusus untuk pengujian dengan beberapa pola tata letak. CV nyata jauh lebih beragam, sehingga angka di atas bukan jaminan akurasi pada semua CV. Hasil selalu berupa usulan yang diperiksa kandidat, dan pengujian dengan contoh CV yang biasa diterima perusahaan Anda termasuk dalam tahap implementasi.</div>`);
+
 // 8. Contoh alur
 const ex = [
   ["1. Permintaan", "Hiring manager mengajukan 1 Operator Produksi untuk lini 2. HR menyetujui dengan catatan anggaran."],
   ["2. Lowongan", "HR membuat lowongan Operator Produksi Karawang dengan workflow Rekrutmen Standar dan paket Tes Dasar Operasional, lalu menerbitkannya."],
-  ["3. Melamar", "Rina mendaftar dengan NIK, memverifikasi email, melengkapi profil, mengunggah CV, lalu melamar. Profil disalin ke lamaran."],
+  ["3. Melamar", "Rina mendaftar dengan NIK, mengunggah CV, memeriksa usulan isian beserta sumbernya, menyimpannya ke profil, lalu melamar. Profil disalin ke lamaran."],
   ["4. Screening", "Recruiter Operasional Pabrik memeriksa berkas dan memindahkan lamaran ke tahap Ujian dengan alasan."],
   ["5. Ujian", "Rina diundang ke gelombang November, mengerjakan 6 soal dalam 30 menit, lalu menerima kode bukti penerimaan."],
   ["6. Penilaian", "Soal pilihan dinilai otomatis. Examiner menilai esai tanpa melihat nama. HR merilis nilai, dan lamaran berpindah ke Interview karena nilai di atas ambang 75."],
@@ -251,6 +289,7 @@ const scope = [
   ["Pemetaan alur rekrutmen", "Pemetaan tahapan seleksi per jenis posisi, syarat perpindahan tahap, dan persetujuan, lalu dituangkan menjadi workflow."],
   ["Organisasi dan peran", "Penyiapan unit, lokasi, akun staf, peran, dan cakupan unit atau lowongan untuk setiap pengguna."],
   ["Portal karier", "Profil perusahaan dan nama portal, isi pemberitahuan privasi, serta format lowongan sesuai kebutuhan."],
+  ["Pembacaan CV", "Pemasangan pembaca CV di server, uji dengan contoh CV yang biasa diterima perusahaan (dengan izin pemiliknya), dan penyesuaian istilah atau format khusus."],
   ["Ujian dan bank soal", "Migrasi soal dari dokumen yang ada lewat impor CSV, penyusunan paket, durasi, ambang lulus, dan kebijakan akomodasi waktu."],
   ["Email dan pemberitahuan", "Penyesuaian isi email dan koneksi ke server email perusahaan."],
   ["Kebijakan data", "Penetapan masa simpan data pelamar, peran yang boleh membuka NIK dan mengekspor data, serta peran yang wajib verifikasi dua langkah."],
@@ -266,6 +305,8 @@ add("7. Proposal dan implementasi", `
 <tbody>${scope.map(([a, b]) => `<tr><td class="strong">${a}</td><td>${b}</td></tr>`).join("")}</tbody></table>`);
 
 const next = [
+  ["Hasil CV untuk recruiter", "Recruiter melihat hasil pembacaan CV beserta sumbernya dari halaman lamaran.", "Akses data dan pembatasan per lowongan sudah disiapkan; tampilannya belum dibuat."],
+  ["Foto CV yang sangat miring", "Meluruskan foto yang diambil dari sudut sempit (kertas tampak trapesium).", "Saat ini foto miring biasa dan terbalik sudah ditangani."],
   ["Editor template email", "Ubah dan pratinjau isi email dari aplikasi.", "Saat ini isi email diatur oleh tim implementasi."],
   ["Penghapusan data otomatis", "Penghapusan atau anonimisasi data pelamar sesuai masa simpan.", "Perlu keputusan kebijakan dan legal perusahaan."],
   ["Tampilan papan dan kalender", "Papan kanban lamaran per tahap dan kalender interview.", "Saat ini tersedia dalam bentuk daftar."],
@@ -287,7 +328,7 @@ add("7. Proposal dan implementasi", `
   <div><h3>Pemetaan kebutuhan</h3><p>Diskusi alur seleksi, jenis posisi, jumlah pengguna dan unit, volume pelamar, jumlah peserta ujian serentak, dan kebutuhan integrasi. Hasilnya menjadi acuan cakupan serta penawaran final.</p></div>
   <div><h3>Pilihan implementasi</h3><p><b>Beli putus:</b> cakupan lisensi, source code, lokasi server, pemeliharaan, dan dukungan ditetapkan dalam kesepakatan kerja sama.</p><p><b>Langganan bulanan:</b> biaya mengikuti modul, pengguna, kapasitas server, dan kebutuhan dukungan. Ketentuan layanan dituangkan dalam penawaran final.</p></div>
   <div><h3>Tahapan pelaksanaan</h3><p>Pemetaan kebutuhan, konfigurasi dan penyesuaian, uji penerimaan, pelatihan, lalu penerapan. Jadwal dan biaya ditentukan setelah ruang lingkup disepakati.</p></div>
-  <div><h3>Demo dan diskusi</h3><p>Demo dan pembahasan kebutuhan dapat dilakukan melalui Google Meet, termasuk mencoba ujian langsung dari ponsel.</p></div>
+  <div><h3>Demo dan diskusi</h3><p>Demo dan pembahasan kebutuhan dapat dilakukan melalui Google Meet, termasuk mengisi profil dari CV dan mencoba ujian langsung dari ponsel.</p></div>
 </div>
 <h3 class="closing">Mari lihat alur rekrutmen Anda melalui sesi demo.</h3>
 <p class="body">Kami siap menjadwalkan sesi demo dan diskusi kebutuhan sesuai jadwal tim Anda.</p>`);

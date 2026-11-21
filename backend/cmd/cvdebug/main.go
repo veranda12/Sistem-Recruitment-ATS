@@ -20,7 +20,11 @@ func main() {
 	}
 	work, _ := os.MkdirTemp("", "cvdebug-")
 	defer os.RemoveAll(work)
-	res, err := cvparse.Process(context.Background(), cvparse.ToolsFromEnv(), cvparse.DefaultLimits(), os.Args[1], work, work+"/out", nil)
+	out := work + "/out"
+	if len(os.Args) > 2 {
+		out = os.Args[2] // simpan preview untuk diperiksa
+	}
+	res, err := cvparse.Process(context.Background(), cvparse.ToolsFromEnv(), cvparse.DefaultLimits(), os.Args[1], work, out, nil)
 	if err != nil {
 		fmt.Println("ERROR:", err)
 	}
@@ -29,6 +33,9 @@ func main() {
 	}
 	m, _ := json.MarshalIndent(res.Manifest.PageDecisions, "", " ")
 	fmt.Println(string(m))
+	for _, p := range res.Doc.Pages {
+		fmt.Println("page", p.No, "W", p.W, "H", p.H, "scale", p.Scale, "image", p.Image)
+	}
 	for _, l := range cvparse.DebugOrder(res.Doc) {
 		fmt.Println(l)
 	}

@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { ApiError, del, get, patch, post } from "../../../lib/api";
-import { Alert, Button, cx, Dialog, Input, PageHeader, PageState, Select, Textarea } from "../../../ui";
+import {
+  Alert,
+  Button,
+  cx,
+  Dialog,
+  Input,
+  PageHeader,
+  PageState,
+  Select,
+  Textarea,
+} from "../../../ui";
 import {
   changeKind,
   changeLabel,
@@ -36,14 +46,22 @@ export default function CvReviewPage() {
   const [actionErr, setActionErr] = useState<ApiError | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [sourceOpen, setSourceOpen] = useState(false);
-  const [entryChoice, setEntryChoice] = useState<Record<string, EntryChoice>>({});
-  const [conflict, setConflict] = useState<{ before: Profile; after: Profile } | null>(null);
+  const [entryChoice, setEntryChoice] = useState<Record<string, EntryChoice>>(
+    {},
+  );
+  const [conflict, setConflict] = useState<{
+    before: Profile;
+    after: Profile;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const errRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     try {
-      const [r, p] = await Promise.all([get<Run>(`/me/cv-parses/${id}`), profile ? Promise.resolve(profile) : get<Profile>("/me/profile")]);
+      const [r, p] = await Promise.all([
+        get<Run>(`/me/cv-parses/${id}`),
+        profile ? Promise.resolve(profile) : get<Profile>("/me/profile"),
+      ]);
       setRun(r);
       setProfile(p);
       setLoadErr(null);
@@ -69,8 +87,14 @@ export default function CvReviewPage() {
   }, [actionErr]);
 
   const gs = useMemo(() => (run ? groups(run) : []), [run]);
-  const doubtful = useMemo(() => (run ? run.suggestions.filter(needsCheck) : []), [run]);
-  const evidenceById = useMemo(() => new Map((run?.evidence ?? []).map((e) => [e.id, e])), [run]);
+  const doubtful = useMemo(
+    () => (run ? run.suggestions.filter(needsCheck) : []),
+    [run],
+  );
+  const evidenceById = useMemo(
+    () => new Map((run?.evidence ?? []).map((e) => [e.id, e])),
+    [run],
+  );
   const focus = run?.suggestions.find((s) => s.id === focusId) ?? null;
 
   // Pilihan default per entri: lewati bila mirip entri profil (hindari duplikat), selain itu tambahkan.
@@ -79,20 +103,30 @@ export default function CvReviewPage() {
     setEntryChoice((cur) => {
       const next = { ...cur };
       for (const g of gs) {
-        if ((g.section === "experience" || g.section === "education") && !next[g.key]) {
+        if (
+          (g.section === "experience" || g.section === "education") &&
+          !next[g.key]
+        ) {
           const sim = similarEntry(profile, g);
-          next[g.key] = sim ? { mode: "skip", targetIndex: sim.index } : { mode: "add" };
+          next[g.key] = sim
+            ? { mode: "skip", targetIndex: sim.index }
+            : { mode: "add" };
         }
       }
       return next;
     });
   }, [gs, profile, run]);
 
-  const decide = async (decisions: { suggestionId: string; action: string; value?: unknown }[]) => {
+  const decide = async (
+    decisions: { suggestionId: string; action: string; value?: unknown }[],
+  ) => {
     if (!run) return false;
     setActionErr(null);
     try {
-      const r = await patch<Run>(`/me/cv-parses/${run.id}/review`, { reviewVersion: run.reviewVersion, decisions });
+      const r = await patch<Run>(`/me/cv-parses/${run.id}/review`, {
+        reviewVersion: run.reviewVersion,
+        decisions,
+      });
       setRun(r);
       return true;
     } catch (e) {
@@ -109,14 +143,27 @@ export default function CvReviewPage() {
     setActionErr(null);
     const entries: Record<string, { mode: string; targetId?: string }> = {};
     for (const [k, c] of Object.entries(entryChoice)) {
-      const list: { id?: string }[] = k.startsWith("experience") ? prof.experiences : prof.education;
-      const target = c.targetIndex !== undefined ? list[c.targetIndex]?.id : undefined;
-      entries[k] = c.mode === "replace" && target ? { mode: "replace", targetId: target } : { mode: c.mode === "replace" ? "add" : c.mode };
+      const list: { id?: string }[] = k.startsWith("experience")
+        ? prof.experiences
+        : prof.education;
+      const target =
+        c.targetIndex !== undefined ? list[c.targetIndex]?.id : undefined;
+      entries[k] =
+        c.mode === "replace" && target
+          ? { mode: "replace", targetId: target }
+          : { mode: c.mode === "replace" ? "add" : c.mode };
     }
     try {
-      await post(`/me/cv-parses/${run.id}/apply`, { reviewVersion: run.reviewVersion, profileVersion: prof.version, entries });
+      await post(`/me/cv-parses/${run.id}/apply`, {
+        reviewVersion: run.reviewVersion,
+        profileVersion: prof.version,
+        entries,
+      });
       setConflict(null);
-      const [r, p] = await Promise.all([get<Run>(`/me/cv-parses/${run.id}`), get<Profile>("/me/profile")]);
+      const [r, p] = await Promise.all([
+        get<Run>(`/me/cv-parses/${run.id}`),
+        get<Profile>("/me/profile"),
+      ]);
       setRun(r);
       setProfile(p);
       window.scrollTo(0, 0);
@@ -133,12 +180,25 @@ export default function CvReviewPage() {
     }
   };
 
-  if (loadErr) return <PageState loading={false} error={loadErr} onRetry={load}>{null}</PageState>;
-  if (!run || !profile) return <PageState loading error={null} onRetry={load}>{null}</PageState>;
+  if (loadErr)
+    return (
+      <PageState loading={false} error={loadErr} onRetry={load}>
+        {null}
+      </PageState>
+    );
+  if (!run || !profile)
+    return (
+      <PageState loading error={null} onRetry={load}>
+        {null}
+      </PageState>
+    );
 
   const decided = run.suggestions.filter((s) => s.status !== "pending").length;
-  const accepted = run.suggestions.filter((s) => s.status === "accepted" || s.status === "edited").length;
-  const reviewable = run.status === "ready_for_review" || run.status === "partial";
+  const accepted = run.suggestions.filter(
+    (s) => s.status === "accepted" || s.status === "edited",
+  ).length;
+  const reviewable =
+    run.status === "ready_for_review" || run.status === "partial";
   const failedPages = run.pages.filter((p) => p.status === "failed");
 
   const showSource = (s: Suggestion) => {
@@ -151,13 +211,18 @@ export default function CvReviewPage() {
       <Link to="/akun/profil" className="text-sm text-primary hover:underline">
         Kembali ke profil
       </Link>
-      <PageHeader title="Periksa data dari CV" subtitle={<span aria-live="polite">{statusText(run)}</span>} />
+      <PageHeader
+        title="Periksa data dari CV"
+        subtitle={<span aria-live="polite">{statusText(run)}</span>}
+      />
 
       <div ref={errRef} tabIndex={-1} className="outline-none">
         {actionErr ? (
           <div className="mb-4">
             <Alert tone="danger" title="Pilihan belum tersimpan">
-              {actionErr.code === "validation_failed" ? Object.values(actionErr.fieldErrors).join(" ") : actionErr.message}
+              {actionErr.code === "validation_failed"
+                ? Object.values(actionErr.fieldErrors).join(" ")
+                : actionErr.message}
             </Alert>
           </div>
         ) : null}
@@ -172,9 +237,20 @@ export default function CvReviewPage() {
           action={
             <span className="flex flex-wrap gap-2">
               {run.failure?.transient ? (
-                <Button onClick={() => post(`/me/documents/${run.documentId}/parse?retry=1`).then(load).catch((e) => setActionErr(e as ApiError))}>Coba lagi</Button>
+                <Button
+                  onClick={() =>
+                    post(`/me/documents/${run.documentId}/parse?retry=1`)
+                      .then(load)
+                      .catch((e) => setActionErr(e as ApiError))
+                  }
+                >
+                  Coba lagi
+                </Button>
               ) : null}
-              <Link to="/akun/profil" className="inline-flex min-h-11 items-center font-semibold text-primary underline">
+              <Link
+                to="/akun/profil"
+                className="inline-flex min-h-11 items-center font-semibold text-primary underline"
+              >
                 Unggah ulang atau isi manual
               </Link>
             </span>
@@ -185,31 +261,57 @@ export default function CvReviewPage() {
       ) : null}
 
       {run.status === "applied" ? <Applied run={run} /> : null}
-      {run.status === "cancelled" ? <Alert tone="info" title="Pembacaan dibatalkan">Dokumen sumber sudah dihapus. Unggah CV lain atau isi profil secara manual.</Alert> : null}
+      {run.status === "cancelled" ? (
+        <Alert tone="info" title="Pembacaan dibatalkan">
+          Dokumen sumber sudah dihapus. Unggah CV lain atau isi profil secara
+          manual.
+        </Alert>
+      ) : null}
 
       {reviewable ? (
         <>
           {failedPages.length > 0 ? (
             <div className="mb-4">
               <Alert tone="warning" title="Sebagian halaman tidak terbaca">
-                {failedPages.map((p) => `Halaman ${p.no}: ${p.message ?? "tidak dapat dibaca"}`).join(" ")} Data dari halaman lain tetap dapat diperiksa di bawah. Lengkapi sisanya secara manual.
+                {failedPages
+                  .map(
+                    (p) =>
+                      `Halaman ${p.no}: ${p.message ?? "tidak dapat dibaca"}`,
+                  )
+                  .join(" ")}{" "}
+                Data dari halaman lain tetap dapat diperiksa di bawah. Lengkapi
+                sisanya secara manual.
               </Alert>
             </div>
           ) : null}
           {conflict ? (
-            <ConflictPanel conflict={conflict} busy={busy} onApply={() => apply(conflict.after)} />
+            <ConflictPanel
+              conflict={conflict}
+              busy={busy}
+              onApply={() => apply(conflict.after)}
+            />
           ) : null}
 
           {doubtful.length > 0 ? (
-            <nav aria-label="Data yang perlu diperiksa" className="mb-6 border-l-4 border-warning bg-warning-soft px-4 py-3">
-              <p className="font-semibold">{doubtful.length} data perlu diperiksa lebih dulu</p>
+            <nav
+              aria-label="Data yang perlu diperiksa"
+              className="mb-6 border-l-4 border-warning bg-warning-soft px-4 py-3"
+            >
+              <p className="font-semibold">
+                {doubtful.length} data perlu diperiksa lebih dulu
+              </p>
               <ul className="mt-1 list-disc pl-5 text-sm">
                 {doubtful.slice(0, 8).map((s) => (
                   <li key={s.id}>
                     <a href={`#s-${s.id}`} className="text-primary underline">
                       {sectionTitle[s.section]}: {fieldLabel(s)}
                     </a>{" "}
-                    <span className="text-ink-2">({[...s.readDoubts, ...s.assocDoubts].join("; ") || "nilai tidak ditemukan"})</span>
+                    <span className="text-ink-2">
+                      (
+                      {[...s.readDoubts, ...s.assocDoubts].join("; ") ||
+                        "nilai tidak ditemukan"}
+                      )
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -222,9 +324,17 @@ export default function CvReviewPage() {
                 <Button
                   size="sm"
                   onClick={() =>
-                    decide(run.suggestions.filter((s) => s.status === "pending" && !needsCheck(s)).map((s) => ({ suggestionId: s.id, action: "accept" })))
+                    decide(
+                      run.suggestions
+                        .filter((s) => s.status === "pending" && !needsCheck(s))
+                        .map((s) => ({ suggestionId: s.id, action: "accept" })),
+                    )
                   }
-                  disabled={!run.suggestions.some((s) => s.status === "pending" && !needsCheck(s))}
+                  disabled={
+                    !run.suggestions.some(
+                      (s) => s.status === "pending" && !needsCheck(s),
+                    )
+                  }
                 >
                   Terima semua yang tidak perlu diperiksa
                 </Button>
@@ -239,7 +349,9 @@ export default function CvReviewPage() {
                   profile={profile}
                   focusId={focusId}
                   choice={entryChoice[g.key]}
-                  onChoice={(c) => setEntryChoice((x) => ({ ...x, [g.key]: c }))}
+                  onChoice={(c) =>
+                    setEntryChoice((x) => ({ ...x, [g.key]: c }))
+                  }
                   onDecide={decide}
                   onSource={showSource}
                 />
@@ -254,25 +366,37 @@ export default function CvReviewPage() {
 
           <div className="sticky bottom-0 mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-line bg-white py-3">
             <p className="text-sm text-ink-2">
-              {accepted} usulan akan disimpan. Usulan yang belum diputuskan atau ditolak tidak mengubah profil.
+              {accepted} usulan akan disimpan. Usulan yang belum diputuskan atau
+              ditolak tidak mengubah profil.
             </p>
             <span className="flex gap-2">
               <Button
                 variant="ghost"
                 onClick={async () => {
-                  await del(`/me/cv-parses/${run.id}`).catch((e) => setActionErr(e as ApiError));
+                  await del(`/me/cv-parses/${run.id}`).catch((e) =>
+                    setActionErr(e as ApiError),
+                  );
                   load();
                 }}
               >
                 Abaikan hasil
               </Button>
-              <Button variant="primary" busy={busy} disabled={accepted === 0} onClick={() => apply(profile)}>
+              <Button
+                variant="primary"
+                busy={busy}
+                disabled={accepted === 0}
+                onClick={() => apply(profile)}
+              >
                 Simpan pilihan ke profil
               </Button>
             </span>
           </div>
 
-          <Dialog open={sourceOpen} onOpenChange={setSourceOpen} title="Sumber di CV">
+          <Dialog
+            open={sourceOpen}
+            onOpenChange={setSourceOpen}
+            title="Sumber di CV"
+          >
             <SourceViewer run={run} s={focus} evidenceById={evidenceById} />
             <div className="mt-4 flex justify-end">
               <Button onClick={() => setSourceOpen(false)}>Tutup</Button>
@@ -285,7 +409,9 @@ export default function CvReviewPage() {
 }
 
 function Progress({ run }: { run: Run }) {
-  const pct = run.pagesTotal ? Math.round((run.pagesDone / run.pagesTotal) * 100) : undefined;
+  const pct = run.pagesTotal
+    ? Math.round((run.pagesDone / run.pagesTotal) * 100)
+    : undefined;
   return (
     <div className="mb-6 flex flex-col gap-2">
       <div
@@ -297,19 +423,36 @@ function Progress({ run }: { run: Run }) {
         aria-valuetext={statusText(run)}
         className="h-2 w-full overflow-hidden rounded-sm bg-surface"
       >
-        <div className={cx("h-full bg-primary transition-all", pct === undefined && "w-1/3 animate-pulse")} style={pct !== undefined ? { width: `${Math.max(pct, 5)}%` } : undefined} />
+        <div
+          className={cx(
+            "h-full bg-primary transition-all",
+            pct === undefined && "w-1/3 animate-pulse",
+          )}
+          style={
+            pct !== undefined ? { width: `${Math.max(pct, 5)}%` } : undefined
+          }
+        />
       </div>
-      <p className="text-sm text-ink-2">Anda boleh menutup halaman ini; pembacaan tetap berjalan dan dapat dilanjutkan dari halaman profil.</p>
+      <p className="text-sm text-ink-2">
+        Anda boleh menutup halaman ini; pembacaan tetap berjalan dan dapat
+        dilanjutkan dari halaman profil.
+      </p>
     </div>
   );
 }
 
 function Applied({ run }: { run: Run }) {
   const r = run.applyResult;
-  const added = r ? Object.entries(r.added).map(([k, n]) => `${n} ${sectionTitle[k]?.toLowerCase() ?? k}`) : [];
+  const added = r
+    ? Object.entries(r.added).map(
+        ([k, n]) => `${n} ${sectionTitle[k]?.toLowerCase() ?? k}`,
+      )
+    : [];
   return (
     <Alert tone="success" title="Profil diperbarui">
-      {r && r.updatedFields.length > 0 ? `Kolom diperbarui: ${r.updatedFields.length}. ` : null}
+      {r && r.updatedFields.length > 0
+        ? `Kolom diperbarui: ${r.updatedFields.length}. `
+        : null}
       {added.length > 0 ? `Ditambahkan: ${added.join(", ")}. ` : null}
       <Link to="/akun/profil" className="font-semibold text-primary underline">
         Lihat profil
@@ -318,7 +461,15 @@ function Applied({ run }: { run: Run }) {
   );
 }
 
-function ConflictPanel({ conflict, busy, onApply }: { conflict: { before: Profile; after: Profile }; busy: boolean; onApply: () => void }) {
+function ConflictPanel({
+  conflict,
+  busy,
+  onApply,
+}: {
+  conflict: { before: Profile; after: Profile };
+  busy: boolean;
+  onApply: () => void;
+}) {
   const diff = profileDiff(conflict.before, conflict.after);
   return (
     <div className="mb-6">
@@ -333,7 +484,11 @@ function ConflictPanel({ conflict, busy, onApply }: { conflict: { before: Profil
       >
         <p>Pilihan Anda tetap tersimpan. Perubahan di profil:</p>
         <ul className="list-disc pl-5">
-          {diff.length ? diff.map((d) => <li key={d}>{d}</li>) : <li>Versi profil berubah.</li>}
+          {diff.length ? (
+            diff.map((d) => <li key={d}>{d}</li>)
+          ) : (
+            <li>Versi profil berubah.</li>
+          )}
         </ul>
       </Alert>
     </div>
@@ -354,7 +509,9 @@ function GroupView({
   focusId: string | null;
   choice?: EntryChoice;
   onChoice: (c: EntryChoice) => void;
-  onDecide: (d: { suggestionId: string; action: string; value?: unknown }[]) => Promise<boolean>;
+  onDecide: (
+    d: { suggestionId: string; action: string; value?: unknown }[],
+  ) => Promise<boolean>;
   onSource: (s: Suggestion) => void;
 }) {
   const entry = g.section === "experience" || g.section === "education";
@@ -364,9 +521,23 @@ function GroupView({
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line pb-2">
         <h2 id={`g-${g.key}`} className="text-[18px]">
           {g.title}
-          {entry ? <span className="ml-2 text-sm font-normal text-ink-2">{sectionTitle[g.section]}</span> : null}
+          {entry ? (
+            <span className="ml-2 text-sm font-normal text-ink-2">
+              {sectionTitle[g.section]}
+            </span>
+          ) : null}
         </h2>
-        <Button size="sm" variant="ghost" onClick={() => onDecide(g.items.filter((s) => s.raw !== "").map((s) => ({ suggestionId: s.id, action: "accept" })))}>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() =>
+            onDecide(
+              g.items
+                .filter((s) => s.raw !== "")
+                .map((s) => ({ suggestionId: s.id, action: "accept" })),
+            )
+          }
+        >
           Terima semua di bagian ini
         </Button>
       </div>
@@ -375,24 +546,57 @@ function GroupView({
           <label htmlFor={`m-${g.key}`} className="text-sm font-semibold">
             Simpan entri ini sebagai
           </label>
-          {sim ? <p className="text-[13px] text-ink-2">Mirip entri di profil: {sim.label}.</p> : null}
-          <Select id={`m-${g.key}`} value={choice.mode} onChange={(e) => onChoice({ ...choice, mode: e.target.value as EntryChoice["mode"] })}>
+          {sim ? (
+            <p className="text-[13px] text-ink-2">
+              Mirip entri di profil: {sim.label}.
+            </p>
+          ) : null}
+          <Select
+            id={`m-${g.key}`}
+            value={choice.mode}
+            onChange={(e) =>
+              onChoice({
+                ...choice,
+                mode: e.target.value as EntryChoice["mode"],
+              })
+            }
+          >
             <option value="add">Tambahkan sebagai entri baru</option>
-            {sim ? <option value="replace">Ganti entri lama dengan data dari CV</option> : null}
-            <option value="skip">{sim ? "Pertahankan entri lama, lewati yang ini" : "Lewati entri ini"}</option>
+            {sim ? (
+              <option value="replace">
+                Ganti entri lama dengan data dari CV
+              </option>
+            ) : null}
+            <option value="skip">
+              {sim
+                ? "Pertahankan entri lama, lewati yang ini"
+                : "Lewati entri ini"}
+            </option>
           </Select>
         </div>
       ) : null}
       <ul className="flex flex-col divide-y divide-line">
         {g.items.map((s) => (
-          <SuggestionRow key={s.id} s={s} profile={profile} focused={focusId === s.id} onDecide={onDecide} onSource={onSource} />
+          <SuggestionRow
+            key={s.id}
+            s={s}
+            profile={profile}
+            focused={focusId === s.id}
+            onDecide={onDecide}
+            onSource={onSource}
+          />
         ))}
       </ul>
     </section>
   );
 }
 
-const decisionLabel: Record<string, string> = { accepted: "Diterima", edited: "Diubah", rejected: "Ditolak", pending: "Belum diputuskan" };
+const decisionLabel: Record<string, string> = {
+  accepted: "Diterima",
+  edited: "Diubah",
+  rejected: "Ditolak",
+  pending: "Belum diputuskan",
+};
 
 function SuggestionRow({
   s,
@@ -404,7 +608,9 @@ function SuggestionRow({
   s: Suggestion;
   profile: Profile;
   focused: boolean;
-  onDecide: (d: { suggestionId: string; action: string; value?: unknown }[]) => Promise<boolean>;
+  onDecide: (
+    d: { suggestionId: string; action: string; value?: unknown }[],
+  ) => Promise<boolean>;
   onSource: (s: Suggestion) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -414,13 +620,29 @@ function SuggestionRow({
   const kind = changeKind(profile, s);
   const label = fieldLabel(s);
   return (
-    <li id={`s-${s.id}`} className={cx("flex flex-col gap-2 py-3 scroll-mt-4", focused && "bg-primary-soft/40")}>
+    <li
+      id={`s-${s.id}`}
+      className={cx(
+        "flex flex-col gap-2 py-3 scroll-mt-4",
+        focused && "bg-primary-soft/40",
+      )}
+    >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-semibold text-ink-2">{label}</p>
-          <p className={cx("whitespace-pre-line break-words text-[15px]", s.status === "rejected" && "text-ink-2 line-through")}>{value || <em className="text-ink-2">Tidak ditemukan di CV</em>}</p>
+          <p
+            className={cx(
+              "whitespace-pre-line break-words text-[15px]",
+              s.status === "rejected" && "text-ink-2 line-through",
+            )}
+          >
+            {value || <em className="text-ink-2">Tidak ditemukan di CV</em>}
+          </p>
           {s.section === "contact" && s.field === "email" ? (
-            <p className="text-[13px] text-ink-2">Email akun Anda ({profile.email}) tidak berubah. Usulan ini menjadi email kontak.</p>
+            <p className="text-[13px] text-ink-2">
+              Email akun Anda ({profile.email}) tidak berubah. Usulan ini
+              menjadi email kontak.
+            </p>
           ) : cur !== null ? (
             <p className="text-[13px] text-ink-2">
               Profil saat ini: {cur || "kosong"} · {changeLabel[kind]}
@@ -432,7 +654,10 @@ function SuggestionRow({
             </p>
           ) : null}
         </div>
-        <span className="text-[13px] font-semibold text-ink-2" aria-live="polite">
+        <span
+          className="text-[13px] font-semibold text-ink-2"
+          aria-live="polite"
+        >
           {decisionLabel[s.status]}
         </span>
       </div>
@@ -441,22 +666,50 @@ function SuggestionRow({
           s={s}
           onCancel={() => setEditing(false)}
           onSave={async (v) => {
-            if (await onDecide([{ suggestionId: s.id, action: "edit", value: v }])) setEditing(false);
+            if (
+              await onDecide([{ suggestionId: s.id, action: "edit", value: v }])
+            )
+              setEditing(false);
           }}
         />
       ) : (
-        <div className="flex flex-wrap gap-2" role="group" aria-label={`Keputusan untuk ${label}`}>
-          <Button size="sm" variant={s.status === "accepted" ? "primary" : "secondary"} aria-pressed={s.status === "accepted"} disabled={s.raw === "" && s.status !== "edited"} onClick={() => onDecide([{ suggestionId: s.id, action: "accept" }])}>
+        <div
+          className="flex flex-wrap gap-2"
+          role="group"
+          aria-label={`Keputusan untuk ${label}`}
+        >
+          <Button
+            size="sm"
+            variant={s.status === "accepted" ? "primary" : "secondary"}
+            aria-pressed={s.status === "accepted"}
+            disabled={s.raw === "" && s.status !== "edited"}
+            onClick={() => onDecide([{ suggestionId: s.id, action: "accept" }])}
+          >
             Terima
           </Button>
-          <Button size="sm" variant={s.status === "edited" ? "primary" : "secondary"} aria-pressed={s.status === "edited"} onClick={() => setEditing(true)}>
+          <Button
+            size="sm"
+            variant={s.status === "edited" ? "primary" : "secondary"}
+            aria-pressed={s.status === "edited"}
+            onClick={() => setEditing(true)}
+          >
             Ubah
           </Button>
-          <Button size="sm" variant={s.status === "rejected" ? "primary" : "secondary"} aria-pressed={s.status === "rejected"} onClick={() => onDecide([{ suggestionId: s.id, action: "reject" }])}>
+          <Button
+            size="sm"
+            variant={s.status === "rejected" ? "primary" : "secondary"}
+            aria-pressed={s.status === "rejected"}
+            onClick={() => onDecide([{ suggestionId: s.id, action: "reject" }])}
+          >
             Tolak
           </Button>
           {s.evidenceIds.length > 0 ? (
-            <Button size="sm" variant="ghost" onClick={() => onSource(s)} aria-label={`Lihat sumber ${label}`}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onSource(s)}
+              aria-label={`Lihat sumber ${label}`}
+            >
               Lihat sumber
             </Button>
           ) : null}
@@ -466,18 +719,39 @@ function SuggestionRow({
   );
 }
 
-function EditForm({ s, onSave, onCancel }: { s: Suggestion; onSave: (v: unknown) => void; onCancel: () => void }) {
+function EditForm({
+  s,
+  onSave,
+  onCancel,
+}: {
+  s: Suggestion;
+  onSave: (v: unknown) => void;
+  onCancel: () => void;
+}) {
   const v = effective(s);
   const label = fieldLabel(s);
-  const [text, setText] = useState(() => (s.field === "phone" ? (v as { e164?: string })?.e164 ?? s.raw : s.field === "url" ? (v as { target?: string })?.target ?? s.raw : typeof v === "string" || typeof v === "number" ? String(v) : s.raw));
+  const [text, setText] = useState(() =>
+    s.field === "phone"
+      ? ((v as { e164?: string })?.e164 ?? s.raw)
+      : s.field === "url"
+        ? ((v as { target?: string })?.target ?? s.raw)
+        : typeof v === "string" || typeof v === "number"
+          ? String(v)
+          : s.raw,
+  );
   const per = (s.field === "period" ? v : null) as PeriodValue | null;
   const [start, setStart] = useState(isoOf(per?.start));
   const [end, setEnd] = useState(isoOf(per?.end));
   const [current, setCurrent] = useState(per?.current ?? false);
-  const lang = (s.field === "language" ? v : null) as { name: string; level: string } | null;
+  const lang = (s.field === "language" ? v : null) as {
+    name: string;
+    level: string;
+  } | null;
   const [lname, setLname] = useState(lang?.name ?? "");
   const [llevel, setLlevel] = useState(lang?.level ?? "");
-  const firstRef = useRef<HTMLInputElement & HTMLTextAreaElement & HTMLSelectElement>(null);
+  const firstRef = useRef<
+    HTMLInputElement & HTMLTextAreaElement & HTMLSelectElement
+  >(null);
   useEffect(() => firstRef.current?.focus(), []);
 
   const submit = () => {
@@ -504,14 +778,31 @@ function EditForm({ s, onSave, onCancel }: { s: Suggestion; onSave: (v: unknown)
         <div className="grid gap-2 sm:grid-cols-3">
           <label className="text-sm">
             Mulai (tahun atau tahun-bulan)
-            <Input ref={firstRef} inputMode="numeric" placeholder="2022-02" value={start} onChange={(e) => setStart(e.target.value)} />
+            <Input
+              ref={firstRef}
+              inputMode="numeric"
+              placeholder="2022-02"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+            />
           </label>
           <label className="text-sm">
             Selesai
-            <Input inputMode="numeric" placeholder="2024" value={end} disabled={current} onChange={(e) => setEnd(e.target.value)} />
+            <Input
+              inputMode="numeric"
+              placeholder="2024"
+              value={end}
+              disabled={current}
+              onChange={(e) => setEnd(e.target.value)}
+            />
           </label>
           <label className="flex items-center gap-2 self-end pb-3 text-sm">
-            <input type="checkbox" className="h-5 w-5" checked={current} onChange={(e) => setCurrent(e.target.checked)} />
+            <input
+              type="checkbox"
+              className="h-5 w-5"
+              checked={current}
+              onChange={(e) => setCurrent(e.target.checked)}
+            />
             Masih berlangsung
           </label>
         </div>
@@ -519,16 +810,22 @@ function EditForm({ s, onSave, onCancel }: { s: Suggestion; onSave: (v: unknown)
         <label className="text-sm">
           {label}
           <Select value={text} onChange={(e) => setText(e.target.value)}>
-            {["SMA", "SMK", "D3", "D4", "S1", "S2", "S3", "Lainnya"].map((l) => (
-              <option key={l}>{l}</option>
-            ))}
+            {["SMA", "SMK", "D3", "D4", "S1", "S2", "S3", "Lainnya"].map(
+              (l) => (
+                <option key={l}>{l}</option>
+              ),
+            )}
           </Select>
         </label>
       ) : s.field === "language" ? (
         <div className="grid gap-2 sm:grid-cols-2">
           <label className="text-sm">
             Bahasa
-            <Input ref={firstRef} value={lname} onChange={(e) => setLname(e.target.value)} />
+            <Input
+              ref={firstRef}
+              value={lname}
+              onChange={(e) => setLname(e.target.value)}
+            />
           </label>
           <label className="text-sm">
             Tingkat
@@ -546,8 +843,22 @@ function EditForm({ s, onSave, onCancel }: { s: Suggestion; onSave: (v: unknown)
           <Input
             ref={firstRef}
             value={text}
-            type={s.field === "email" ? "email" : s.field === "url" ? "url" : s.field === "phone" ? "tel" : "text"}
-            inputMode={s.field === "phone" ? "tel" : s.field === "gpa" ? "decimal" : undefined}
+            type={
+              s.field === "email"
+                ? "email"
+                : s.field === "url"
+                  ? "url"
+                  : s.field === "phone"
+                    ? "tel"
+                    : "text"
+            }
+            inputMode={
+              s.field === "phone"
+                ? "tel"
+                : s.field === "gpa"
+                  ? "decimal"
+                  : undefined
+            }
             autoComplete="off"
             onChange={(e) => setText(e.target.value)}
           />
@@ -566,12 +877,30 @@ function EditForm({ s, onSave, onCancel }: { s: Suggestion; onSave: (v: unknown)
 }
 
 /** Preview sumber: gambar halaman dengan sorotan kotak bukti, atau kutipan + lokasi untuk Word. Bukan HTML dokumen aktif. */
-function SourceViewer({ run, s, evidenceById }: { run: Run; s: Suggestion | null; evidenceById: Map<string, Evidence> }) {
+function SourceViewer({
+  run,
+  s,
+  evidenceById,
+}: {
+  run: Run;
+  s: Suggestion | null;
+  evidenceById: Map<string, Evidence>;
+}) {
   if (!s) {
-    return <p className="rounded-md border border-dashed border-line p-6 text-sm text-ink-2">Pilih "Lihat sumber" pada sebuah usulan untuk melihat bagian CV yang mendukungnya.</p>;
+    return (
+      <p className="rounded-md border border-dashed border-line p-6 text-sm text-ink-2">
+        Pilih "Lihat sumber" pada sebuah usulan untuk melihat bagian CV yang
+        mendukungnya.
+      </p>
+    );
   }
-  const evs = s.evidenceIds.map((id) => evidenceById.get(id)).filter((e): e is Evidence => !!e);
-  if (evs.length === 0) return <p className="text-sm text-ink-2">Usulan ini tidak memiliki bukti.</p>;
+  const evs = s.evidenceIds
+    .map((id) => evidenceById.get(id))
+    .filter((e): e is Evidence => !!e);
+  if (evs.length === 0)
+    return (
+      <p className="text-sm text-ink-2">Usulan ini tidak memiliki bukti.</p>
+    );
   const pageNo = evs[0]!.page;
   const page = run.pages.find((p) => p.no === pageNo);
   return (
@@ -580,25 +909,48 @@ function SourceViewer({ run, s, evidenceById }: { run: Run; s: Suggestion | null
         {fieldLabel(s)}: {displayValue(s)}
       </p>
       {evs.map((e) => (
-        <blockquote key={e.id} className="border-l-4 border-primary bg-surface px-3 py-2 text-sm">
+        <blockquote
+          key={e.id}
+          className="border-l-4 border-primary bg-surface px-3 py-2 text-sm"
+        >
           <p className="whitespace-pre-line">{e.snippet}</p>
           <footer className="mt-1 text-[12px] text-ink-2">
-            {e.source === "docx" ? humanLocator(e.locator) : `Halaman ${e.page}${e.source === "ocr" ? ", dibaca dari gambar" : ""}`}
+            {e.source === "docx"
+              ? humanLocator(e.locator)
+              : `Halaman ${e.page}${e.source === "ocr" ? ", dibaca dari gambar" : ""}`}
           </footer>
         </blockquote>
       ))}
-      {page?.hasImage && page.scale ? <PageCrop run={run} pageNo={pageNo} scale={page.scale} evs={evs.filter((e) => e.page === pageNo && e.bbox)} /> : null}
+      {page?.hasImage && page.scale ? (
+        <PageCrop
+          run={run}
+          pageNo={pageNo}
+          scale={page.scale}
+          evs={evs.filter((e) => e.page === pageNo && e.bbox)}
+        />
+      ) : null}
     </div>
   );
 }
 
-
 /** Potongan CV yang diperbesar di sekitar bukti (dengan konteks), ditambah opsi halaman penuh. */
-function PageCrop({ run, pageNo, scale, evs }: { run: Run; pageNo: number; scale: number; evs: Evidence[] }) {
+function PageCrop({
+  run,
+  pageNo,
+  scale,
+  evs,
+}: {
+  run: Run;
+  pageNo: number;
+  scale: number;
+  evs: Evidence[];
+}) {
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
   const [full, setFull] = useState(false);
   const src = `/api/v1/me/cv-parses/${run.id}/pages/${pageNo}/image`;
-  const boxes = evs.map((e) => e.bbox!.map((v) => v * scale) as [number, number, number, number]);
+  const boxes = evs.map(
+    (e) => e.bbox!.map((v) => v * scale) as [number, number, number, number],
+  );
   const region = (() => {
     if (!natural || boxes.length === 0) return null;
     const x0 = Math.max(0, Math.min(...boxes.map((b) => b[0])) - 24);
@@ -607,11 +959,18 @@ function PageCrop({ run, pageNo, scale, evs }: { run: Run; pageNo: number; scale
     const y1 = Math.min(natural.h, Math.max(...boxes.map((b) => b[3])) + 40);
     // lebar minimal 45% halaman agar teks sekitar ikut terbaca
     const minW = natural.w * 0.45;
-    const cx0 = x1 - x0 < minW ? Math.max(0, Math.min(natural.w - minW, (x0 + x1) / 2 - minW / 2)) : x0;
+    const cx0 =
+      x1 - x0 < minW
+        ? Math.max(0, Math.min(natural.w - minW, (x0 + x1) / 2 - minW / 2))
+        : x0;
     const cx1 = x1 - x0 < minW ? cx0 + minW : x1;
     return { x0: cx0, x1: cx1, y0, y1 };
   })();
-  const mark = (b: [number, number, number, number], r: { x0: number; x1: number; y0: number; y1: number }, i: number) => (
+  const mark = (
+    b: [number, number, number, number],
+    r: { x0: number; x1: number; y0: number; y1: number },
+    i: number,
+  ) => (
     <span
       key={i}
       aria-hidden
@@ -627,34 +986,63 @@ function PageCrop({ run, pageNo, scale, evs }: { run: Run; pageNo: number; scale
   return (
     <div className="flex flex-col gap-2">
       {/* gambar tersembunyi hanya untuk mengetahui ukuran asli preview */}
-      {!natural ? <img src={src} alt="" className="hidden" onLoad={(ev) => setNatural({ w: ev.currentTarget.naturalWidth, h: ev.currentTarget.naturalHeight })} /> : null}
+      {!natural ? (
+        <img
+          src={src}
+          alt=""
+          className="hidden"
+          onLoad={(ev) =>
+            setNatural({
+              w: ev.currentTarget.naturalWidth,
+              h: ev.currentTarget.naturalHeight,
+            })
+          }
+        />
+      ) : null}
       {region ? (
-        <div
-          className="relative w-full overflow-hidden rounded-md border border-line bg-white"
-          style={{ aspectRatio: `${region.x1 - region.x0} / ${region.y1 - region.y0}` }}
-        >
-          <img
-            src={src}
-            alt={`Potongan halaman ${pageNo} CV di sekitar bagian sumber`}
-            className="absolute max-w-none"
+        // Border di pembungkus luar: aspect-ratio berlaku pada kotak tanpa border, sehingga persentase posisi
+        // gambar dan sorotan memakai dasar yang sama (border di kotak yang sama menggeser sorotan ~1 baris).
+        <div className="overflow-hidden rounded-md border border-line bg-white">
+          <div
+            className="relative w-full overflow-hidden"
             style={{
-              width: `${(natural!.w / (region.x1 - region.x0)) * 100}%`,
-              left: `${(-region.x0 / (region.x1 - region.x0)) * 100}%`,
-              top: `${(-region.y0 / (region.y1 - region.y0)) * 100}%`,
+              aspectRatio: `${region.x1 - region.x0} / ${region.y1 - region.y0}`,
             }}
-          />
-          {boxes.map((b, i) => mark(b, region, i))}
+          >
+            <img
+              src={src}
+              alt={`Potongan halaman ${pageNo} CV di sekitar bagian sumber`}
+              className="absolute max-w-none"
+              style={{
+                width: `${(natural!.w / (region.x1 - region.x0)) * 100}%`,
+                left: `${(-region.x0 / (region.x1 - region.x0)) * 100}%`,
+                top: `${(-region.y0 / (region.y1 - region.y0)) * 100}%`,
+              }}
+            />
+            {boxes.map((b, i) => mark(b, region, i))}
+          </div>
         </div>
       ) : null}
       <div>
-        <Button size="sm" variant="ghost" aria-expanded={full} onClick={() => setFull((f) => !f)}>
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-expanded={full}
+          onClick={() => setFull((f) => !f)}
+        >
           {full ? "Sembunyikan halaman penuh" : "Lihat halaman penuh"}
         </Button>
       </div>
       {full && natural ? (
         <div className="relative overflow-hidden rounded-md border border-line">
-          <img src={src} alt={`Halaman ${pageNo} CV dengan bagian sumber ditandai`} className="block w-full" />
-          {boxes.map((b, i) => mark(b, { x0: 0, x1: natural.w, y0: 0, y1: natural.h }, i))}
+          <img
+            src={src}
+            alt={`Halaman ${pageNo} CV dengan bagian sumber ditandai`}
+            className="block w-full"
+          />
+          {boxes.map((b, i) =>
+            mark(b, { x0: 0, x1: natural.w, y0: 0, y1: natural.h }, i),
+          )}
         </div>
       ) : null}
     </div>
