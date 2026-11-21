@@ -160,6 +160,13 @@ func NewRouter(d Deps) *gin.Engine {
 	staff.GET("/workflows/:id/versions", auth.RequireAnyPerm(auth.PermWorkflowsRead), wf.Versions)
 	staff.POST("/workflows/:id/rollback", auth.RequireAnyPerm(auth.PermWorkflowsPublish), wf.RollbackTo)
 
+	staff.GET("/exam-banks", auth.RequireAnyPerm(auth.PermExamsManage), ex.ListBanks)
+	staff.POST("/exam-banks", auth.RequireAnyPerm(auth.PermExamsManage), ex.CreateBank)
+	staff.GET("/exam-banks/:id/questions", auth.RequireAnyPerm(auth.PermExamsManage), ex.BankQuestions)
+	staff.POST("/exam-banks/:id/import/preview", auth.RequireAnyPerm(auth.PermExamsManage), ex.ImportPreview)
+	staff.POST("/exam-banks/:id/import", auth.RequireAnyPerm(auth.PermExamsManage), ex.Import)
+	staff.POST("/questions/:id/versions", auth.RequireAnyPerm(auth.PermExamsManage), ex.NewQuestionVersion)
+	staff.POST("/exam-packages/:key/versions", auth.RequireAnyPerm(auth.PermExamsManage), ex.PublishPackageVersion)
 	staff.GET("/exam-schedules", auth.RequireAnyPerm(auth.PermExamsManage), ex.ListSchedules)
 	staff.POST("/exam-schedules", auth.RequireAnyPerm(auth.PermExamsManage), ex.CreateSchedule)
 	staff.POST("/exam-schedules/:id/invitations", ex.Invite)

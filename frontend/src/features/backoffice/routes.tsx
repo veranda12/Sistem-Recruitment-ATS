@@ -4,6 +4,7 @@ import { useSession } from "../../lib/session";
 import { Button, cx } from "../../ui";
 import { ApplicationDetail, ApplicationsPage } from "./applications";
 import { AuditPage, CommsPage, SettingsPage, UsersPage } from "./admin";
+import { BanksPage } from "./banks";
 import { EssayGrading, ScheduleMonitor, SchedulesPage } from "./exams";
 import { ReportsPage } from "./reports";
 import { RequisitionsPage } from "./interviews";
@@ -19,6 +20,7 @@ const items: NavItem[] = [
   { to: "/staf/permintaan", label: "Permintaan tenaga kerja", perm: "requisitions.read" },
   { to: "/staf/workflow", label: "Workflow", perm: "workflows.read" },
   { to: "/staf/ujian", label: "Ujian", perm: "exams.manage" },
+  { to: "/staf/bank-soal", label: "Bank soal", perm: "exams.manage" },
   { to: "/staf/laporan", label: "Laporan", perm: "reports.read" },
   { to: "/staf/pengguna", label: "Pengguna", perm: "users.manage" },
   { to: "/staf/pengaturan", label: "Pengaturan", perm: "settings.manage" },
@@ -94,6 +96,7 @@ export default function BackofficeRoutes() {
             <Route path="workflow" element={<WorkflowsPage />} />
             <Route path="workflow/:id" element={<WorkflowEditor />} />
             <Route path="ujian" element={<SchedulesPage />} />
+            <Route path="bank-soal" element={<BanksPage />} />
             <Route path="ujian/:id" element={<ScheduleMonitor />} />
             <Route path="penilaian/:id" element={<EssayGrading />} />
             <Route path="laporan" element={<ReportsPage />} />

@@ -39,3 +39,20 @@ test("Super admin: matriks peran, admin terakhir tidak bisa dicabut, audit", asy
   await page.getByRole("navigation", { name: "Menu back office" }).getByRole("link", { name: "Audit" }).click();
   await expect(page.getByRole("cell", { name: "seed.run" })).toBeVisible();
 });
+
+test("examiner: impor soal dengan pratinjau dan terbitkan versi paket", async ({ page }) => {
+  await login(page, "penguji@arunika.example");
+  await page.getByRole("navigation", { name: "Menu back office" }).getByRole("link", { name: "Bank soal" }).click();
+  await page.getByRole("button", { name: "Buka" }).first().click();
+  await page.getByLabel("Isi CSV").fill("jenis;pertanyaan;opsi;kunci;bobot;rubrik\ntunggal;Hasil 9 x 9?;81|72|99;A;1;\ntunggal;Kunci salah;Ya|Tidak;Z;1;");
+  await page.getByRole("button", { name: "Pratinjau" }).click();
+  await expect(page.getByText("1 baris perlu diperbaiki")).toBeVisible();
+  await expect(page.getByText(/Kunci Z tidak sesuai daftar pilihan/)).toBeVisible();
+  await page.getByLabel("Isi CSV").fill("jenis;pertanyaan;opsi;kunci;bobot;rubrik\ntunggal;Hasil 9 x 9?;81|72|99;A;1;");
+  await page.getByRole("button", { name: "Pratinjau" }).click();
+  await page.getByRole("button", { name: "Impor 1 soal" }).click();
+  await expect(page.getByText("1 soal diimpor.")).toBeVisible();
+  await page.getByRole("checkbox", { name: /Pilih soal Hasil 9 x 9/ }).check();
+  await page.getByRole("button", { name: "Terbitkan versi baru" }).click();
+  await expect(page.getByText(/versi \d+ diterbitkan/)).toBeVisible();
+});
