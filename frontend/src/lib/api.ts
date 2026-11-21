@@ -70,3 +70,18 @@ export const put = <T,>(path: string, body: unknown) => api<T>("PUT", path, body
 export function newIdempotencyKey(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
 }
+
+export const del = <T,>(path: string) => api<T>("DELETE", path);
+
+/** Unggah multipart (FormData). Content-Type diatur browser beserta boundary. */
+export async function apiForm<T>(path: string, form: FormData): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/v1${path}`, { method: "POST", body: form, credentials: "same-origin", headers: csrfToken ? { "X-CSRF-Token": csrfToken } : {} });
+  } catch {
+    throw new ApiError(0, null, null);
+  }
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new ApiError(res.status, body as ErrorBody | null, null);
+  return body as T;
+}

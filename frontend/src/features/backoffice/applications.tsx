@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router";
 import { ApiError, get, post, type Schemas } from "../../lib/api";
 import { fmtDate, fmtDateTime, statusLabel } from "../../lib/format";
 import { useQuery } from "../../lib/useQuery";
+import { kindLabel, openDocument, scanLabel } from "../candidate/documents";
 import { Alert, Badge, Button, DL, Dialog, Field, PageHeader, PageState, Select, Textarea, useToast } from "../../ui";
 
 type List = { items: Schemas["StaffApplication"][]; nextCursor: string | null };
@@ -169,6 +170,7 @@ export function ApplicationDetail() {
   const stageName = (k: string | null) => d?.stages.find((s) => s.key === k)?.name ?? k ?? "-";
   const triggerLabel: Record<string, string> = { apply: "Melamar", manual: "Dipindahkan", reject: "Ditolak", withdraw: "Ditarik kandidat", event: "Hasil ujian", approval: "Persetujuan" };
   const p = d?.snapshot.profile;
+  const docs = d?.documents ?? [];
 
   return (
     <PageState loading={q.loading} error={q.error} onRetry={q.reload}>
@@ -231,6 +233,25 @@ export function ApplicationDetail() {
                   ["Dikirim", fmtDateTime(d.appliedAt)],
                 ]}
               />
+              <div className="mt-6">
+                <h3 className="mb-2 font-semibold">Dokumen kandidat</h3>
+                {docs.length === 0 ? (
+                  <p className="text-ink-2">Kandidat belum mengunggah dokumen.</p>
+                ) : (
+                  <ul className="text-[15px]">
+                    {docs.map((doc) => (
+                      <li key={doc.id} className="flex flex-wrap items-center gap-2 py-1">
+                        {kindLabel[doc.kind]}: {doc.fileName} · {scanLabel[doc.scanStatus] ?? doc.scanStatus}
+                        {doc.scanStatus === "clean" ? (
+                          <Button size="sm" onClick={() => openDocument(doc.id).catch((e: ApiError) => setErr(e))}>
+                            Unduh
+                          </Button>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
               {d.otherApplications.length > 0 || d.hiddenOtherApplications > 0 ? (
                 <div className="mt-6">
                   <h3 className="mb-2 font-semibold">Lamaran lain kandidat ini</h3>

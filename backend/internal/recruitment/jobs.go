@@ -2,6 +2,7 @@
 package recruitment
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
@@ -28,6 +29,8 @@ type Handler struct {
 	OrgID uuid.UUID
 	Keys  identity.Keys
 	Cache *PublicCache
+	// Docs memuat daftar dokumen kandidat (diisi composition root agar recruitment tidak bergantung ke documents).
+	Docs func(context.Context, uuid.UUID) ([]sqlc.ListOwnerDocumentsRow, error)
 }
 
 var employmentTypes = []string{"full_time", "contract", "internship", "part_time"}

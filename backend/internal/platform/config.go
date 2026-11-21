@@ -46,6 +46,9 @@ type Config struct {
 	RateLimitScale int
 
 	MetricsAddr string // /metrics internal; kosong = nonaktif
+
+	// ScanCommand: pemindai malware eksternal (mis. "clamdscan --no-summary"). Kosong = dokumen tetap pending.
+	ScanCommand string
 }
 
 func (c Config) IsProduction() bool { return c.Env == "production" }
@@ -123,6 +126,7 @@ func LoadConfig() (Config, error) {
 		WorkerConcurrency:  atoi("WORKER_CONCURRENCY", 4),
 		RateLimitScale:     atoi("RATE_LIMIT_SCALE", 1),
 		MetricsAddr:        os.Getenv("METRICS_ADDR"),
+		ScanCommand:        os.Getenv("SCAN_COMMAND"),
 	}
 	if tp := os.Getenv("TRUSTED_PROXIES"); tp != "" {
 		for _, p := range strings.Split(tp, ",") {

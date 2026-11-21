@@ -80,7 +80,7 @@ func newEnv(t *testing.T) *env {
 	t.Cleanup(srv.Close)
 	mailDir := t.TempDir()
 	h := &notify.Handlers{Pool: pool, Q: sqlc.New(pool), Mailer: notify.FileMailer{Dir: mailDir, From: "uji@arunika.example"}, Origin: testOrigin}
-	w := &platform.OutboxWorker{Pool: pool, Consumer: "worker", Handle: WorkerHandler(pool, h, cfg.ObjectDir), Interval: time.Second, Concurrency: 2, Lease: 30 * time.Second}
+	w := &platform.OutboxWorker{Pool: pool, Consumer: "worker", Handle: WorkerHandler(pool, h, cfg.ObjectDir, testScanner), Interval: time.Second, Concurrency: 2, Lease: 30 * time.Second}
 	return &env{t: t, pool: pool, srv: srv, cfg: cfg, orgID: orgID, mailDir: mailDir, worker: w, keys: keys}
 }
 
@@ -241,3 +241,15 @@ func completeProfile(name, city string, version int) map[string]any {
 }
 
 func idOf(r resp, k string) string { return fmt.Sprint(r.Body[k]) }
+
+// testScanner meniru pemindai: berkas berisi string uji EICAR dianggap terinfeksi.
+func testScanner(_ context.Context, path string) (string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	if strings.Contains(string(b), "EICAR-STANDARD-ANTIVIRUS-TEST-FILE") {
+		return "infected", nil
+	}
+	return "clean", nil
+}

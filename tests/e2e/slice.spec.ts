@@ -146,3 +146,26 @@ test.describe.serial("vertical slice karier -> recruiter", () => {
     await expect(page.getByRole("navigation", { name: "Menu back office" }).getByRole("link")).toHaveText(["Lamaran"]);
   });
 });
+
+test("kandidat: unggah CV, menunggu pindai, lalu dapat diunduh", async ({ page }) => {
+  await login(page, "sari.kandidat@contoh.test");
+  await page.goto("/akun/profil");
+  await page.getByLabel("Berkas").setInputFiles({ name: "cv-sari.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7\nCV Sari Wulandari\n") });
+  await page.getByRole("button", { name: "Unggah" }).click();
+  await expect(page.getByText("Dokumen diunggah dan menunggu pemindaian keamanan.")).toBeVisible();
+  await expect
+    .poll(async () => {
+      await page.reload();
+      return page.getByRole("listitem").filter({ hasText: "cv-sari.pdf" }).textContent();
+    }, { timeout: 20_000 })
+    .toContain("Siap");
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("listitem").filter({ hasText: "cv-sari.pdf" }).getByRole("button", { name: "Unduh" }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe("cv-sari.pdf");
+  // Berkas dengan isi bukan PDF ditolak walau berekstensi .pdf.
+  await page.getByLabel("Berkas").setInputFiles({ name: "palsu.pdf", mimeType: "application/pdf", buffer: Buffer.from("MZ bukan pdf") });
+  await page.getByRole("button", { name: "Unggah" }).click();
+  await expect(page.getByText(/Format tidak didukung/)).toBeVisible();
+});

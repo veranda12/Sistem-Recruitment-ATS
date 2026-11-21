@@ -27,6 +27,9 @@ export const e2eEnv: Record<string, string> = {
   LOG_LEVEL: "warn",
   // Seluruh suite login dari satu IP; kuota dikalikan agar limiter tidak memblokir uji. Bukan untuk produksi.
   RATE_LIMIT_SCALE: "20",
+  OBJECT_DIR: resolve(root, ".data/e2e-objects"),
+  // Pemindai dev (hanya EICAR) agar alur unggah -> lolos pindai -> unduh dapat diuji. Bukan untuk produksi.
+  SCAN_COMMAND: `powershell -NoProfile -ExecutionPolicy Bypass -File ${resolve(root, "ops/windows/dev-scan.ps1")}`,
 };
 
 export default defineConfig({

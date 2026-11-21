@@ -8,6 +8,7 @@ import (
 
 	"ats/db/sqlc"
 	"ats/internal/auth"
+	"ats/internal/documents"
 	"ats/internal/exam"
 	"ats/internal/identity"
 	"ats/internal/notify"
@@ -50,6 +51,8 @@ func NewRouter(d Deps) *gin.Engine {
 	wf := &workflow.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID}
 	inbox := &notify.InboxHandler{Q: q}
 	ex := &exam.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID}
+	docs := &documents.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID, ObjectDir: d.Cfg.ObjectDir, SigningKey: d.Cfg.SessionKey}
+	rec.Docs = docs.ListForCandidate
 	adm := &settings.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID, InvalidatePublic: rec.Cache.Invalidate}
 	rep := &reporting.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID, ObjectDir: d.Cfg.ObjectDir, SigningKey: d.Cfg.SessionKey,
 		Limiter: d.Limiter, Strict: d.Cfg.StrictSensitiveLimits}
@@ -79,7 +82,7 @@ func NewRouter(d Deps) *gin.Engine {
 	rl := func(name string, perMin int, key func(*gin.Context) string) gin.HandlerFunc {
 		return d.Limiter.RateLimit(name, perMin*scale, time.Minute, key)
 	}
-	api := r.Group("/api/v1", platform.BodyLimit(1<<20), sessions.Load(), sessions.CSRF(),
+	api := r.Group("/api/v1", platform.BodyLimitByRoute(1<<20, map[string]int64{"/api/v1/me/documents": documents.MaxBytes + 64<<10}), sessions.Load(), sessions.CSRF(),
 		rl("api", 600, ip))
 	interactive := platform.Deadline(10 * time.Second)
 	critical := platform.Deadline(5 * time.Second)
@@ -108,6 +111,11 @@ func NewRouter(d Deps) *gin.Engine {
 	me.POST("/applications/:id/withdraw", rec.Withdraw)
 	me.GET("/notifications", inbox.List)
 	me.POST("/notifications/:id/read", inbox.MarkRead)
+	me.GET("/documents", docs.Mine)
+	me.POST("/documents", d.Limiter.RateLimit("upload", 20*max(d.Cfg.RateLimitScale, 1), time.Minute, ip), docs.Upload)
+	me.DELETE("/documents/:id", docs.Delete)
+	api.POST("/documents/:id/link", auth.RequireAuth(), interactive, docs.Link)
+	api.GET("/documents/download", auth.RequireAuth(), docs.Download)
 	api.POST("/jobs/:slug/apply", auth.RequireKind("candidate"), critical, rec.Apply)
 
 	// Ujian: start/save/submit diprioritaskan (deadline critical, batch dibatasi); heartbeat best-effort.

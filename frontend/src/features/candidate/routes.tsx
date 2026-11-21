@@ -4,6 +4,7 @@ import { ApiError, post, put, type Schemas } from "../../lib/api";
 import { fmtDate, fmtDateTime, statusLabel } from "../../lib/format";
 import { useSession } from "../../lib/session";
 import { useQuery } from "../../lib/useQuery";
+import { DocumentsSection } from "./documents";
 import { Alert, Badge, Button, Dialog, Field, Input, PageHeader, PageState, Select, Textarea, useToast } from "../../ui";
 
 export default function CandidateRoutes() {
@@ -277,6 +278,8 @@ function ProfilePage() {
                 </Button>
               </div>
             </section>
+
+            <DocumentsSection />
 
             <div className="sticky bottom-0 border-t border-line bg-white py-3">
               <Button type="submit" variant="primary" busy={busy}>

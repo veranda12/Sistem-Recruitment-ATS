@@ -359,6 +359,13 @@ func (h *Handler) GetApplication(c *gin.Context) {
 		platform.Fail(c, err)
 		return
 	}
+	docs := []sqlc.ListOwnerDocumentsRow{}
+	if h.Docs != nil {
+		if docs, err = h.Docs(ctx, app.CandidateUserID); err != nil {
+			platform.Fail(c, err)
+			return
+		}
+	}
 	actions := []actionDTO{}
 	res := auth.Resource{Unit: app.UnitID, Job: &app.JobID}
 	if app.Status == "active" {
@@ -392,7 +399,7 @@ func (h *Handler) GetApplication(c *gin.Context) {
 		"candidate": gin.H{"id": app.CandidateUserID, "name": app.CandidateName, "email": app.CandidateEmail},
 		"snapshot":  json.RawMessage(snap.Profile), "snapshotAt": snap.CapturedAt,
 		"history": ts, "approvals": approvals, "otherApplications": visible, "hiddenOtherApplications": hidden,
-		"actions": actions, "stages": stages, "canRevealIdentity": p.Can(auth.PermIdentityReveal, res),
+		"actions": actions, "stages": stages, "canRevealIdentity": p.Can(auth.PermIdentityReveal, res), "documents": docs,
 	})
 }
 

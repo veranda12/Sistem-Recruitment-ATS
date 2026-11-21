@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"ats/db/sqlc"
+	"ats/internal/documents"
 	"ats/internal/exam"
 	"ats/internal/notify"
 	"ats/internal/platform"
@@ -18,8 +19,11 @@ import (
 
 // WorkerHandler merangkai consumer outbox: rilis nilai memicu event workflow (execution ID = event ID,
 // sehingga replay tidak menggandakan transisi), lalu notifikasi kandidat. Topik lain ke notify.
-func WorkerHandler(pool *pgxpool.Pool, n *notify.Handlers, objectDir string) func(context.Context, sqlc.Outbox) error {
+func WorkerHandler(pool *pgxpool.Pool, n *notify.Handlers, objectDir string, scanner documents.Scanner) func(context.Context, sqlc.Outbox) error {
 	return func(ctx context.Context, ev sqlc.Outbox) error {
+		if ev.Topic == documents.TopicScan {
+			return documents.Scan(ctx, pool, objectDir, scanner, ev.Payload)
+		}
 		if ev.Topic == reporting.TopicExport {
 			return reporting.Generate(ctx, pool, objectDir, ev.Payload)
 		}

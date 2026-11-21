@@ -164,3 +164,19 @@ func SecurityHeaders(production bool) gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// BodyLimitByRoute: batas default dengan pengecualian per route template (mis. unggah dokumen).
+func BodyLimitByRoute(def int64, overrides map[string]int64) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		n := def
+		if o, ok := overrides[c.FullPath()]; ok {
+			n = o
+		}
+		if c.Request.ContentLength > n {
+			Fail(c, &APIError{Status: http.StatusRequestEntityTooLarge, Code: "payload_too_large", Message: "Data yang dikirim terlalu besar."})
+			return
+		}
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, n)
+		c.Next()
+	}
+}
