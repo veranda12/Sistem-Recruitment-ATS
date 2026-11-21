@@ -227,6 +227,10 @@ func TestExamProtocolOnRealDB(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM exam_submissions WHERE attempt_id = $1`, att); n != 1 {
 		t.Fatalf("submission = %d", n)
 	}
+	// Digest receipt dapat diverifikasi ulang secara independen dari snapshot yang tersimpan.
+	if ok := e.scalar(`SELECT answers_digest = sha256(convert_to(snapshot::text, 'UTF8')) FROM exam_submissions WHERE attempt_id = $1`, att); ok != true {
+		t.Fatal("digest receipt tidak cocok dengan snapshot")
+	}
 
 	// Nilai: objektif 4 + 2 = 6 dari 8, esai belum dinilai -> score null, pending 1.
 	var earned float64

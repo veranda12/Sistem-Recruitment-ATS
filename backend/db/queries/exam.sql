@@ -136,8 +136,11 @@ UPDATE exam_attempts SET status = $2, finalized_at = now() WHERE id = $1;
 SELECT * FROM exam_submissions WHERE attempt_id = $1;
 
 -- name: InsertSubmission :one
+-- Digest dihitung PostgreSQL dari teks kanonis jsonb agar dapat diverifikasi ulang secara independen (rekonsiliasi, drill restore).
 INSERT INTO exam_submissions (attempt_id, idempotency_key, reason, receipt_code, answers_digest, snapshot, final_revision)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+SELECT sqlc.arg(attempt_id)::uuid, sqlc.narg(idempotency_key)::text, sqlc.arg(reason)::text, sqlc.arg(receipt_code)::text,
+       sha256(convert_to(s.j::text, 'UTF8')), s.j, sqlc.arg(final_revision)::bigint
+FROM (SELECT sqlc.arg(snapshot)::jsonb AS j) s
 RETURNING *;
 
 -- name: InsertResult :exec

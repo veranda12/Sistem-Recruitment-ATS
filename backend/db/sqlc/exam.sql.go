@@ -723,7 +723,9 @@ func (q *Queries) InsertSaveReceipt(ctx context.Context, arg InsertSaveReceiptPa
 
 const insertSubmission = `-- name: InsertSubmission :one
 INSERT INTO exam_submissions (attempt_id, idempotency_key, reason, receipt_code, answers_digest, snapshot, final_revision)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+SELECT $1::uuid, $2::text, $3::text, $4::text,
+       sha256(convert_to(s.j::text, 'UTF8')), s.j, $5::bigint
+FROM (SELECT $6::jsonb AS j) s
 RETURNING attempt_id, idempotency_key, reason, receipt_code, answers_digest, snapshot, final_revision, submitted_at
 `
 
@@ -732,20 +734,19 @@ type InsertSubmissionParams struct {
 	IdempotencyKey *string         `json:"idempotencyKey"`
 	Reason         string          `json:"reason"`
 	ReceiptCode    string          `json:"receiptCode"`
-	AnswersDigest  []byte          `json:"-"`
-	Snapshot       json.RawMessage `json:"snapshot"`
 	FinalRevision  int64           `json:"finalRevision"`
+	Snapshot       json.RawMessage `json:"snapshot"`
 }
 
+// Digest dihitung PostgreSQL dari teks kanonis jsonb agar dapat diverifikasi ulang secara independen (rekonsiliasi, drill restore).
 func (q *Queries) InsertSubmission(ctx context.Context, arg InsertSubmissionParams) (ExamSubmission, error) {
 	row := q.db.QueryRow(ctx, insertSubmission,
 		arg.AttemptID,
 		arg.IdempotencyKey,
 		arg.Reason,
 		arg.ReceiptCode,
-		arg.AnswersDigest,
-		arg.Snapshot,
 		arg.FinalRevision,
+		arg.Snapshot,
 	)
 	var i ExamSubmission
 	err := row.Scan(

@@ -521,11 +521,10 @@ func finalize(ctx context.Context, q *sqlc.Queries, attemptID uuid.UUID, reason 
 		snap.Items = append(snap.Items, si)
 	}
 	sb, _ := json.Marshal(snap)
-	dig := sha256.Sum256(sb)
 	code := make([]byte, 8)
 	_, _ = rand.Read(code)
 	s, err := q.InsertSubmission(ctx, sqlc.InsertSubmissionParams{AttemptID: a.ID, IdempotencyKey: key, Reason: reason,
-		ReceiptCode: "UJ-" + base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(code), AnswersDigest: dig[:], Snapshot: sb, FinalRevision: a.Revision})
+		ReceiptCode: "UJ-" + base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(code), Snapshot: sb, FinalRevision: a.Revision})
 	if err != nil {
 		return ReceiptDTO{}, err
 	}
