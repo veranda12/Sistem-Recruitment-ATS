@@ -13,7 +13,7 @@
     "stills": "node scripts/stills.mjs",
     "render": "remotion render src/index.ts AtsProductDemo out/ats-product-demo.mp4 --codec=h264 --pixel-format=yuv420p --crf=16",
     "verify": "node scripts/verify.mjs",
-    "poster": "remotion still src/index.ts AtsProductDemo out/poster.png --frame=830"
+    "poster": "remotion still src/index.ts AtsProductDemo out/poster.png --frame=1006"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.538",

@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const { DURATION, FPS } = await import("../src/timeline.ts");
 const file = process.argv[2] ?? join(root, "out/ats-product-demo.mp4");
 if (!existsSync(file)) {
   console.error(`MP4 tidak ditemukan: ${file}. Jalankan: npm run render`);
@@ -26,10 +27,10 @@ const dur = Number(probe.format.duration);
 const checks = [
   ["codec H.264", s.codec_name === "h264", s.codec_name],
   ["resolusi 1920x1080", s.width === 1920 && s.height === 1080, `${s.width}x${s.height}`],
-  ["30 fps", s.r_frame_rate === "30/1", s.r_frame_rate],
+  [`${FPS} fps`, s.r_frame_rate === `${FPS}/1`, s.r_frame_rate],
   ["pixel format yuv420p", s.pix_fmt === "yuv420p", s.pix_fmt],
-  ["1800 frame", Number(s.nb_read_frames) === 1800, s.nb_read_frames],
-  ["durasi 60 detik", Math.abs(dur - 60) < 0.05, `${dur.toFixed(3)} s`],
+  [`${DURATION} frame`, Number(s.nb_read_frames) === DURATION, s.nb_read_frames],
+  [`durasi ${DURATION / FPS} detik`, Math.abs(dur - DURATION / FPS) < 0.05, `${dur.toFixed(3)} s`],
 ];
 
 const out = join(root, "out/verify");
@@ -52,7 +53,7 @@ for (let f = 0; f < n; f++) {
   if (mean < 24) dark.push(f);
   if (Math.sqrt(varSum / px.length) < 4) flat.push(f);
 }
-checks.push(["frame terdekode", n === 1800, String(n)]);
+checks.push(["frame terdekode", n === DURATION, String(n)]);
 checks.push(["tanpa layar hitam", dark.length === 0, dark.length ? `frame ${dark.slice(0, 10).join(", ")}` : "tidak ada"]);
 checks.push(["tanpa frame polos", flat.length === 0, flat.length ? `frame ${flat.slice(0, 10).join(", ")}` : "tidak ada"]);
 const ff = (args) => spawnSync(process.execPath, [join(root, "node_modules/@remotion/cli/remotion-cli.js"), "ffmpeg", "-hide_banner", "-loglevel", "error", "-y", ...args], { cwd: root });

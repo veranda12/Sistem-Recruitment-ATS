@@ -59,7 +59,11 @@ export const ShotView: React.FC<{ shot: Shot; data: ManifestShot; view: { width:
       <Cursor
         x={cam.tx + (fx + (toX - fx) * t) * cam.k}
         y={cam.ty + (fy + (toY - fy) * t) * cam.k}
-        opacity={c.fadeIn ? interpolate(frame, [Math.max(0, c.moveAt - 8), c.moveAt], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 1}
+        opacity={
+          c.fadeIn
+            ? interpolate(frame, [Math.max(0, c.moveAt - 8), Math.max(8, c.moveAt)], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
+            : 1
+        }
         press={interpolate(frame, [c.clickAt, c.clickAt + 3, c.clickAt + 9], [1, 0.86, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })}
       />
     );
