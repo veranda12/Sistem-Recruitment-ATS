@@ -515,8 +515,12 @@ func finalize(ctx context.Context, q *sqlc.Queries, attemptID uuid.UUID, reason 
 	}{AttemptID: a.ID, PackageVer: a.PackageVersionID, AlgoVersion: a.AlgoVersion, FinalRevision: a.Revision}
 	for _, it := range items {
 		si := snapItem{ItemID: it.ItemID, Number: it.Position, QuestionVersionID: it.QuestionVersionID, Value: json.RawMessage("null")}
-		if x, ok := byItem[it.ItemID]; ok && len(x.Value) > 0 {
-			si.Value, si.Revision = json.RawMessage(x.Value), x.Revision
+		// Revisi committed selalu dicatat, termasuk jawaban yang sengaja dikosongkan (nilai null, revisi > 0).
+		if x, ok := byItem[it.ItemID]; ok {
+			si.Revision = x.Revision
+			if len(x.Value) > 0 {
+				si.Value = json.RawMessage(x.Value)
+			}
 		}
 		snap.Items = append(snap.Items, si)
 	}

@@ -79,8 +79,8 @@ func reset(ctx context.Context, cfg platform.Config) error {
 		return err
 	}
 	name := strings.TrimPrefix(u.Path, "/")
-	if !strings.HasSuffix(name, "_dev") && !strings.HasSuffix(name, "_test") && !strings.HasSuffix(name, "_e2e") {
-		return fmt.Errorf("nama database %q harus berakhiran _dev, _test, atau _e2e", name)
+	if !strings.HasSuffix(name, "_dev") && !strings.HasSuffix(name, "_test") && !strings.HasSuffix(name, "_e2e") && !strings.HasSuffix(name, "_load") {
+		return fmt.Errorf("nama database %q harus berakhiran _dev, _test, _e2e, atau _load", name)
 	}
 	conn, err := pgx.Connect(ctx, cfg.DatabaseURL)
 	if err != nil {

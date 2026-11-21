@@ -199,6 +199,8 @@ func TestExamProtocolOnRealDB(t *testing.T) {
 		}
 	}
 	expect(t, save(c, att, "op-resolve-001", ans(multi[0], rev, o[multi[0]].Correct, nil)), 200, "resolusi konflik")
+	// Jawaban yang dikosongkan tetap tercatat sebagai revisi committed (regresi temuan oracle uji beban).
+	expect(t, save(c, att, "op-kosong-0001", ans(single[1], 1, nil, nil)), 200, "kosongkan jawaban")
 	text := "Hentikan lini, pisahkan produk cacat, lapor supervisor, catat di form NCR."
 	expect(t, save(c, att, "op-essay-0001", ans(essay[0], 0, nil, &text)), 200, "esai")
 
@@ -232,14 +234,14 @@ func TestExamProtocolOnRealDB(t *testing.T) {
 		t.Fatal("digest receipt tidak cocok dengan snapshot")
 	}
 
-	// Nilai: objektif 4 + 2 = 6 dari 8, esai belum dinilai -> score null, pending 1.
+	// Nilai: objektif 3 tunggal (satu dikosongkan) + 2 jamak = 5 dari 8, esai belum dinilai -> score null, pending 1.
 	var earned float64
 	var score *float64
 	var pending int
 	if err := e.pool.QueryRow(context.Background(), `SELECT earned::float8, score::float8, essay_pending FROM exam_results WHERE attempt_id = $1`, att).Scan(&earned, &score, &pending); err != nil {
 		t.Fatal(err)
 	}
-	if earned != 6 || score != nil || pending != 1 {
+	if earned != 5 || score != nil || pending != 1 {
 		t.Fatalf("nilai sebelum esai: earned=%v score=%v pending=%d", earned, score, pending)
 	}
 	// Snapshot final cocok dengan revisi terakhir yang diterima (rekonsiliasi read-only).
@@ -259,7 +261,8 @@ func TestExamProtocolOnRealDB(t *testing.T) {
 	expect(t, ex.do("POST", "/exam-attempts/"+att+"/essay-grades", map[string]any{"itemId": essay[0], "points": 3}), 422, "nilai di atas bobot")
 	g := ex.do("POST", "/exam-attempts/"+att+"/essay-grades", map[string]any{"itemId": essay[0], "points": 1.5})
 	expect(t, g, 200, "nilai esai")
-	if g.Body["score"].(float64) != 93.75 || g.Body["status"] != "graded" {
+	// (5 + 1,5) / 8 = 81,25
+	if g.Body["score"].(float64) != 81.25 || g.Body["status"] != "graded" {
 		t.Fatalf("nilai akhir: %s", g.Raw)
 	}
 	expect(t, ex.do("POST", "/exam-schedules/"+e.scheduleID()+"/release", nil), 403, "examiner tidak boleh rilis")

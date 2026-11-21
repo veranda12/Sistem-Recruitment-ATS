@@ -17,3 +17,5 @@ coverage.out
 
 # Artefak rilis
 dist/
+tests/load/results/*/
+!tests/load/results/README.md
