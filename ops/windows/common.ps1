@@ -48,6 +48,9 @@ function Test-TcpPort([string]$hostName, [int]$port, [int]$timeoutMs = 1500) {
 }
 
 function Invoke-Checked([string]$file, [string[]]$arguments, [string]$workDir = $script:Root) {
-    $p = Start-Process -FilePath $file -ArgumentList $arguments -WorkingDirectory $workDir -NoNewWindow -Wait -PassThru
+    # PowerShell 5.1 menolak -ArgumentList kosong, jadi parameter hanya dikirim bila ada.
+    $sp = @{ FilePath = $file; WorkingDirectory = $workDir; NoNewWindow = $true; Wait = $true; PassThru = $true }
+    if ($arguments -and $arguments.Count -gt 0) { $sp.ArgumentList = $arguments }
+    $p = Start-Process @sp
     if ($p.ExitCode -ne 0) { throw "Perintah gagal ($($p.ExitCode)): $file $($arguments -join ' ')" }
 }
