@@ -63,7 +63,9 @@ func main() {
 	}()
 
 	go app.RunExpiry(ctx, pool, 5*time.Second)
-	w := &platform.OutboxWorker{Pool: pool, Consumer: "worker", Handle: app.WorkerHandler(pool, h), Interval: cfg.WorkerPollInterval,
+	go app.RunHousekeeping(ctx, pool, cfg.ObjectDir, 15*time.Second)
+	go platform.ServeMetrics(ctx, os.Getenv("WORKER_METRICS_ADDR"), "worker", pool)
+	w := &platform.OutboxWorker{Pool: pool, Consumer: "worker", Handle: app.WorkerHandler(pool, h, cfg.ObjectDir), Interval: cfg.WorkerPollInterval,
 		Concurrency: cfg.WorkerConcurrency, Lease: 60 * time.Second}
 	slog.Info("worker mulai", "config", cfg.Redacted(), "mailer", fmt.Sprintf("%T", mailer))
 	w.Run(ctx)

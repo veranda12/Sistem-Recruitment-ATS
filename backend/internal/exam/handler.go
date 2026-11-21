@@ -133,6 +133,7 @@ func (h *Handler) Save(c *gin.Context) {
 		body, err = Save(ctx, h.Q.WithTx(tx), id, auth.Current(c).UserID, req)
 		return err
 	})
+	countOp("save", err)
 	if err != nil {
 		platform.Fail(c, err)
 		return
@@ -159,6 +160,7 @@ func (h *Handler) Submit(c *gin.Context) {
 		r, err = Submit(ctx, h.Q.WithTx(tx), id, auth.Current(c).UserID, c.GetHeader("Idempotency-Key"), req)
 		return err
 	})
+	countOp("submit", err)
 	if err != nil {
 		platform.Fail(c, err)
 		return
@@ -491,3 +493,17 @@ func (h *Handler) Release(c *gin.Context) {
 }
 
 var _ = errForbidden
+
+func countOp(op string, err error) {
+	outcome := "commit"
+	if err != nil {
+		outcome = "error"
+		if ae, ok := err.(*platform.APIError); ok {
+			outcome = "rejected"
+			if ae.Code == "answer_conflict" || ae.Code == "stale_revision" {
+				outcome = "conflict"
+			}
+		}
+	}
+	platform.ExamOps.WithLabelValues(op, outcome).Inc()
+}

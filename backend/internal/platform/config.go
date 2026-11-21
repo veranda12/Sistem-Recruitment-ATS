@@ -44,6 +44,8 @@ type Config struct {
 
 	// RateLimitScale mengalikan semua kuota rate limit. Hanya untuk uji otomatis dari satu IP; wajib 1 di produksi.
 	RateLimitScale int
+
+	MetricsAddr string // /metrics internal; kosong = nonaktif
 }
 
 func (c Config) IsProduction() bool { return c.Env == "production" }
@@ -120,6 +122,7 @@ func LoadConfig() (Config, error) {
 		WorkerPollInterval: dur("WORKER_POLL_INTERVAL", time.Second),
 		WorkerConcurrency:  atoi("WORKER_CONCURRENCY", 4),
 		RateLimitScale:     atoi("RATE_LIMIT_SCALE", 1),
+		MetricsAddr:        os.Getenv("METRICS_ADDR"),
 	}
 	if tp := os.Getenv("TRUSTED_PROXIES"); tp != "" {
 		for _, p := range strings.Split(tp, ",") {

@@ -9,6 +9,7 @@ import (
 	"ats/internal/exam"
 	"ats/internal/notify"
 	"ats/internal/platform"
+	"ats/internal/reporting"
 	"ats/internal/workflow"
 
 	"github.com/jackc/pgx/v5"
@@ -17,8 +18,11 @@ import (
 
 // WorkerHandler merangkai consumer outbox: rilis nilai memicu event workflow (execution ID = event ID,
 // sehingga replay tidak menggandakan transisi), lalu notifikasi kandidat. Topik lain ke notify.
-func WorkerHandler(pool *pgxpool.Pool, n *notify.Handlers) func(context.Context, sqlc.Outbox) error {
+func WorkerHandler(pool *pgxpool.Pool, n *notify.Handlers, objectDir string) func(context.Context, sqlc.Outbox) error {
 	return func(ctx context.Context, ev sqlc.Outbox) error {
+		if ev.Topic == reporting.TopicExport {
+			return reporting.Generate(ctx, pool, objectDir, ev.Payload)
+		}
 		if ev.Topic == exam.TopicReleased {
 			appID, key, facts, err := exam.ReleasedFacts(ev.Payload)
 			if err != nil {
@@ -76,4 +80,24 @@ func ExpireDue(ctx context.Context, pool *pgxpool.Pool) int {
 		}
 	}
 	return n
+}
+
+// RunHousekeeping: pembersihan ekspor kedaluwarsa dan gauge antrean outbox untuk dashboard.
+func RunHousekeeping(ctx context.Context, pool *pgxpool.Pool, objectDir string, every time.Duration) {
+	t := time.NewTicker(every)
+	defer t.Stop()
+	q := sqlc.New(pool)
+	for {
+		reporting.CleanupExpired(ctx, pool, objectDir)
+		if st, err := q.OutboxStats(ctx); err == nil {
+			platform.OutboxGauge.WithLabelValues("pending").Set(float64(st.Pending))
+			platform.OutboxGauge.WithLabelValues("dead").Set(float64(st.Dead))
+			platform.OutboxLag.Set(st.OldestPendingSeconds)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+	}
 }

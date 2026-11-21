@@ -37,6 +37,7 @@ func main() {
 		os.Exit(1)
 	}
 	limiter := platform.NewLimiter(cfg.RedisURL)
+	go platform.ServeMetrics(ctx, cfg.MetricsAddr, "api", pool)
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           app.NewRouter(app.Deps{Cfg: cfg, Pool: pool, OrgID: orgID, Limiter: limiter}),

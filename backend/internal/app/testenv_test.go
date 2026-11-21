@@ -73,14 +73,14 @@ func newEnv(t *testing.T) *env {
 	}
 	cfg := platform.Config{Env: "test", PublicOrigin: testOrigin, SessionKey: key(3), NIKEncKey: key(1), NIKEncKeyVer: 1,
 		NIKIndexKey: key(2), NIKIndexKeyVer: 1, StaffIdleTimeout: 30 * time.Minute, CandidateIdleTimeout: 2 * time.Hour,
-		SessionAbsolute: 12 * time.Hour}
+		SessionAbsolute: 12 * time.Hour, ObjectDir: t.TempDir(), StrictSensitiveLimits: true, RateLimitScale: 1}
 	limiter := platform.NewLimiter("")
 	limiter.DegradedDivisor = 1
 	srv := httptest.NewServer(NewRouter(Deps{Cfg: cfg, Pool: pool, OrgID: orgID, Limiter: limiter}))
 	t.Cleanup(srv.Close)
 	mailDir := t.TempDir()
 	h := &notify.Handlers{Pool: pool, Q: sqlc.New(pool), Mailer: notify.FileMailer{Dir: mailDir, From: "uji@arunika.example"}, Origin: testOrigin}
-	w := &platform.OutboxWorker{Pool: pool, Consumer: "worker", Handle: WorkerHandler(pool, h), Interval: time.Second, Concurrency: 2, Lease: 30 * time.Second}
+	w := &platform.OutboxWorker{Pool: pool, Consumer: "worker", Handle: WorkerHandler(pool, h, cfg.ObjectDir), Interval: time.Second, Concurrency: 2, Lease: 30 * time.Second}
 	return &env{t: t, pool: pool, srv: srv, cfg: cfg, orgID: orgID, mailDir: mailDir, worker: w, keys: keys}
 }
 

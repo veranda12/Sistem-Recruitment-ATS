@@ -13,6 +13,8 @@ import (
 	"ats/internal/notify"
 	"ats/internal/platform"
 	"ats/internal/recruitment"
+	"ats/internal/reporting"
+	"ats/internal/settings"
 	"ats/internal/workflow"
 
 	"github.com/gin-gonic/gin"
@@ -37,7 +39,7 @@ func NewRouter(d Deps) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	_ = r.SetTrustedProxies(d.Cfg.TrustedProxies)
-	r.Use(platform.RequestIDMiddleware(), platform.RecoverMiddleware(), platform.AccessLog(), platform.SecurityHeaders(d.Cfg.IsProduction()))
+	r.Use(platform.RequestIDMiddleware(), platform.RecoverMiddleware(), platform.MetricsMiddleware(), platform.AccessLog(), platform.SecurityHeaders(d.Cfg.IsProduction()))
 
 	q := sqlc.New(d.Pool)
 	sessions := auth.NewSessions(d.Pool, d.Cfg)
@@ -48,6 +50,9 @@ func NewRouter(d Deps) *gin.Engine {
 	wf := &workflow.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID}
 	inbox := &notify.InboxHandler{Q: q}
 	ex := &exam.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID}
+	adm := &settings.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID, InvalidatePublic: rec.Cache.Invalidate}
+	rep := &reporting.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID, ObjectDir: d.Cfg.ObjectDir, SigningKey: d.Cfg.SessionKey,
+		Limiter: d.Limiter, Strict: d.Cfg.StrictSensitiveLimits}
 
 	health := func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) }
 	ready := func(c *gin.Context) {
@@ -141,6 +146,33 @@ func NewRouter(d Deps) *gin.Engine {
 	staff.POST("/exam-schedules/:id/release", auth.RequireAnyPerm(auth.PermResultsRelease), ex.Release)
 	staff.GET("/exam-attempts/:id/review", auth.RequireAnyPerm(auth.PermExamsGrade), ex.Review)
 	staff.POST("/exam-attempts/:id/essay-grades", auth.RequireAnyPerm(auth.PermExamsGrade), ex.Grade)
+
+	// Pelaporan: deadline lebih panjang (background-read).
+	reports := api.Group("/reports", auth.RequireKind("staff"), platform.Deadline(30*time.Second))
+	reports.GET("/recruitment", auth.RequireAnyPerm(auth.PermReportsRead), rep.Recruitment)
+	reports.POST("/exports", rep.CreateExport)
+	reports.GET("/exports", rep.MyExports)
+	reports.POST("/exports/:id/link", rep.Link)
+	reports.GET("/download", rep.Download)
+
+	// Administrasi akses, audit, pengaturan.
+	admin := api.Group("/admin", auth.RequireKind("staff"), interactive)
+	admin.GET("/users", auth.RequireAnyPerm(auth.PermUsersManage), adm.ListUsers)
+	admin.POST("/users", auth.RequireAnyPerm(auth.PermUsersManage), adm.CreateUser)
+	admin.POST("/users/:id/assignments", auth.RequireAnyPerm(auth.PermUsersManage), adm.Assign)
+	admin.POST("/users/:id/status", auth.RequireAnyPerm(auth.PermUsersManage), adm.SetStatus)
+	admin.POST("/assignments/:id/revoke", auth.RequireAnyPerm(auth.PermUsersManage), adm.Revoke)
+	admin.GET("/roles", auth.RequireAnyPerm(auth.PermUsersManage), adm.ListRoles)
+	admin.GET("/audit", auth.RequireAnyPerm(auth.PermAuditRead), adm.Audit)
+	admin.GET("/settings", auth.RequireAnyPerm(auth.PermSettingsManage), adm.ListSettings)
+	admin.PUT("/settings/:key", auth.RequireAnyPerm(auth.PermSettingsManage), adm.PutSetting)
+	admin.GET("/settings/:key/history", auth.RequireAnyPerm(auth.PermSettingsManage), adm.SettingHistory)
+	admin.GET("/organization", auth.RequireAnyPerm(auth.PermSettingsManage), adm.GetOrganization)
+	admin.PUT("/organization", auth.RequireAnyPerm(auth.PermSettingsManage), adm.PutOrganization)
+	admin.POST("/units/:id/active", auth.RequireAnyPerm(auth.PermSettingsManage), adm.SetMasterActive("unit"))
+	admin.POST("/locations/:id/active", auth.RequireAnyPerm(auth.PermSettingsManage), adm.SetMasterActive("location"))
+	admin.GET("/deliveries", auth.RequireAnyPerm(auth.PermSettingsManage), adm.Deliveries)
+	admin.POST("/outbox/:id/replay", auth.RequireAnyPerm(auth.PermSettingsManage), adm.Replay)
 
 	r.NoRoute(func(c *gin.Context) { platform.Fail(c, platform.ErrNotFound("Alamat tidak ditemukan.")) })
 	return r

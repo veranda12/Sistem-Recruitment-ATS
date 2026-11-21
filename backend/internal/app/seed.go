@@ -37,7 +37,7 @@ var rolePerms = map[string][]string{
 	"super_admin": {auth.PermUsersManage, auth.PermRolesManage, auth.PermSettingsManage, auth.PermAuditRead, auth.PermCredentialsManage,
 		auth.PermWorkflowsRead, auth.PermWorkflowsManage, auth.PermWorkflowsPublish, auth.PermJobsRead, auth.PermReportsRead},
 	"hr_admin": {auth.PermJobsRead, auth.PermJobsManage, auth.PermJobsPublish, auth.PermRequisitionsRead, auth.PermRequisitionsApprove,
-		auth.PermApplicationsRead, auth.PermApplicationsMove, auth.PermApplicationsAssign, auth.PermIdentityReveal,
+		auth.PermApplicationsRead, auth.PermApplicationsMove, auth.PermApplicationsAssign, auth.PermIdentityReveal, auth.PermPIIExport,
 		auth.PermWorkflowsRead, auth.PermWorkflowsManage, auth.PermWorkflowsPublish, auth.PermReportsRead, auth.PermReportsExport,
 		auth.PermResultsRelease, auth.PermExamsManage, auth.PermAuditRead},
 	"recruiter":      {auth.PermJobsRead, auth.PermApplicationsRead, auth.PermApplicationsMove, auth.PermRequisitionsRead},

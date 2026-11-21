@@ -276,6 +276,21 @@ type Experience struct {
 	CreatedAt   time.Time  `json:"createdAt"`
 }
 
+type Export struct {
+	ID          uuid.UUID       `json:"id"`
+	OrgID       uuid.UUID       `json:"orgId"`
+	RequestedBy uuid.UUID       `json:"requestedBy"`
+	Kind        string          `json:"kind"`
+	Params      json.RawMessage `json:"params"`
+	Status      string          `json:"status"`
+	FileKey     *string         `json:"fileKey"`
+	RowCount    *int32          `json:"rowCount"`
+	Error       *string         `json:"error"`
+	CreatedAt   time.Time       `json:"createdAt"`
+	FinishedAt  *time.Time      `json:"finishedAt"`
+	ExpiresAt   *time.Time      `json:"expiresAt"`
+}
+
 type IdempotencyKey struct {
 	ActorID        uuid.UUID       `json:"actorId"`
 	Operation      string          `json:"operation"`
@@ -499,6 +514,18 @@ type SystemSetting struct {
 	EffectiveAt time.Time       `json:"effectiveAt"`
 	UpdatedBy   *uuid.UUID      `json:"updatedBy"`
 	UpdatedAt   time.Time       `json:"updatedAt"`
+}
+
+type SystemSettingHistory struct {
+	ID          int64           `json:"id"`
+	OrgID       uuid.UUID       `json:"orgId"`
+	Key         string          `json:"key"`
+	Version     int32           `json:"version"`
+	Value       json.RawMessage `json:"value"`
+	EffectiveAt time.Time       `json:"effectiveAt"`
+	ChangedBy   *uuid.UUID      `json:"changedBy"`
+	Reason      string          `json:"reason"`
+	CreatedAt   time.Time       `json:"createdAt"`
 }
 
 type TransitionHistory struct {
