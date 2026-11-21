@@ -6,6 +6,7 @@ import { ApplicationDetail, ApplicationsPage } from "./applications";
 import { AuditPage, CommsPage, SettingsPage, UsersPage } from "./admin";
 import { EssayGrading, ScheduleMonitor, SchedulesPage } from "./exams";
 import { ReportsPage } from "./reports";
+import { RequisitionsPage } from "./interviews";
 import { JobsPage } from "./jobs";
 import { WorkflowEditor, WorkflowsPage } from "./workflows";
 
@@ -15,6 +16,7 @@ const roleLabel: Record<string, string> = { super_admin: "Super Admin", hr_admin
 const items: NavItem[] = [
   { to: "/staf/lamaran", label: "Lamaran", perm: "applications.read" },
   { to: "/staf/lowongan", label: "Lowongan", perm: "jobs.read" },
+  { to: "/staf/permintaan", label: "Permintaan tenaga kerja", perm: "requisitions.read" },
   { to: "/staf/workflow", label: "Workflow", perm: "workflows.read" },
   { to: "/staf/ujian", label: "Ujian", perm: "exams.manage" },
   { to: "/staf/laporan", label: "Laporan", perm: "reports.read" },
@@ -88,6 +90,7 @@ export default function BackofficeRoutes() {
             <Route path="lamaran" element={<ApplicationsPage />} />
             <Route path="lamaran/:id" element={<ApplicationDetail />} />
             <Route path="lowongan" element={<JobsPage />} />
+            <Route path="permintaan" element={<RequisitionsPage />} />
             <Route path="workflow" element={<WorkflowsPage />} />
             <Route path="workflow/:id" element={<WorkflowEditor />} />
             <Route path="ujian" element={<SchedulesPage />} />

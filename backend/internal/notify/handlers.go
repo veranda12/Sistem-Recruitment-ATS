@@ -24,7 +24,7 @@ type Template struct {
 	Body    string
 }
 
-var Placeholders = []string{"nama", "lowongan", "tahap", "tautan", "organisasi"}
+var Placeholders = []string{"nama", "lowongan", "tahap", "tautan", "organisasi", "waktu", "waktu_lama"}
 
 var placeholderRe = regexp.MustCompile(`\{\{\s*([a-z_]+)\s*\}\}`)
 
@@ -43,6 +43,16 @@ var Templates = map[string]Template{
 		Body: "Halo {{nama}},\n\nAnda diundang mengikuti ujian untuk posisi {{lowongan}}. Lihat jadwal dan mulai ujian di:\n{{tautan}}"},
 	"result_released": {Key: "result_released", Version: 1, Subject: "Hasil ujian tersedia: {{lowongan}}",
 		Body: "Halo {{nama}},\n\nHasil ujian Anda untuk posisi {{lowongan}} sudah dirilis. Tahap lamaran saat ini: {{tahap}}. Detail:\n{{tautan}}"},
+	"interview_scheduled": {Key: "interview_scheduled", Version: 1, Subject: "Jadwal interview: {{lowongan}}",
+		Body: "Halo {{nama}},\n\nAnda dijadwalkan interview untuk posisi {{lowongan}} pada {{waktu}}. Detail:\n{{tautan}}"},
+	"interview_rescheduled": {Key: "interview_rescheduled", Version: 1, Subject: "Perubahan jadwal interview: {{lowongan}}",
+		Body: "Halo {{nama}},\n\nJadwal interview untuk posisi {{lowongan}} berubah dari {{waktu_lama}} menjadi {{waktu}}. Detail:\n{{tautan}}"},
+	"interview_cancelled": {Key: "interview_cancelled", Version: 1, Subject: "Interview dibatalkan: {{lowongan}}",
+		Body: "Halo {{nama}},\n\nInterview untuk posisi {{lowongan}} pada {{waktu}} dibatalkan. Kami akan menghubungi Anda bila ada jadwal baru."},
+	"decision_hired": {Key: "decision_hired", Version: 1, Subject: "Hasil seleksi: {{lowongan}}",
+		Body: "Halo {{nama}},\n\nSelamat, Anda dinyatakan diterima untuk posisi {{lowongan}}. Tim kami akan menghubungi Anda untuk langkah berikutnya."},
+	"decision_rejected": {Key: "decision_rejected", Version: 1, Subject: "Hasil seleksi: {{lowongan}}",
+		Body: "Halo {{nama}},\n\nTerima kasih atas minat Anda pada posisi {{lowongan}}. Saat ini kami belum dapat melanjutkan lamaran Anda."},
 	"application_withdrawn": {Key: "application_withdrawn", Version: 1, Subject: "Lamaran ditarik: {{lowongan}}",
 		Body: "Halo {{nama}},\n\nLamaran Anda untuk posisi {{lowongan}} sudah ditarik sesuai permintaan Anda."},
 }
@@ -92,6 +102,17 @@ func (h *Handlers) Handle(ctx context.Context, ev sqlc.Outbox) error {
 		return h.userEmail(ctx, ev, "account_exists", map[string]string{"tautan": h.Origin + "/lupa-sandi"})
 	case "application.submitted":
 		return h.applicationEvent(ctx, ev, "application_submitted", "")
+	case "interview.scheduled", "interview.rescheduled", "interview.cancelled":
+		return h.applicationEvent(ctx, ev, "interview_"+strings.TrimPrefix(ev.Topic, "interview."), "")
+	case "application.decision":
+		var p struct {
+			Status string `json:"status"`
+		}
+		_ = json.Unmarshal(ev.Payload, &p)
+		if p.Status != "hired" && p.Status != "rejected" {
+			return nil
+		}
+		return h.applicationEvent(ctx, ev, "decision_"+p.Status, "")
 	case "exam.invited":
 		return h.applicationEvent(ctx, ev, "exam_invited", "")
 	case "exam.result_released":
@@ -173,6 +194,12 @@ func (h *Handlers) applicationEvent(ctx context.Context, ev sqlc.Outbox, tpl, st
 		return err
 	}
 	vars := map[string]string{"lowongan": app.JobTitle, "tahap": app.StageName, "tautan": h.Origin + "/akun/lamaran/" + app.ID.String()}
+	var extra struct {
+		When    string `json:"when"`
+		OldWhen string `json:"oldWhen"`
+	}
+	_ = json.Unmarshal(ev.Payload, &extra)
+	vars["waktu"], vars["waktu_lama"] = extra.When, extra.OldWhen
 	_ = stageKey
 	// Inbox: idempoten melalui unique(event_id, user_id, template_key).
 	t := Templates[tpl]

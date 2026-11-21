@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { ApiError, get, post, type Schemas } from "../../lib/api";
 import { fmtDate, fmtDateTime, statusLabel } from "../../lib/format";
+import { useSession } from "../../lib/session";
 import { useQuery } from "../../lib/useQuery";
 import { kindLabel, openDocument, scanLabel } from "../candidate/documents";
+import { InterviewSection } from "./interviews";
 import { Alert, Badge, Button, DL, Dialog, Field, PageHeader, PageState, Select, Textarea, useToast } from "../../ui";
 
 type List = { items: Schemas["StaffApplication"][]; nextCursor: string | null };
@@ -123,6 +125,7 @@ export function ApplicationDetail() {
   const { id = "" } = useParams();
   const q = useQuery<Schemas["ApplicationDetail"]>(`/applications/${id}`);
   const toast = useToast();
+  const { can } = useSession();
   const [action, setAction] = useState<Action | null>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -204,7 +207,30 @@ export function ApplicationDetail() {
               ))}
             </section>
           ) : (
-            <p className="mb-6 text-ink-2">{d.status === "active" ? "Tidak ada tindakan yang tersedia untuk peran Anda pada tahap ini." : "Lamaran sudah tidak aktif."}</p>
+            <div className="mb-6">
+              <p className="text-ink-2">{d.status === "active" ? "Tidak ada tindakan yang tersedia untuk peran Anda pada tahap ini." : "Lamaran sudah tidak aktif."}</p>
+              {(d.status === "hired" || d.status === "rejected") && can("applications.transition") ? (
+                d.decisionNotifiedAt ? (
+                  <p className="mt-2 text-sm text-success">Pemberitahuan keputusan sudah dikirim {fmtDateTime(d.decisionNotifiedAt)}.</p>
+                ) : (
+                  <Button
+                    className="mt-2"
+                    variant="primary"
+                    onClick={async () => {
+                      try {
+                        await post(`/applications/${id}/decision-notice`);
+                        toast("success", "Pemberitahuan keputusan dikirim ke kandidat.");
+                        q.reload();
+                      } catch (e) {
+                        setErr(e as ApiError);
+                      }
+                    }}
+                  >
+                    Kirim pemberitahuan keputusan
+                  </Button>
+                )
+              ) : null}
+            </div>
           )}
 
           <div className="grid gap-8 lg:grid-cols-[3fr_2fr]">
@@ -252,6 +278,13 @@ export function ApplicationDetail() {
                   </ul>
                 )}
               </div>
+              <InterviewSection
+                applicationId={d.id}
+                interviews={d.interviews}
+                evaluations={d.evaluations}
+                canSchedule={d.canSchedule}
+                onChange={q.reload}
+              />
               {d.otherApplications.length > 0 || d.hiddenOtherApplications > 0 ? (
                 <div className="mt-6">
                   <h3 className="mb-2 font-semibold">Lamaran lain kandidat ini</h3>

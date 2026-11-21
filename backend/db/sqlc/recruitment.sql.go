@@ -16,7 +16,7 @@ import (
 const assignRecruiter = `-- name: AssignRecruiter :one
 UPDATE job_applications SET recruiter_user_id = $2, version = version + 1, updated_at = now()
 WHERE id = $1 AND version = $3
-RETURNING id, org_id, job_id, candidate_user_id, unit_id, workflow_version_id, stage_key, status, applied_at, stage_entered_at, recruiter_user_id, shortlisted, version, updated_at
+RETURNING id, org_id, job_id, candidate_user_id, unit_id, workflow_version_id, stage_key, status, applied_at, stage_entered_at, recruiter_user_id, shortlisted, version, updated_at, decision_notified_at, decision_notified_by
 `
 
 type AssignRecruiterParams struct {
@@ -43,6 +43,8 @@ func (q *Queries) AssignRecruiter(ctx context.Context, arg AssignRecruiterParams
 		&i.Shortlisted,
 		&i.Version,
 		&i.UpdatedAt,
+		&i.DecisionNotifiedAt,
+		&i.DecisionNotifiedBy,
 	)
 	return i, err
 }
@@ -109,7 +111,7 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (JobOpenin
 }
 
 const getApplication = `-- name: GetApplication :one
-SELECT a.id, a.org_id, a.job_id, a.candidate_user_id, a.unit_id, a.workflow_version_id, a.stage_key, a.status, a.applied_at, a.stage_entered_at, a.recruiter_user_id, a.shortlisted, a.version, a.updated_at, j.title AS job_title, j.slug AS job_slug, u.name AS unit_name,
+SELECT a.id, a.org_id, a.job_id, a.candidate_user_id, a.unit_id, a.workflow_version_id, a.stage_key, a.status, a.applied_at, a.stage_entered_at, a.recruiter_user_id, a.shortlisted, a.version, a.updated_at, a.decision_notified_at, a.decision_notified_by, j.title AS job_title, j.slug AS job_slug, u.name AS unit_name,
        s.name AS stage_name, s.type AS stage_type,
        c.email AS candidate_email, c.display_name AS candidate_name
 FROM job_applications a
@@ -121,27 +123,29 @@ WHERE a.id = $1
 `
 
 type GetApplicationRow struct {
-	ID                uuid.UUID  `json:"id"`
-	OrgID             uuid.UUID  `json:"orgId"`
-	JobID             uuid.UUID  `json:"jobId"`
-	CandidateUserID   uuid.UUID  `json:"candidateUserId"`
-	UnitID            uuid.UUID  `json:"unitId"`
-	WorkflowVersionID uuid.UUID  `json:"workflowVersionId"`
-	StageKey          string     `json:"stageKey"`
-	Status            string     `json:"status"`
-	AppliedAt         time.Time  `json:"appliedAt"`
-	StageEnteredAt    time.Time  `json:"stageEnteredAt"`
-	RecruiterUserID   *uuid.UUID `json:"recruiterUserId"`
-	Shortlisted       bool       `json:"shortlisted"`
-	Version           int32      `json:"version"`
-	UpdatedAt         time.Time  `json:"updatedAt"`
-	JobTitle          string     `json:"jobTitle"`
-	JobSlug           string     `json:"jobSlug"`
-	UnitName          string     `json:"unitName"`
-	StageName         string     `json:"stageName"`
-	StageType         string     `json:"stageType"`
-	CandidateEmail    string     `json:"candidateEmail"`
-	CandidateName     string     `json:"candidateName"`
+	ID                 uuid.UUID  `json:"id"`
+	OrgID              uuid.UUID  `json:"orgId"`
+	JobID              uuid.UUID  `json:"jobId"`
+	CandidateUserID    uuid.UUID  `json:"candidateUserId"`
+	UnitID             uuid.UUID  `json:"unitId"`
+	WorkflowVersionID  uuid.UUID  `json:"workflowVersionId"`
+	StageKey           string     `json:"stageKey"`
+	Status             string     `json:"status"`
+	AppliedAt          time.Time  `json:"appliedAt"`
+	StageEnteredAt     time.Time  `json:"stageEnteredAt"`
+	RecruiterUserID    *uuid.UUID `json:"recruiterUserId"`
+	Shortlisted        bool       `json:"shortlisted"`
+	Version            int32      `json:"version"`
+	UpdatedAt          time.Time  `json:"updatedAt"`
+	DecisionNotifiedAt *time.Time `json:"decisionNotifiedAt"`
+	DecisionNotifiedBy *uuid.UUID `json:"decisionNotifiedBy"`
+	JobTitle           string     `json:"jobTitle"`
+	JobSlug            string     `json:"jobSlug"`
+	UnitName           string     `json:"unitName"`
+	StageName          string     `json:"stageName"`
+	StageType          string     `json:"stageType"`
+	CandidateEmail     string     `json:"candidateEmail"`
+	CandidateName      string     `json:"candidateName"`
 }
 
 func (q *Queries) GetApplication(ctx context.Context, id uuid.UUID) (GetApplicationRow, error) {
@@ -162,6 +166,8 @@ func (q *Queries) GetApplication(ctx context.Context, id uuid.UUID) (GetApplicat
 		&i.Shortlisted,
 		&i.Version,
 		&i.UpdatedAt,
+		&i.DecisionNotifiedAt,
+		&i.DecisionNotifiedBy,
 		&i.JobTitle,
 		&i.JobSlug,
 		&i.UnitName,
@@ -174,7 +180,7 @@ func (q *Queries) GetApplication(ctx context.Context, id uuid.UUID) (GetApplicat
 }
 
 const getApplicationByJobCandidate = `-- name: GetApplicationByJobCandidate :one
-SELECT id, org_id, job_id, candidate_user_id, unit_id, workflow_version_id, stage_key, status, applied_at, stage_entered_at, recruiter_user_id, shortlisted, version, updated_at FROM job_applications WHERE job_id = $1 AND candidate_user_id = $2
+SELECT id, org_id, job_id, candidate_user_id, unit_id, workflow_version_id, stage_key, status, applied_at, stage_entered_at, recruiter_user_id, shortlisted, version, updated_at, decision_notified_at, decision_notified_by FROM job_applications WHERE job_id = $1 AND candidate_user_id = $2
 `
 
 type GetApplicationByJobCandidateParams struct {
@@ -200,6 +206,8 @@ func (q *Queries) GetApplicationByJobCandidate(ctx context.Context, arg GetAppli
 		&i.Shortlisted,
 		&i.Version,
 		&i.UpdatedAt,
+		&i.DecisionNotifiedAt,
+		&i.DecisionNotifiedBy,
 	)
 	return i, err
 }
@@ -387,7 +395,7 @@ const insertApplication = `-- name: InsertApplication :one
 INSERT INTO job_applications (org_id, job_id, candidate_user_id, unit_id, workflow_version_id, stage_key)
 VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (job_id, candidate_user_id) DO NOTHING
-RETURNING id, org_id, job_id, candidate_user_id, unit_id, workflow_version_id, stage_key, status, applied_at, stage_entered_at, recruiter_user_id, shortlisted, version, updated_at
+RETURNING id, org_id, job_id, candidate_user_id, unit_id, workflow_version_id, stage_key, status, applied_at, stage_entered_at, recruiter_user_id, shortlisted, version, updated_at, decision_notified_at, decision_notified_by
 `
 
 type InsertApplicationParams struct {
@@ -424,6 +432,8 @@ func (q *Queries) InsertApplication(ctx context.Context, arg InsertApplicationPa
 		&i.Shortlisted,
 		&i.Version,
 		&i.UpdatedAt,
+		&i.DecisionNotifiedAt,
+		&i.DecisionNotifiedBy,
 	)
 	return i, err
 }
@@ -984,7 +994,7 @@ func (q *Queries) ListUnits(ctx context.Context, orgID uuid.UUID) ([]Unit, error
 }
 
 const lockApplication = `-- name: LockApplication :one
-SELECT id, org_id, job_id, candidate_user_id, unit_id, workflow_version_id, stage_key, status, applied_at, stage_entered_at, recruiter_user_id, shortlisted, version, updated_at FROM job_applications WHERE id = $1 FOR UPDATE
+SELECT id, org_id, job_id, candidate_user_id, unit_id, workflow_version_id, stage_key, status, applied_at, stage_entered_at, recruiter_user_id, shortlisted, version, updated_at, decision_notified_at, decision_notified_by FROM job_applications WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockApplication(ctx context.Context, id uuid.UUID) (JobApplication, error) {
@@ -1005,6 +1015,8 @@ func (q *Queries) LockApplication(ctx context.Context, id uuid.UUID) (JobApplica
 		&i.Shortlisted,
 		&i.Version,
 		&i.UpdatedAt,
+		&i.DecisionNotifiedAt,
+		&i.DecisionNotifiedBy,
 	)
 	return i, err
 }
@@ -1073,7 +1085,7 @@ func (q *Queries) LockJobForUpdate(ctx context.Context, id uuid.UUID) (JobOpenin
 const setApplicationShortlist = `-- name: SetApplicationShortlist :one
 UPDATE job_applications SET shortlisted = $2, version = version + 1, updated_at = now()
 WHERE id = $1 AND version = $3
-RETURNING id, org_id, job_id, candidate_user_id, unit_id, workflow_version_id, stage_key, status, applied_at, stage_entered_at, recruiter_user_id, shortlisted, version, updated_at
+RETURNING id, org_id, job_id, candidate_user_id, unit_id, workflow_version_id, stage_key, status, applied_at, stage_entered_at, recruiter_user_id, shortlisted, version, updated_at, decision_notified_at, decision_notified_by
 `
 
 type SetApplicationShortlistParams struct {
@@ -1100,6 +1112,8 @@ func (q *Queries) SetApplicationShortlist(ctx context.Context, arg SetApplicatio
 		&i.Shortlisted,
 		&i.Version,
 		&i.UpdatedAt,
+		&i.DecisionNotifiedAt,
+		&i.DecisionNotifiedBy,
 	)
 	return i, err
 }
@@ -1151,7 +1165,7 @@ UPDATE job_applications SET stage_key = $2, status = $3,
        stage_entered_at = CASE WHEN stage_key <> $2 THEN now() ELSE stage_entered_at END,
        version = version + 1, updated_at = now()
 WHERE id = $1
-RETURNING id, org_id, job_id, candidate_user_id, unit_id, workflow_version_id, stage_key, status, applied_at, stage_entered_at, recruiter_user_id, shortlisted, version, updated_at
+RETURNING id, org_id, job_id, candidate_user_id, unit_id, workflow_version_id, stage_key, status, applied_at, stage_entered_at, recruiter_user_id, shortlisted, version, updated_at, decision_notified_at, decision_notified_by
 `
 
 type UpdateApplicationStateParams struct {
@@ -1178,6 +1192,8 @@ func (q *Queries) UpdateApplicationState(ctx context.Context, arg UpdateApplicat
 		&i.Shortlisted,
 		&i.Version,
 		&i.UpdatedAt,
+		&i.DecisionNotifiedAt,
+		&i.DecisionNotifiedBy,
 	)
 	return i, err
 }

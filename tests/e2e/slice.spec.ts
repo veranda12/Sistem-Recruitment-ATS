@@ -142,8 +142,8 @@ test.describe.serial("vertical slice karier -> recruiter", () => {
     await page.keyboard.type(PASSWORD);
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/staf/);
-    // HM tidak punya menu lowongan/workflow.
-    await expect(page.getByRole("navigation", { name: "Menu back office" }).getByRole("link")).toHaveText(["Lamaran"]);
+    // HM hanya melihat lamaran dan permintaan tenaga kerja; tidak ada lowongan/workflow/admin.
+    await expect(page.getByRole("navigation", { name: "Menu back office" }).getByRole("link")).toHaveText(["Lamaran", "Permintaan tenaga kerja"]);
   });
 });
 

@@ -807,6 +807,125 @@ paths:
       responses:
         "200": { description: Berkas }
         "403": { $ref: "#/components/responses/Error" }
+  /applications/{id}/interviews:
+    post:
+      tags: [staf]
+      summary: Jadwalkan interview. Bentrok jadwal interviewer ditolak di level database (exclusion constraint).
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [startsAt, durationMinutes, timezone, mode, interviewerIds]
+              properties:
+                startsAt: { type: string, format: date-time }
+                durationMinutes: { type: integer, minimum: 15, maximum: 480 }
+                timezone: { type: string, examples: [Asia/Jakarta] }
+                mode: { type: string, enum: [onsite, video, phone] }
+                location: { type: string, maxLength: 300 }
+                interviewerIds: { type: array, minItems: 1, maxItems: 10, items: { type: string, format: uuid } }
+      responses:
+        "201": { description: Dijadwalkan; kandidat diberi tahu }
+        "409": { description: interviewer_conflict | application_inactive, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+        "422": { $ref: "#/components/responses/Error" }
+  /interviews/{id}/reschedule:
+    post:
+      tags: [staf]
+      summary: Jadwal ulang dengan zona waktu dan alasan; riwayat dan pemberitahuan menyebut waktu lama dan baru.
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [startsAt, durationMinutes, timezone, version, reason]
+              properties:
+                startsAt: { type: string, format: date-time }
+                durationMinutes: { type: integer }
+                timezone: { type: string }
+                version: { type: integer }
+                reason: { type: string, minLength: 5 }
+      responses:
+        "200": { description: OK }
+        "409": { description: stale_version | interviewer_conflict, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+  /interviews/{id}/cancel:
+    post:
+      tags: [staf]
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [version, reason], properties: { version: { type: integer }, reason: { type: string } } } } }
+      responses:
+        "204": { description: Dibatalkan; slot interviewer dibebaskan }
+        "409": { $ref: "#/components/responses/Error" }
+  /interviews/{id}/evaluations:
+    post:
+      tags: [staf]
+      summary: Scorecard oleh interviewer di panel
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating, recommendation]
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                recommendation: { type: string, enum: [lanjut, pertimbangkan, tidak_lanjut] }
+                notes: { type: string, maxLength: 4000 }
+      responses:
+        "200": { description: OK }
+        "403": { description: not_panelist, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+  /applications/{id}/decision-notice:
+    post:
+      tags: [staf]
+      summary: Recruiter mengirim pemberitahuan keputusan akhir (diterima/ditolak), sekali per lamaran
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      responses:
+        "200": { description: OK }
+        "409": { description: decision_notice_unavailable, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+  /requisitions:
+    get:
+      tags: [staf]
+      summary: Requisition dalam scope unit atau milik sendiri
+      responses: { "200": { description: OK } }
+    post:
+      tags: [staf]
+      summary: Requisition baru (draft)
+      parameters: [{ $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [unitCode, locationCode, title, headcount, employmentType]
+              properties:
+                unitCode: { type: string }
+                locationCode: { type: string }
+                title: { type: string }
+                headcount: { type: integer, minimum: 1, maximum: 1000 }
+                employmentType: { $ref: "#/components/schemas/EmploymentType" }
+                justification: { type: string }
+      responses: { "201": { description: Dibuat }, "422": { $ref: "#/components/responses/Error" } }
+  /requisitions/{id}/{action}:
+    post:
+      tags: [staf]
+      summary: submit/cancel (pemohon), approve/reject (requisitions.approve di unit; pemohon tidak boleh menyetujui sendiri)
+      parameters:
+        - { $ref: "#/components/parameters/Id" }
+        - { name: action, in: path, required: true, schema: { type: string, enum: [submit, cancel, approve, reject] } }
+        - { $ref: "#/components/parameters/CSRF" }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [version], properties: { version: { type: integer }, note: { type: string } } } } }
+      responses:
+        "200": { description: OK }
+        "409": { description: invalid_status | self_approval | stale_version, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
 components:
   parameters:
     Slug: { name: slug, in: path, required: true, schema: { type: string, pattern: "^[a-z0-9-]{3,120}$" } }
@@ -832,6 +951,30 @@ components:
       description: Pesan netral
       content: { application/json: { schema: { type: object, required: [message], properties: { message: { type: string } } } } }
   schemas:
+    Interview:
+      type: object
+      required: [id, startsAt, endsAt, timezone, mode, location, status, version, interviewerNames, interviewerIds]
+      properties:
+        id: { type: string, format: uuid }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        timezone: { type: string }
+        mode: { type: string, enum: [onsite, video, phone] }
+        location: { type: string }
+        status: { type: string, enum: [scheduled, cancelled, completed] }
+        version: { type: integer }
+        interviewerNames: { type: array, items: { type: string } }
+        interviewerIds: { type: array, items: { type: string, format: uuid } }
+    Evaluation:
+      type: object
+      required: [id, evaluatorName, rating, recommendation, notes, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        evaluatorName: { type: string }
+        rating: { type: integer }
+        recommendation: { type: string, enum: [lanjut, pertimbangkan, tidak_lanjut] }
+        notes: { type: string }
+        createdAt: { type: string, format: date-time }
     Document:
       type: object
       required: [id, kind, fileName, contentType, sizeBytes, scanStatus, scannedAt, createdAt]
@@ -1172,7 +1315,7 @@ components:
         invalidatedAt: { type: [string, "null"], format: date-time }
     ApplicationDetail:
       type: object
-      required: [id, jobId, jobTitle, unitName, status, stage, appliedAt, stageEnteredAt, version, shortlisted, candidate, snapshot, snapshotAt, history, approvals, otherApplications, hiddenOtherApplications, actions, stages, canRevealIdentity, documents]
+      required: [id, jobId, jobTitle, unitName, status, stage, appliedAt, stageEnteredAt, version, shortlisted, candidate, snapshot, snapshotAt, history, approvals, otherApplications, hiddenOtherApplications, actions, stages, canRevealIdentity, documents, interviews, evaluations, canSchedule, decisionNotifiedAt]
       properties:
         id: { type: string, format: uuid }
         jobId: { type: string, format: uuid }
@@ -1231,6 +1374,10 @@ components:
             properties: { key: { type: string }, name: { type: string }, type: { type: string } }
         canRevealIdentity: { type: boolean }
         documents: { type: array, items: { $ref: "#/components/schemas/Document" } }
+        interviews: { type: array, items: { $ref: "#/components/schemas/Interview" } }
+        evaluations: { type: array, items: { $ref: "#/components/schemas/Evaluation" } }
+        canSchedule: { type: boolean }
+        decisionNotifiedAt: { type: [string, "null"], format: date-time }
     TransitionResult:
       type: object
       required: [duplicate, changed, fromStage, toStage, status, version, note]

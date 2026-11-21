@@ -228,6 +228,9 @@ func (h *Handler) Withdraw(c *gin.Context) {
 		if err != nil {
 			return err
 		}
+		if err := cancelOpenInterviews(c, q, h.OrgID, p.UserID, id, "Lamaran ditarik kandidat"); err != nil {
+			return err
+		}
 		return platform.WriteAudit(ctx, q, platform.AuditEntry{OrgID: h.OrgID, ActorID: &p.UserID, ActorKind: "candidate",
 			Action: "application.withdraw", TargetType: "application", TargetID: id.String(), ScopeUnit: &app.UnitID,
 			Reason: req.Reason, RequestID: platform.RequestID(c)})
@@ -366,6 +369,16 @@ func (h *Handler) GetApplication(c *gin.Context) {
 			return
 		}
 	}
+	ivs, err := h.Q.ListInterviewsForApplication(ctx, app.ID)
+	if err != nil {
+		platform.Fail(c, err)
+		return
+	}
+	evals, err := h.Q.ListEvaluationsForApplication(ctx, app.ID)
+	if err != nil {
+		platform.Fail(c, err)
+		return
+	}
 	actions := []actionDTO{}
 	res := auth.Resource{Unit: app.UnitID, Job: &app.JobID}
 	if app.Status == "active" {
@@ -400,6 +413,8 @@ func (h *Handler) GetApplication(c *gin.Context) {
 		"snapshot":  json.RawMessage(snap.Profile), "snapshotAt": snap.CapturedAt,
 		"history": ts, "approvals": approvals, "otherApplications": visible, "hiddenOtherApplications": hidden,
 		"actions": actions, "stages": stages, "canRevealIdentity": p.Can(auth.PermIdentityReveal, res), "documents": docs,
+		"interviews": ivs, "evaluations": evals, "canSchedule": app.Status == "active" && p.Can(auth.PermApplicationsMove, res),
+		"decisionNotifiedAt": app.DecisionNotifiedAt,
 	})
 }
 
@@ -478,6 +493,11 @@ func (h *Handler) execute(c *gin.Context, p *auth.Principal, app sqlc.GetApplica
 		res, err = workflow.Execute(ctx, q, cmd)
 		if err != nil {
 			return err
+		}
+		if res.Changed && res.Status != "active" {
+			if err := cancelOpenInterviews(c, q, h.OrgID, p.UserID, app.ID, "Lamaran "+res.Status); err != nil {
+				return err
+			}
 		}
 		return platform.WriteAudit(ctx, q, platform.AuditEntry{OrgID: h.OrgID, ActorID: &p.UserID, ActorKind: "staff",
 			Action: action, TargetType: "application", TargetID: app.ID.String(), ScopeUnit: &app.UnitID, Reason: cmd.Reason,

@@ -243,6 +243,7 @@ type jobReq struct {
 	Requirements   string     `json:"requirements"`
 	ClosesAt       *time.Time `json:"closesAt"`
 	Version        int32      `json:"version"`
+	RequisitionID  *uuid.UUID `json:"requisitionId"`
 }
 
 var slugRe = regexp.MustCompile(`^[a-z0-9-]{3,120}$`)
@@ -326,6 +327,12 @@ func (h *Handler) CreateJob(c *gin.Context) {
 		platform.Fail(c, err)
 		return
 	}
+	if req.RequisitionID != nil && unit != nil {
+		r, err := h.Q.LockRequisition(ctx, *req.RequisitionID)
+		if err != nil || r.OrgID != h.OrgID || r.Status != "approved" || r.UnitID != unit.ID {
+			f["requisitionId"] = "Permintaan tenaga kerja harus sudah disetujui dan berada di unit yang sama."
+		}
+	}
 	if len(f) > 0 {
 		platform.Fail(c, platform.ErrValidation(f))
 		return
@@ -338,7 +345,7 @@ func (h *Handler) CreateJob(c *gin.Context) {
 	err = platform.WithTx(ctx, h.Pool, func(tx pgx.Tx) error {
 		q := h.Q.WithTx(tx)
 		var err error
-		job, err = q.CreateJob(ctx, sqlc.CreateJobParams{OrgID: h.OrgID, UnitID: unit.ID, LocationID: loc.ID, WorkflowID: wf.ID,
+		job, err = q.CreateJob(ctx, sqlc.CreateJobParams{OrgID: h.OrgID, RequisitionID: req.RequisitionID, UnitID: unit.ID, LocationID: loc.ID, WorkflowID: wf.ID,
 			Slug: req.Slug, Title: strings.TrimSpace(req.Title), EmploymentType: req.EmploymentType, Description: req.Description,
 			Requirements: req.Requirements, ClosesAt: req.ClosesAt, CreatedBy: p.UserID})
 		if platform.IsUniqueViolation(err, "job_openings_org_id_slug_key") {

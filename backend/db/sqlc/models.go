@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type ApplicationSnapshot struct {
@@ -155,6 +156,16 @@ type EssayGrade struct {
 	AssessorID    uuid.UUID `json:"assessorId"`
 	Reason        string    `json:"reason"`
 	CreatedAt     time.Time `json:"createdAt"`
+}
+
+type Evaluation struct {
+	ID             uuid.UUID `json:"id"`
+	InterviewID    uuid.UUID `json:"interviewId"`
+	EvaluatorID    uuid.UUID `json:"evaluatorId"`
+	Rating         int32     `json:"rating"`
+	Recommendation string    `json:"recommendation"`
+	Notes          string    `json:"notes"`
+	CreatedAt      time.Time `json:"createdAt"`
 }
 
 type ExamAnswer struct {
@@ -314,21 +325,58 @@ type IdentityClaim struct {
 	ResolvedAt     *time.Time `json:"resolvedAt"`
 }
 
+type Interview struct {
+	ID            uuid.UUID `json:"id"`
+	OrgID         uuid.UUID `json:"orgId"`
+	ApplicationID uuid.UUID `json:"applicationId"`
+	StartsAt      time.Time `json:"startsAt"`
+	EndsAt        time.Time `json:"endsAt"`
+	Timezone      string    `json:"timezone"`
+	Mode          string    `json:"mode"`
+	Location      string    `json:"location"`
+	Status        string    `json:"status"`
+	CreatedBy     uuid.UUID `json:"createdBy"`
+	Version       int32     `json:"version"`
+	CreatedAt     time.Time `json:"createdAt"`
+	UpdatedAt     time.Time `json:"updatedAt"`
+}
+
+type InterviewChange struct {
+	ID          int64      `json:"id"`
+	InterviewID uuid.UUID  `json:"interviewId"`
+	Action      string     `json:"action"`
+	OldStartsAt *time.Time `json:"oldStartsAt"`
+	NewStartsAt *time.Time `json:"newStartsAt"`
+	Timezone    string     `json:"timezone"`
+	Reason      string     `json:"reason"`
+	ActorUserID uuid.UUID  `json:"actorUserId"`
+	CreatedAt   time.Time  `json:"createdAt"`
+}
+
+type InterviewPanelist struct {
+	InterviewID   uuid.UUID                        `json:"interviewId"`
+	InterviewerID uuid.UUID                        `json:"interviewerId"`
+	Period        pgtype.Range[pgtype.Timestamptz] `json:"period"`
+	Active        bool                             `json:"active"`
+}
+
 type JobApplication struct {
-	ID                uuid.UUID  `json:"id"`
-	OrgID             uuid.UUID  `json:"orgId"`
-	JobID             uuid.UUID  `json:"jobId"`
-	CandidateUserID   uuid.UUID  `json:"candidateUserId"`
-	UnitID            uuid.UUID  `json:"unitId"`
-	WorkflowVersionID uuid.UUID  `json:"workflowVersionId"`
-	StageKey          string     `json:"stageKey"`
-	Status            string     `json:"status"`
-	AppliedAt         time.Time  `json:"appliedAt"`
-	StageEnteredAt    time.Time  `json:"stageEnteredAt"`
-	RecruiterUserID   *uuid.UUID `json:"recruiterUserId"`
-	Shortlisted       bool       `json:"shortlisted"`
-	Version           int32      `json:"version"`
-	UpdatedAt         time.Time  `json:"updatedAt"`
+	ID                 uuid.UUID  `json:"id"`
+	OrgID              uuid.UUID  `json:"orgId"`
+	JobID              uuid.UUID  `json:"jobId"`
+	CandidateUserID    uuid.UUID  `json:"candidateUserId"`
+	UnitID             uuid.UUID  `json:"unitId"`
+	WorkflowVersionID  uuid.UUID  `json:"workflowVersionId"`
+	StageKey           string     `json:"stageKey"`
+	Status             string     `json:"status"`
+	AppliedAt          time.Time  `json:"appliedAt"`
+	StageEnteredAt     time.Time  `json:"stageEnteredAt"`
+	RecruiterUserID    *uuid.UUID `json:"recruiterUserId"`
+	Shortlisted        bool       `json:"shortlisted"`
+	Version            int32      `json:"version"`
+	UpdatedAt          time.Time  `json:"updatedAt"`
+	DecisionNotifiedAt *time.Time `json:"decisionNotifiedAt"`
+	DecisionNotifiedBy *uuid.UUID `json:"decisionNotifiedBy"`
 }
 
 type JobOpening struct {
