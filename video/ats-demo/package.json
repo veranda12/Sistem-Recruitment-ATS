@@ -1,0 +1,31 @@
+{
+  "name": "ats-demo-video",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Video demo ATS (Remotion) dari footage aplikasi yang direkam di stack demo lokal.",
+  "type": "module",
+  "scripts": {
+    "stack:start": "powershell -NoProfile -ExecutionPolicy Bypass -File capture/demo-stack.ps1 start",
+    "stack:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File capture/demo-stack.ps1 stop",
+    "capture": "node capture/capture.mjs",
+    "studio": "remotion studio src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "stills": "node scripts/stills.mjs",
+    "render": "remotion render src/index.ts AtsProductDemo out/ats-product-demo.mp4 --codec=h264 --pixel-format=yuv420p --crf=16",
+    "verify": "node scripts/verify.mjs",
+    "poster": "remotion still src/index.ts AtsProductDemo out/poster.png --frame=830"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.538",
+    "@remotion/cli": "4.0.538",
+    "@remotion/renderer": "4.0.538",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "remotion": "4.0.538"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.8",
+    "playwright": "1.53.1",
+    "typescript": "5.8.3"
+  }
+}

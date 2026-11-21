@@ -1,0 +1,8 @@
+node_modules/
+out/
+# Footage hasil capture (dibuat ulang dengan: npm run capture). Berisi data demo fiktif saja.
+public/footage/
+# Sesi login sementara Playwright
+capture/.auth/
+# CV sintetis hasil render (dibuat ulang oleh capture)
+capture/out/
