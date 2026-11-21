@@ -71,27 +71,155 @@ type CandidateIdentity struct {
 	UpdatedAt       time.Time `json:"updatedAt"`
 }
 
+type CandidateLanguage struct {
+	ID        uuid.UUID `json:"id"`
+	UserID    uuid.UUID `json:"userId"`
+	Name      string    `json:"name"`
+	Level     string    `json:"level"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type CandidateLink struct {
+	ID        uuid.UUID `json:"id"`
+	UserID    uuid.UUID `json:"userId"`
+	Label     string    `json:"label"`
+	Url       string    `json:"url"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
 type CandidateProfile struct {
-	UserID    uuid.UUID  `json:"userId"`
-	OrgID     uuid.UUID  `json:"orgId"`
-	FullName  string     `json:"fullName"`
-	Phone     string     `json:"phone"`
-	BirthDate *time.Time `json:"birthDate"`
-	City      string     `json:"city"`
-	Address   string     `json:"address"`
-	Summary   string     `json:"summary"`
-	Version   int32      `json:"version"`
-	UpdatedAt time.Time  `json:"updatedAt"`
+	UserID       uuid.UUID  `json:"userId"`
+	OrgID        uuid.UUID  `json:"orgId"`
+	FullName     string     `json:"fullName"`
+	Phone        string     `json:"phone"`
+	BirthDate    *time.Time `json:"birthDate"`
+	City         string     `json:"city"`
+	Address      string     `json:"address"`
+	Summary      string     `json:"summary"`
+	Version      int32      `json:"version"`
+	UpdatedAt    time.Time  `json:"updatedAt"`
+	ContactEmail string     `json:"contactEmail"`
+}
+
+type CandidateProject struct {
+	ID          uuid.UUID `json:"id"`
+	UserID      uuid.UUID `json:"userId"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"createdAt"`
+}
+
+type CandidateSkill struct {
+	ID        uuid.UUID `json:"id"`
+	UserID    uuid.UUID `json:"userId"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 type Certification struct {
-	ID        uuid.UUID  `json:"id"`
-	UserID    uuid.UUID  `json:"userId"`
-	Name      string     `json:"name"`
-	Issuer    string     `json:"issuer"`
-	IssuedOn  *time.Time `json:"issuedOn"`
-	ExpiresOn *time.Time `json:"expiresOn"`
-	CreatedAt time.Time  `json:"createdAt"`
+	ID              uuid.UUID  `json:"id"`
+	UserID          uuid.UUID  `json:"userId"`
+	Name            string     `json:"name"`
+	Issuer          string     `json:"issuer"`
+	IssuedOn        *time.Time `json:"issuedOn"`
+	ExpiresOn       *time.Time `json:"expiresOn"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	IssuedPrecision string     `json:"issuedPrecision"`
+}
+
+type CvEvidenceRef struct {
+	ID      uuid.UUID `json:"id"`
+	RunID   uuid.UUID `json:"runId"`
+	LineID  string    `json:"lineId"`
+	PageNo  int32     `json:"pageNo"`
+	Bbox    []float32 `json:"bbox"`
+	Snippet string    `json:"snippet"`
+	Source  string    `json:"source"`
+	Locator string    `json:"locator"`
+}
+
+type CvFieldSuggestion struct {
+	ID          uuid.UUID       `json:"id"`
+	RunID       uuid.UUID       `json:"runId"`
+	Path        string          `json:"path"`
+	Section     string          `json:"section"`
+	EntryKey    string          `json:"entryKey"`
+	Field       string          `json:"field"`
+	RawValue    string          `json:"rawValue"`
+	Normalized  json.RawMessage `json:"normalized"`
+	ReadDoubts  []string        `json:"readDoubts"`
+	AssocDoubts []string        `json:"assocDoubts"`
+	Status      string          `json:"status"`
+	EditedValue json.RawMessage `json:"editedValue"`
+	Sort        int32           `json:"sort"`
+	UpdatedAt   time.Time       `json:"updatedAt"`
+}
+
+type CvParseArtifact struct {
+	RunID     uuid.UUID       `json:"runId"`
+	Ir        json.RawMessage `json:"ir"`
+	CreatedAt time.Time       `json:"createdAt"`
+}
+
+type CvParsePage struct {
+	RunID         uuid.UUID `json:"runId"`
+	PageNo        int32     `json:"pageNo"`
+	Method        string    `json:"method"`
+	Reason        string    `json:"reason"`
+	Status        string    `json:"status"`
+	FailureReason *string   `json:"failureReason"`
+	Width         *float32  `json:"width"`
+	Height        *float32  `json:"height"`
+	Scale         *float32  `json:"scale"`
+	ImageName     *string   `json:"imageName"`
+}
+
+type CvParseRun struct {
+	ID                  uuid.UUID       `json:"id"`
+	OrgID               uuid.UUID       `json:"orgId"`
+	CandidateUserID     uuid.UUID       `json:"candidateUserId"`
+	DocumentID          uuid.UUID       `json:"documentId"`
+	ParserConfigVersion string          `json:"parserConfigVersion"`
+	Status              string          `json:"status"`
+	Stage               string          `json:"stage"`
+	PagesTotal          *int32          `json:"pagesTotal"`
+	PagesDone           int32           `json:"pagesDone"`
+	Attempt             int32           `json:"attempt"`
+	MaxAttempts         int32           `json:"maxAttempts"`
+	Fence               int64           `json:"fence"`
+	LeaseOwner          *string         `json:"leaseOwner"`
+	LeaseUntil          *time.Time      `json:"leaseUntil"`
+	HeartbeatAt         *time.Time      `json:"heartbeatAt"`
+	NextAttemptAt       time.Time       `json:"nextAttemptAt"`
+	DispatchedAt        *time.Time      `json:"dispatchedAt"`
+	FailureReason       *string         `json:"failureReason"`
+	FailureTransient    *bool           `json:"failureTransient"`
+	DeadLetteredAt      *time.Time      `json:"deadLetteredAt"`
+	Manifest            json.RawMessage `json:"manifest"`
+	ReviewVersion       int32           `json:"reviewVersion"`
+	QueueMs             *int32          `json:"queueMs"`
+	ProcessMs           *int32          `json:"processMs"`
+	QueuedAt            time.Time       `json:"queuedAt"`
+	StartedAt           *time.Time      `json:"startedAt"`
+	FinishedAt          *time.Time      `json:"finishedAt"`
+	AppliedAt           *time.Time      `json:"appliedAt"`
+	CreatedAt           time.Time       `json:"createdAt"`
+	UpdatedAt           time.Time       `json:"updatedAt"`
+}
+
+type CvReviewEvent struct {
+	ID           int64           `json:"id"`
+	RunID        uuid.UUID       `json:"runId"`
+	SuggestionID *uuid.UUID      `json:"suggestionId"`
+	ActorUserID  *uuid.UUID      `json:"actorUserId"`
+	Action       string          `json:"action"`
+	Detail       json.RawMessage `json:"detail"`
+	CreatedAt    time.Time       `json:"createdAt"`
+}
+
+type CvSuggestionEvidence struct {
+	SuggestionID uuid.UUID `json:"suggestionId"`
+	EvidenceID   uuid.UUID `json:"evidenceId"`
 }
 
 type Document struct {
@@ -277,14 +405,18 @@ type ExamSubmission struct {
 }
 
 type Experience struct {
-	ID          uuid.UUID  `json:"id"`
-	UserID      uuid.UUID  `json:"userId"`
-	Company     string     `json:"company"`
-	Title       string     `json:"title"`
-	StartDate   time.Time  `json:"startDate"`
-	EndDate     *time.Time `json:"endDate"`
-	Description string     `json:"description"`
-	CreatedAt   time.Time  `json:"createdAt"`
+	ID             uuid.UUID  `json:"id"`
+	UserID         uuid.UUID  `json:"userId"`
+	Company        string     `json:"company"`
+	Title          string     `json:"title"`
+	StartDate      time.Time  `json:"startDate"`
+	EndDate        *time.Time `json:"endDate"`
+	Description    string     `json:"description"`
+	CreatedAt      time.Time  `json:"createdAt"`
+	Location       string     `json:"location"`
+	StartPrecision string     `json:"startPrecision"`
+	EndPrecision   string     `json:"endPrecision"`
+	IsCurrent      bool       `json:"isCurrent"`
 }
 
 type Export struct {

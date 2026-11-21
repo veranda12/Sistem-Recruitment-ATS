@@ -33,6 +33,7 @@ const (
 	PermCredentialsManage   = "credentials.manage"
 	PermReportsRead         = "reports.read"
 	PermReportsExport       = "reports.export"
+	PermCVReplay            = "cv_parses.replay"
 )
 
 var PermissionCatalog = map[string]string{
@@ -48,7 +49,7 @@ var PermissionCatalog = map[string]string{
 	PermUsersManage: "Mengelola pengguna internal", PermRolesManage: "Mengelola peran",
 	PermSettingsManage: "Mengubah pengaturan", PermAuditRead: "Membaca audit",
 	PermCredentialsManage: "Mengelola kredensial integrasi", PermReportsRead: "Melihat laporan",
-	PermReportsExport: "Mengekspor laporan",
+	PermReportsExport: "Mengekspor laporan", PermCVReplay: "Menjalankan ulang pembacaan CV yang gagal permanen",
 }
 
 // Grant adalah satu permission pada satu scope. Unit nil dan Job nil = seluruh organisasi.

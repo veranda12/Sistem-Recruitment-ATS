@@ -58,9 +58,9 @@ func main() {
 	}
 
 	type row struct {
-		Key, Field    string
-		TP, FP, FN    int
-		P, R, F1      float64
+		Key, Field string
+		TP, FP, FN int
+		P, R, F1   float64
 	}
 	var rows []row
 	agg := eval.Aggregate(rs, func(r eval.FixtureResult) string { return r.Fixture.Split + "/" + eval.Stratum(r.Fixture) })
@@ -100,9 +100,9 @@ func main() {
 	}
 	fmt.Printf("CER OCR (terhadap teks native persona yang sama): %.4f (%d/%d karakter)\n", cer, cerDist, cerChars)
 	type timing struct {
-		Format     string
-		N          int
-		P50, P95   int64
+		Format   string
+		N        int
+		P50, P95 int64
 	}
 	var tims []timing
 	for f, ds := range durs {

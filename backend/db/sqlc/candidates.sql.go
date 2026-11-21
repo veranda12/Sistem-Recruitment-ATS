@@ -79,7 +79,7 @@ func (q *Queries) GetCandidateIdentity(ctx context.Context, userID uuid.UUID) (C
 }
 
 const getCandidateProfile = `-- name: GetCandidateProfile :one
-SELECT user_id, org_id, full_name, phone, birth_date, city, address, summary, version, updated_at FROM candidate_profiles WHERE user_id = $1
+SELECT user_id, org_id, full_name, phone, birth_date, city, address, summary, version, updated_at, contact_email FROM candidate_profiles WHERE user_id = $1
 `
 
 func (q *Queries) GetCandidateProfile(ctx context.Context, userID uuid.UUID) (CandidateProfile, error) {
@@ -96,6 +96,7 @@ func (q *Queries) GetCandidateProfile(ctx context.Context, userID uuid.UUID) (Ca
 		&i.Summary,
 		&i.Version,
 		&i.UpdatedAt,
+		&i.ContactEmail,
 	)
 	return i, err
 }
@@ -210,7 +211,7 @@ func (q *Queries) InsertExperience(ctx context.Context, arg InsertExperiencePara
 }
 
 const listCertifications = `-- name: ListCertifications :many
-SELECT id, user_id, name, issuer, issued_on, expires_on, created_at FROM certifications WHERE user_id = $1 ORDER BY issued_on DESC NULLS LAST, id
+SELECT id, user_id, name, issuer, issued_on, expires_on, created_at, issued_precision FROM certifications WHERE user_id = $1 ORDER BY issued_on DESC NULLS LAST, id
 `
 
 func (q *Queries) ListCertifications(ctx context.Context, userID uuid.UUID) ([]Certification, error) {
@@ -230,6 +231,7 @@ func (q *Queries) ListCertifications(ctx context.Context, userID uuid.UUID) ([]C
 			&i.IssuedOn,
 			&i.ExpiresOn,
 			&i.CreatedAt,
+			&i.IssuedPrecision,
 		); err != nil {
 			return nil, err
 		}
@@ -276,7 +278,7 @@ func (q *Queries) ListEducation(ctx context.Context, userID uuid.UUID) ([]Educat
 }
 
 const listExperiences = `-- name: ListExperiences :many
-SELECT id, user_id, company, title, start_date, end_date, description, created_at FROM experiences WHERE user_id = $1 ORDER BY start_date DESC, id
+SELECT id, user_id, company, title, start_date, end_date, description, created_at, location, start_precision, end_precision, is_current FROM experiences WHERE user_id = $1 ORDER BY start_date DESC, id
 `
 
 func (q *Queries) ListExperiences(ctx context.Context, userID uuid.UUID) ([]Experience, error) {
@@ -297,6 +299,10 @@ func (q *Queries) ListExperiences(ctx context.Context, userID uuid.UUID) ([]Expe
 			&i.EndDate,
 			&i.Description,
 			&i.CreatedAt,
+			&i.Location,
+			&i.StartPrecision,
+			&i.EndPrecision,
+			&i.IsCurrent,
 		); err != nil {
 			return nil, err
 		}
@@ -335,7 +341,7 @@ const updateCandidateProfile = `-- name: UpdateCandidateProfile :one
 UPDATE candidate_profiles SET full_name = $3, phone = $4, birth_date = $5, city = $6, address = $7, summary = $8,
        version = version + 1, updated_at = now()
 WHERE user_id = $1 AND version = $2
-RETURNING user_id, org_id, full_name, phone, birth_date, city, address, summary, version, updated_at
+RETURNING user_id, org_id, full_name, phone, birth_date, city, address, summary, version, updated_at, contact_email
 `
 
 type UpdateCandidateProfileParams struct {
@@ -372,6 +378,7 @@ func (q *Queries) UpdateCandidateProfile(ctx context.Context, arg UpdateCandidat
 		&i.Summary,
 		&i.Version,
 		&i.UpdatedAt,
+		&i.ContactEmail,
 	)
 	return i, err
 }

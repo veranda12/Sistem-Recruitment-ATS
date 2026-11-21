@@ -33,7 +33,9 @@ import (
 )
 
 const (
-	MaxBytes      = 5 << 20
+	// MaxBytes = batas terbesar (CV); jenis lain dibatasi MaxBytesOther.
+	MaxBytes      = 15 << 20
+	MaxBytesOther = 5 << 20
 	MaxPerUser    = 10
 	TopicScan     = "document.uploaded"
 	LinkTTL       = 60 * time.Second
@@ -55,6 +57,10 @@ func sniff(head []byte, name string) (string, bool) {
 		return "image/jpeg", true
 	case bytes.HasPrefix(head, []byte("PK\x03\x04")) && ext == ".docx":
 		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document", true
+	case len(head) >= 12 && string(head[:4]) == "RIFF" && string(head[8:12]) == "WEBP" && ext == ".webp":
+		return "image/webp", true
+	case bytes.HasPrefix(head, []byte{0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1}) && ext == ".doc":
+		return "application/msword", true
 	}
 	return "", false
 }
@@ -94,14 +100,19 @@ func (h *Handler) Upload(c *gin.Context) {
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
-			platform.Fail(c, &platform.APIError{Status: http.StatusRequestEntityTooLarge, Code: "payload_too_large", Message: "Ukuran berkas maksimal 5 MB."})
+			platform.Fail(c, &platform.APIError{Status: http.StatusRequestEntityTooLarge, Code: "payload_too_large", Message: "Ukuran berkas maksimal 15 MB untuk CV dan 5 MB untuk dokumen lain."})
 			return
 		}
 		platform.Fail(c, platform.ErrValidation(map[string]string{"file": "Pilih berkas."}))
 		return
 	}
-	if fh.Size <= 0 || fh.Size > MaxBytes {
-		platform.Fail(c, &platform.APIError{Status: http.StatusRequestEntityTooLarge, Code: "payload_too_large", Message: "Ukuran berkas maksimal 5 MB."})
+	limit := int64(MaxBytesOther)
+	if kind == "cv" {
+		limit = MaxBytes
+	}
+	tooLarge := &platform.APIError{Status: http.StatusRequestEntityTooLarge, Code: "payload_too_large", Message: fmt.Sprintf("Ukuran berkas maksimal %d MB.", limit>>20)}
+	if fh.Size <= 0 || fh.Size > limit {
+		platform.Fail(c, tooLarge)
 		return
 	}
 	f, err := fh.Open()
@@ -110,15 +121,15 @@ func (h *Handler) Upload(c *gin.Context) {
 		return
 	}
 	defer f.Close()
-	data, err := io.ReadAll(io.LimitReader(f, MaxBytes+1))
-	if err != nil || len(data) > MaxBytes {
-		platform.Fail(c, &platform.APIError{Status: http.StatusRequestEntityTooLarge, Code: "payload_too_large", Message: "Ukuran berkas maksimal 5 MB."})
+	data, err := io.ReadAll(io.LimitReader(f, limit+1))
+	if err != nil || int64(len(data)) > limit {
+		platform.Fail(c, tooLarge)
 		return
 	}
 	name := safeName(fh.Filename)
 	ctype, ok := sniff(data, name)
 	if !ok {
-		platform.Fail(c, platform.ErrValidation(map[string]string{"file": "Format tidak didukung. Gunakan PDF, DOCX, JPG, atau PNG yang sesuai isinya."}))
+		platform.Fail(c, platform.ErrValidation(map[string]string{"file": "Format tidak didukung. Gunakan PDF, DOCX, DOC, JPG, PNG, atau WebP yang sesuai isinya."}))
 		return
 	}
 	ctx := c.Request.Context()
@@ -178,13 +189,38 @@ func (h *Handler) Mine(c *gin.Context) {
 }
 
 // DELETE /me/documents/:id: penghapusan lunak; berkas fisik dibersihkan sesuai kebijakan retensi.
+// Pembacaan CV terkait dibatalkan (fence naik), turunannya (teks, saran, bukti, preview) dihapus.
 func (h *Handler) Delete(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		platform.Fail(c, platform.ErrNotFound(""))
 		return
 	}
-	n, err := h.Q.SoftDeleteDocument(c.Request.Context(), sqlc.SoftDeleteDocumentParams{ID: id, OwnerUserID: auth.Current(c).UserID})
+	ctx := c.Request.Context()
+	var n int64
+	var runs []uuid.UUID
+	err = platform.WithTx(ctx, h.Pool, func(tx pgx.Tx) error {
+		q := h.Q.WithTx(tx)
+		var err error
+		if n, err = q.SoftDeleteDocument(ctx, sqlc.SoftDeleteDocumentParams{ID: id, OwnerUserID: auth.Current(c).UserID}); err != nil || n == 0 {
+			return err
+		}
+		if runs, err = q.CancelCVRunsForDocument(ctx, id); err != nil {
+			return err
+		}
+		for _, r := range runs {
+			if err := q.DeleteCVSuggestionsForRun(ctx, r); err != nil {
+				return err
+			}
+			if err := q.DeleteCVEvidenceForRun(ctx, r); err != nil {
+				return err
+			}
+			if err := q.DeleteCVArtifactsForRun(ctx, r); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 	if err != nil {
 		platform.Fail(c, err)
 		return
@@ -192,6 +228,9 @@ func (h *Handler) Delete(c *gin.Context) {
 	if n == 0 {
 		platform.Fail(c, platform.ErrNotFound("Dokumen tidak ditemukan."))
 		return
+	}
+	for _, r := range runs {
+		_ = os.RemoveAll(filepath.Join(h.ObjectDir, "cvparse", r.String()))
 	}
 	c.Status(http.StatusNoContent)
 }
@@ -360,7 +399,18 @@ func Scan(ctx context.Context, pool *pgxpool.Pool, objectDir string, scanner Sca
 			return err
 		}
 	}
-	return q.SetDocumentScan(ctx, sqlc.SetDocumentScanParams{ID: d.ID, ScanStatus: verdict, ObjectKey: key})
+	if err := q.SetDocumentScan(ctx, sqlc.SetDocumentScanParams{ID: d.ID, ScanStatus: verdict, ObjectKey: key}); err != nil {
+		return err
+	}
+	// Pembacaan CV yang menunggu pemindaian dilepas ke antrean, atau gagal bila berkas terinfeksi.
+	if verdict == "clean" {
+		_, err = q.ReleaseWaitingCVRuns(ctx, d.ID)
+	} else {
+		_, err = q.FailWaitingCVRuns(ctx, sqlc.FailWaitingCVRunsParams{DocumentID: d.ID, FailureReason: ptrStr("scan_" + verdict)})
+	}
+	return err
 }
+
+func ptrStr(s string) *string { return &s }
 
 func jsonUnmarshal(b []byte, v any) error { return json.Unmarshal(b, v) }

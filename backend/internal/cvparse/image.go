@@ -9,6 +9,7 @@ import (
 	"image/draw"
 	"image/jpeg"
 	"image/png"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -542,4 +543,8 @@ func (e *engine) ocrImage(ctx context.Context, src string, p *Page) (ocrResult, 
 	}
 	e.transforms[p.No] = tr
 	return best, nil
+}
+
+func savePNGTo(w io.Writer, img image.Image) error {
+	return (&png.Encoder{CompressionLevel: png.BestSpeed}).Encode(w, img)
 }

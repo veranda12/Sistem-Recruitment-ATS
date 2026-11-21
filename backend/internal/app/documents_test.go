@@ -55,8 +55,11 @@ func TestDocumentUploadScanAndScopedDownload(t *testing.T) {
 	expect(t, c.upload("cv", "cv.pdf", []byte("MZ\x90\x00 bukan pdf")), 422, "exe berekstensi pdf")
 	expect(t, c.upload("cv", "skrip.html", []byte("<html><script>")), 422, "html")
 	expect(t, c.upload("bebas", "cv.pdf", pdf), 422, "jenis tidak dikenal")
-	if r := c.upload("cv", "besar.pdf", append([]byte("%PDF-"), make([]byte, 6<<20)...)); r.Status != 413 {
-		t.Fatalf("berkas 6MB: %d", r.Status)
+	if r := c.upload("ijazah", "besar.pdf", append([]byte("%PDF-"), make([]byte, 6<<20)...)); r.Status != 413 {
+		t.Fatalf("dokumen non-CV 6MB: %d", r.Status)
+	}
+	if r := c.upload("cv", "besar.pdf", append([]byte("%PDF-"), make([]byte, 16<<20)...)); r.Status != 413 {
+		t.Fatalf("CV 16MB: %d", r.Status)
 	}
 
 	up := c.upload("cv", `..\..\cv rina.pdf`, pdf)

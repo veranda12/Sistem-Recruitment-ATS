@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"ats/internal/app"
+	"ats/internal/cvreview"
 	"ats/internal/platform"
 )
 
@@ -34,6 +35,13 @@ func main() {
 		os.Exit(1)
 	}
 	defer pool.Close()
+	// Sinyal antrean CV (Asynq). Gagal tersambung tidak fatal: dispatcher worker CV memulihkan dari PostgreSQL.
+	cvq, err := cvreview.NewEnqueuer(cfg.RedisURL)
+	if err != nil {
+		slog.Warn("antrean CV: REDIS_URL tidak valid, memakai PostgreSQL saja", "err", err.Error())
+		cvq = &cvreview.Enqueuer{}
+	}
+	defer cvq.Close()
 	orgID, err := app.ResolveOrg(ctx, pool, cfg.OrgSlug)
 	if err != nil {
 		slog.Error("organisasi tidak ditemukan; jalankan migrasi dan seed", "org", cfg.OrgSlug, "err", err.Error())
@@ -43,7 +51,7 @@ func main() {
 	go platform.ServeMetrics(ctx, cfg.MetricsAddr, "api", pool)
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           app.NewRouter(app.Deps{Cfg: cfg, Pool: pool, OrgID: orgID, Limiter: limiter}),
+		Handler:           app.NewRouter(app.Deps{Cfg: cfg, Pool: pool, OrgID: orgID, Limiter: limiter, CVQueue: cvq}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      60 * time.Second,

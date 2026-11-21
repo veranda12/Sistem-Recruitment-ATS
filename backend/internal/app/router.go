@@ -8,6 +8,8 @@ import (
 
 	"ats/db/sqlc"
 	"ats/internal/auth"
+	"ats/internal/cvparse"
+	"ats/internal/cvreview"
 	"ats/internal/documents"
 	"ats/internal/exam"
 	"ats/internal/identity"
@@ -28,6 +30,7 @@ type Deps struct {
 	Pool    *pgxpool.Pool
 	OrgID   uuid.UUID
 	Limiter *platform.Limiter
+	CVQueue *cvreview.Enqueuer // sinyal Asynq; nil/kosong = dispatcher worker CV mengambil dari PostgreSQL
 }
 
 // ResolveOrg memuat organisasi instalasi (satu org per instalasi).
@@ -53,6 +56,7 @@ func NewRouter(d Deps) *gin.Engine {
 	ex := &exam.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID}
 	docs := &documents.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID, ObjectDir: d.Cfg.ObjectDir, SigningKey: d.Cfg.SessionKey}
 	rec.Docs = docs.ListForCandidate
+	cv := &cvreview.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID, ObjectDir: d.Cfg.ObjectDir, Limits: cvparse.DefaultLimits(), Enq: d.CVQueue}
 	adm := &settings.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID, InvalidatePublic: rec.Cache.Invalidate}
 	rep := &reporting.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID, ObjectDir: d.Cfg.ObjectDir, SigningKey: d.Cfg.SessionKey,
 		Limiter: d.Limiter, Strict: d.Cfg.StrictSensitiveLimits}
@@ -117,6 +121,13 @@ func NewRouter(d Deps) *gin.Engine {
 	me.GET("/documents", docs.Mine)
 	me.POST("/documents", d.Limiter.RateLimit("upload", 20*max(d.Cfg.RateLimitScale, 1), time.Minute, ip), docs.Upload)
 	me.DELETE("/documents/:id", docs.Delete)
+	me.POST("/documents/:id/parse", d.Limiter.RateLimit("cv_parse", 20*max(d.Cfg.RateLimitScale, 1), time.Minute, ip), cv.RequestParse)
+	me.GET("/cv-parses", cv.MyRuns)
+	me.GET("/cv-parses/:id", cv.GetRun)
+	me.GET("/cv-parses/:id/pages/:n/image", cv.PageImage)
+	me.PATCH("/cv-parses/:id/review", cv.Review)
+	me.POST("/cv-parses/:id/apply", cv.Apply)
+	me.DELETE("/cv-parses/:id", cv.Dismiss)
 	api.POST("/documents/:id/link", auth.RequireAuth(), interactive, docs.Link)
 	api.GET("/documents/download", auth.RequireAuth(), docs.Download)
 	api.POST("/jobs/:slug/apply", auth.RequireKind("candidate"), critical, rec.Apply)
@@ -132,6 +143,10 @@ func NewRouter(d Deps) *gin.Engine {
 
 	staff := api.Group("", auth.RequireKind("staff"), sessions.RequireMFAEnrollment(), interactive)
 	staff.GET("/staff/jobs", auth.RequireAnyPerm(auth.PermJobsRead), rec.ListStaffJobs)
+	staff.GET("/cv-parses/:id", auth.RequireAnyPerm(auth.PermApplicationsRead), cv.StaffGetRun)
+	staff.GET("/cv-parses/:id/pages/:n/image", auth.RequireAnyPerm(auth.PermApplicationsRead), cv.StaffPageImage)
+	staff.POST("/admin/cv-parses/:id/replay", auth.RequireAnyPerm(auth.PermCVReplay), cv.Replay)
+	staff.GET("/admin/cv-parses/stats", auth.RequireAnyPerm(auth.PermCVReplay), cv.Stats)
 	staff.POST("/staff/jobs", auth.RequireAnyPerm(auth.PermJobsManage), rec.CreateJob)
 	staff.POST("/staff/jobs/:id/publish", auth.RequireAnyPerm(auth.PermJobsPublish), rec.SetJobStatus("published"))
 	staff.POST("/staff/jobs/:id/close", auth.RequireAnyPerm(auth.PermJobsPublish), rec.SetJobStatus("closed"))

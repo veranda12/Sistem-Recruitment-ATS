@@ -129,11 +129,30 @@ type educationDTO struct {
 }
 
 type experienceDTO struct {
-	Company     string  `json:"company"`
-	Title       string  `json:"title"`
-	StartDate   string  `json:"startDate"`
-	EndDate     *string `json:"endDate"`
-	Description string  `json:"description"`
+	Company        string  `json:"company"`
+	Title          string  `json:"title"`
+	Location       string  `json:"location"`
+	StartDate      string  `json:"startDate"`
+	StartPrecision string  `json:"startPrecision"` // day | month | year (dari CV); form manual = day
+	EndDate        *string `json:"endDate"`
+	EndPrecision   string  `json:"endPrecision"`
+	IsCurrent      bool    `json:"isCurrent"`
+	Description    string  `json:"description"`
+}
+
+type languageDTO struct {
+	Name  string `json:"name"`
+	Level string `json:"level"`
+}
+
+type linkDTO struct {
+	Label string `json:"label"`
+	URL   string `json:"url"`
+}
+
+type projectDTO struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 type certificationDTO struct {
@@ -153,7 +172,13 @@ type profileDTO struct {
 	Education      []educationDTO     `json:"education"`
 	Experiences    []experienceDTO    `json:"experiences"`
 	Certifications []certificationDTO `json:"certifications"`
-	Version        int32              `json:"version"`
+	// Opsional pada PUT: nil = tidak diubah (klien lama tidak menghapus data ini).
+	ContactEmail *string        `json:"contactEmail"`
+	Skills       *[]string      `json:"skills"`
+	Languages    *[]languageDTO `json:"languages"`
+	Links        *[]linkDTO     `json:"links"`
+	Projects     *[]projectDTO  `json:"projects"`
+	Version      int32          `json:"version"`
 }
 
 type profileResp struct {
@@ -214,8 +239,47 @@ func (h *Handler) loadProfile(c *gin.Context, q *sqlc.Queries, p *auth.Principal
 		r.Education = append(r.Education, educationDTO{e.Level, e.Institution, e.Major, e.StartYear, e.EndYear, e.Gpa})
 	}
 	for _, e := range ex {
-		r.Experiences = append(r.Experiences, experienceDTO{e.Company, e.Title, e.StartDate.Format("2006-01-02"), dateStr(e.EndDate), e.Description})
+		r.Experiences = append(r.Experiences, experienceDTO{Company: e.Company, Title: e.Title, Location: e.Location, StartDate: e.StartDate.Format("2006-01-02"),
+			StartPrecision: e.StartPrecision, EndDate: dateStr(e.EndDate), EndPrecision: e.EndPrecision, IsCurrent: e.IsCurrent, Description: e.Description})
 	}
+	contact := prof.ContactEmail
+	r.ContactEmail = &contact
+	sk, err := q.ListSkills(ctx, p.UserID)
+	if err != nil {
+		return r, err
+	}
+	skills := []string{}
+	for _, v := range sk {
+		skills = append(skills, v.Name)
+	}
+	r.Skills = &skills
+	lg, err := q.ListLanguages(ctx, p.UserID)
+	if err != nil {
+		return r, err
+	}
+	langs := []languageDTO{}
+	for _, v := range lg {
+		langs = append(langs, languageDTO{v.Name, v.Level})
+	}
+	r.Languages = &langs
+	lk, err := q.ListLinks(ctx, p.UserID)
+	if err != nil {
+		return r, err
+	}
+	links := []linkDTO{}
+	for _, v := range lk {
+		links = append(links, linkDTO{v.Label, v.Url})
+	}
+	r.Links = &links
+	pj, err := q.ListProjects(ctx, p.UserID)
+	if err != nil {
+		return r, err
+	}
+	projects := []projectDTO{}
+	for _, v := range pj {
+		projects = append(projects, projectDTO{v.Name, v.Description})
+	}
+	r.Projects = &projects
 	for _, e := range ce {
 		r.Certifications = append(r.Certifications, certificationDTO{e.Name, e.Issuer, dateStr(e.IssuedOn), dateStr(e.ExpiresOn)})
 	}
@@ -257,6 +321,7 @@ func (h *Handler) GetProfile(c *gin.Context) {
 }
 
 var phoneRe = regexp.MustCompile(`^\+?[0-9]{8,15}$`)
+var contactEmailRe = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
 var eduLevels = []string{"SMA", "SMK", "D3", "D4", "S1", "S2", "S3", "Lainnya"}
 
 // PUT /me/profile: optimistic concurrency via version. Riwayat diganti utuh dalam satu transaksi.
@@ -321,6 +386,29 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 		}
 		exps[i] = [2]*time.Time{s, en}
 	}
+	prec := func(s string) string {
+		if s == "month" || s == "year" {
+			return s
+		}
+		return "day"
+	}
+	if req.ContactEmail != nil {
+		v := strings.ToLower(strings.TrimSpace(*req.ContactEmail))
+		if v != "" && (len(v) > 254 || !contactEmailRe.MatchString(v)) {
+			f["contactEmail"] = "Format email kontak tidak valid."
+		}
+		req.ContactEmail = &v
+	}
+	if req.Skills != nil && len(*req.Skills) > 100 || req.Languages != nil && len(*req.Languages) > 20 || req.Links != nil && len(*req.Links) > 20 || req.Projects != nil && len(*req.Projects) > 30 {
+		f["skills"] = "Jumlah data melebihi batas."
+	}
+	if req.Links != nil {
+		for i, l := range *req.Links {
+			if !strings.HasPrefix(l.URL, "https://") && !strings.HasPrefix(l.URL, "http://") || len(l.URL) > 500 {
+				f["links."+strconv.Itoa(i)+".url"] = "Tautan harus diawali http:// atau https://."
+			}
+		}
+	}
 	certs := make([][2]*time.Time, len(req.Certifications))
 	for i, e := range req.Certifications {
 		a, ok1 := parseDate(e.IssuedOn)
@@ -360,9 +448,65 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 			return err
 		}
 		for i, e := range req.Experiences {
-			if err := q.InsertExperience(ctx, sqlc.InsertExperienceParams{UserID: p.UserID, Company: strings.TrimSpace(e.Company),
-				Title: strings.TrimSpace(e.Title), StartDate: *exps[i][0], EndDate: exps[i][1], Description: e.Description}); err != nil {
+			end := exps[i][1]
+			if e.IsCurrent {
+				end = nil
+			}
+			if _, err := q.InsertExperienceFull(ctx, sqlc.InsertExperienceFullParams{UserID: p.UserID, Company: strings.TrimSpace(e.Company),
+				Title: strings.TrimSpace(e.Title), Location: strings.TrimSpace(e.Location), StartDate: *exps[i][0], StartPrecision: prec(e.StartPrecision),
+				EndDate: end, EndPrecision: prec(e.EndPrecision), IsCurrent: e.IsCurrent, Description: e.Description}); err != nil {
 				return err
+			}
+		}
+		if req.ContactEmail != nil {
+			if err := q.SetContactEmail(ctx, sqlc.SetContactEmailParams{UserID: p.UserID, ContactEmail: *req.ContactEmail}); err != nil {
+				return err
+			}
+		}
+		if req.Skills != nil {
+			if err := q.DeleteSkillsForUser(ctx, p.UserID); err != nil {
+				return err
+			}
+			for _, v := range *req.Skills {
+				if v = strings.TrimSpace(v); v != "" && len(v) <= 80 {
+					if err := q.InsertSkill(ctx, sqlc.InsertSkillParams{UserID: p.UserID, Name: v}); err != nil {
+						return err
+					}
+				}
+			}
+		}
+		if req.Languages != nil {
+			if err := q.DeleteLanguagesForUser(ctx, p.UserID); err != nil {
+				return err
+			}
+			for _, v := range *req.Languages {
+				if n := strings.TrimSpace(v.Name); n != "" && len(n) <= 60 && len(v.Level) <= 60 {
+					if err := q.InsertLanguage(ctx, sqlc.InsertLanguageParams{UserID: p.UserID, Name: n, Level: strings.TrimSpace(v.Level)}); err != nil {
+						return err
+					}
+				}
+			}
+		}
+		if req.Links != nil {
+			if err := q.DeleteLinksForUser(ctx, p.UserID); err != nil {
+				return err
+			}
+			for _, v := range *req.Links {
+				if err := q.InsertLink(ctx, sqlc.InsertLinkParams{UserID: p.UserID, Label: strings.TrimSpace(v.Label), Url: strings.TrimSpace(v.URL)}); err != nil {
+					return err
+				}
+			}
+		}
+		if req.Projects != nil {
+			if err := q.DeleteProjectsForUser(ctx, p.UserID); err != nil {
+				return err
+			}
+			for _, v := range *req.Projects {
+				if n := strings.TrimSpace(v.Name); len(n) >= 2 && len(n) <= 200 && len(v.Description) <= 2000 {
+					if err := q.InsertProject(ctx, sqlc.InsertProjectParams{UserID: p.UserID, Name: n, Description: v.Description}); err != nil {
+						return err
+					}
+				}
 			}
 		}
 		if err := q.DeleteCertificationsForUser(ctx, p.UserID); err != nil {
