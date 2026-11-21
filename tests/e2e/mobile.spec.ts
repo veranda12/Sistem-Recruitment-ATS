@@ -36,9 +36,14 @@ test("mobile: ruang ujian satu kolom, navigator di drawer, action bar tidak menu
   await expect(page.getByRole("heading", { name: /Soal 2 dari 6/ })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
-  // Opsi terakhir dapat digulir ke atas action bar dan diklik.
-  const lastOpt = page.locator("main fieldset li label").last();
-  await lastOpt.scrollIntoViewIfNeeded();
-  await lastOpt.click();
+  // Opsi terakhir (atau kotak esai) dapat digulir ke atas action bar dan dipakai. Urutan soal diacak per attempt.
+  const essay = page.getByLabel("Jawaban esai");
+  if (await essay.isVisible()) {
+    await essay.fill("Jawaban dari ponsel.");
+  } else {
+    const lastOpt = page.locator("main fieldset li label").last();
+    await lastOpt.scrollIntoViewIfNeeded();
+    await lastOpt.click();
+  }
   await expect(page.locator("header [role=status]")).toHaveText(/Tersimpan pukul/);
 });

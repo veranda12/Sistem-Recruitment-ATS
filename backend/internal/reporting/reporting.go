@@ -37,10 +37,11 @@ const (
 
 // Range: tanggal YYYY-MM-DD ditafsirkan di zona organisasi; to inklusif (diubah ke [from, to+1hari)).
 type Range struct {
-	From, To string
-	FromAt   time.Time
-	ToAt     time.Time
-	TimeZone string
+	From     string    `json:"from"`
+	To       string    `json:"to"`
+	FromAt   time.Time `json:"fromAt"`
+	ToAt     time.Time `json:"toAt"`
+	TimeZone string    `json:"timezone"`
 }
 
 func ParseRange(from, to, tz string) (Range, error) {

@@ -53,7 +53,7 @@ func TestReportsMatchFixtureAndExport(t *testing.T) {
 	if num(r, "totals", "reached", "screening") != 3 {
 		t.Fatalf("reached screening harus 3: %v", r.Body["totals"])
 	}
-	if r.Body["range"].(map[string]any)["TimeZone"] != "Asia/Jakarta" {
+	if r.Body["range"].(map[string]any)["timezone"] != "Asia/Jakarta" {
 		t.Fatalf("zona tanggal harus dicantumkan: %v", r.Body["range"])
 	}
 	// HR OPS (scope unit OPS): hanya 2 lamaran OPS, tidak ada penarikan.
