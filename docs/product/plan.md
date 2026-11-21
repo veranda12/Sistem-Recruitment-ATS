@@ -19,19 +19,28 @@ Status aktual tiap fase dicatat di `docs/STATUS.md`. Dokumen ini adalah rencana;
 
 ## Matriks requirement -> modul -> test -> bukti
 
-| Requirement | Modul | Test | Bukti |
+| Requirement | Modul | Test (path) | Bukti |
 |---|---|---|---|
-| GET /jobs hanya versi terbit, filter, pagination stabil | recruitment | `backend/internal/recruitment/jobs_test.go` | STATUS |
-| Apply balapan dengan penutupan mengikuti urutan transaksi | recruitment | `apply_test.go::TestApplyRacesClose` | STATUS |
-| Dua registrasi bersamaan NIK sama -> satu master | identity | `identity_test.go::TestConcurrentNIK` | STATUS |
-| Snapshot lamaran tidak berubah saat profil diperbarui | recruitment | `apply_test.go::TestSnapshotImmutable` | STATUS |
-| /me/* dibatasi pemilik | recruitment | `apply_test.go::TestOwnerScope` | STATUS |
-| Transisi memeriksa izin, expected version, guard | workflow, recruitment | `transition_test.go` | STATUS |
-| Workflow: validasi graph, publish immutable, versi pin | workflow | `validate_test.go`, `engine_test.go` | STATUS |
-| Login/logout, sesi revoke, CSRF | auth | `auth_test.go` | STATUS |
-| RBAC scope unit/job, HM hanya miliknya, Examiner tanpa NIK | auth | `authz_test.go` | STATUS |
-| Cegah hapus admin aktif terakhir | auth | `admin_test.go` | STATUS |
-| Ujian: start idempoten, save receipt, submit sekali | exam | `exam_test.go` | STATUS |
-| Autosave client: debounce, serialisasi, konflik | frontend exam | `autosave.test.ts` | STATUS |
-| Audit actor/action/target/requestId | platform | `audit_test.go` | STATUS |
-| Alur UI kandidat & recruiter | e2e | `tests/e2e/*.spec.ts` | STATUS |
+| GET /jobs hanya terbit, filter allowlist, keyset pagination, draft 404, tutup berstatus jelas | recruitment | `backend/internal/app/flow_test.go::TestCandidateToRecruiterSlice`, `tests/e2e/slice.spec.ts` | STATUS |
+| Apply balapan dengan penutupan | recruitment | `flow_test.go::TestApplyRacesClose` | STATUS |
+| Dua registrasi bersamaan NIK sama -> satu master | identity, recruitment | `flow_test.go::TestConcurrentSameNIKRegistration`, `internal/identity/nik_test.go` | STATUS |
+| Snapshot lamaran tidak berubah; dua lamaran; /me milik sendiri | recruitment | `TestCandidateToRecruiterSlice` | STATUS |
+| Transisi: izin, expected version, guard, histori + audit | workflow, recruitment | `TestCandidateToRecruiterSlice`, `workflow_test.go` | STATUS |
+| Workflow: validasi graph, rule DSL, simulasi, publish immutable, pin versi, rollback, publish serentak | workflow | `internal/workflow/definition_test.go`, `workflow_test.go::TestWorkflowPublishVersioningAndPin` | STATUS |
+| Approval: kuorum, self-approval, dua approver serentak, approval basi setelah withdrawal | workflow | `workflow_test.go::TestApprovalGuardsOnRealDB` | STATUS |
+| Login/logout, CSRF, revoke, MFA (TOTP, replay, recovery, reset, wajib per peran) | auth | `flow_test.go`, `internal/auth/mfa_test.go`, `mfa_test.go` | STATUS |
+| RBAC scope, HM miliknya, examiner tanpa NIK, admin terakhir, pencabutan efektif | auth, settings | `TestCandidateToRecruiterSlice`, `admin_reports_test.go::TestAdminAccessSettingsAudit` | STATUS |
+| Ujian: start idempoten, DTO tanpa kunci, receipt, konflik dua tab, submit sekali, deadline, expiry vs submit | exam | `exam_test.go` | STATUS |
+| Skoring fixture (kosong, jamak, esai pending), esai buta, regrade tanpa transisi kedua, rilis -> cabang workflow | exam, workflow | `exam_test.go` | STATUS |
+| Bank soal impor + pratinjau, versi soal/paket, ujian berjalan tidak berubah | exam | `bank_test.go`, `internal/exam/bank_test.go` | STATUS |
+| Autosave klien: debounce, batas tunda, serialisasi, retry opId sama, konflik, draft IndexedDB, kalibrasi waktu | frontend exam | `frontend/src/features/exam/*.test.ts` | STATUS |
+| Ujian lewat browser: offline/reconnect/refresh/receipt, ponsel | e2e | `tests/e2e/exam.spec.ts`, `mobile.spec.ts` | STATUS |
+| Interview: bentrok (serentak), reschedule zona waktu, batal otomatis, scorecard; keputusan & pemberitahuan | recruitment | `interviews_test.go`, `tests/e2e/decision.spec.ts` | STATUS |
+| Requisition: approval tanpa self-approval, lowongan dari requisition | recruitment | `interviews_test.go::TestRequisitionApprovalAndJob` | STATUS |
+| Dokumen: signature, ukuran, karantina, pindai, unduh terscope | documents | `documents_test.go` | STATUS |
+| Laporan = fixture (dua lamaran + withdrawal), ekspor terscope, formula injection, tautan pendek | reporting | `admin_reports_test.go::TestReportsMatchFixtureAndExport` | STATUS |
+| Audit append-only, /metrics tidak publik | platform | `TestAdminAccessSettingsAudit`, `internal/platform/metrics_test.go` | STATUS |
+| Kontras warna aktual | frontend ui | `frontend/src/ui/tokens.test.ts` | STATUS |
+| Migrasi dari kosong dan upgrade dari rilis lama | db | `ops/windows/setup.ps1`, `ops/windows/test-upgrade.ps1` | STATUS |
+| Restore ke lingkungan kosong | ops | `ops/windows/restore-drill.ps1` | `docs/operations/backup-restore.md` |
+| Beban + integritas (oracle independen) | exam | `tests/load/exam.js`, `tests/load/reconcile.sql` | `docs/operations/load-test-report.md` |
