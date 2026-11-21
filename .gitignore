@@ -27,3 +27,6 @@ tests/load/results/*/
 /docs/proposal/img/
 /docs/proposal/*.pdf
 /docs/proposal/proposal.html
+
+# Fixture CV hasil generator (go run ./cmd/cvfixtures)
+/tests/cv-fixtures/out/
