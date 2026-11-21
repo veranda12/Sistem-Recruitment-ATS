@@ -1,10 +1,14 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router";
 import { ApiError, post, put, type Schemas } from "../../lib/api";
 import { fmtDate, fmtDateTime, statusLabel } from "../../lib/format";
 import { useSession } from "../../lib/session";
 import { useQuery } from "../../lib/useQuery";
 import { DocumentsSection } from "./documents";
+import { CvImport } from "./cv/CvImport";
+import { fmtPartial } from "./cv/model";
+
+const CvReviewPage = lazy(() => import("./cv/CvReview"));
 import { Alert, Badge, Button, Dialog, Field, Input, PageHeader, PageState, Select, Textarea, useToast } from "../../ui";
 
 export default function CandidateRoutes() {
@@ -12,6 +16,14 @@ export default function CandidateRoutes() {
     <Routes>
       <Route index element={<MyApplications />} />
       <Route path="profil" element={<ProfilePage />} />
+      <Route
+        path="profil/cv/:id"
+        element={
+          <Suspense fallback={<p role="status">Memuat...</p>}>
+            <CvReviewPage />
+          </Suspense>
+        }
+      />
       <Route path="lamaran/:id" element={<ApplicationPage />} />
       <Route path="notifikasi" element={<Inbox />} />
       <Route path="ujian" element={<ExamInvitations />} />
@@ -102,8 +114,24 @@ function ProfilePage() {
 
   useEffect(() => {
     if (q.data && !form) {
-      const { fullName, phone, birthDate, city, address, summary, education, experiences, certifications, version } = q.data;
-      setForm({ fullName, phone, birthDate, city, address, summary, education, experiences, certifications, version });
+      const { fullName, phone, birthDate, city, address, summary, education, experiences, certifications, contactEmail, skills, languages, links, projects, version } = q.data;
+      setForm({
+        fullName,
+        phone,
+        birthDate,
+        city,
+        address,
+        summary,
+        education,
+        experiences,
+        certifications,
+        contactEmail: contactEmail ?? "",
+        skills: skills ?? [],
+        languages: languages ?? [],
+        links: links ?? [],
+        projects: projects ?? [],
+        version,
+      });
     }
   }, [q.data, form]);
 
@@ -174,6 +202,8 @@ function ProfilePage() {
               <Alert tone="success" title="Profil lengkap">Anda dapat melamar lowongan.</Alert>
             )}
 
+            <CvImport />
+
             <section className="flex flex-col gap-4">
               <h2 className="text-[20px]">Identitas</h2>
               <p className="text-sm text-ink-2">
@@ -197,6 +227,11 @@ function ProfilePage() {
                   {({ id, describedBy, invalid }) => <Input id={id} aria-describedby={describedBy} invalid={invalid} value={form.city} onChange={(e) => set("city", e.target.value)} />}
                 </Field>
               </div>
+              <Field label="Email kontak" hint="Opsional. Email akun untuk masuk tidak berubah." error={fe.contactEmail}>
+                {({ id, describedBy, invalid }) => (
+                  <Input id={id} aria-describedby={describedBy} invalid={invalid} type="email" autoComplete="email" value={form.contactEmail ?? ""} onChange={(e) => set("contactEmail", e.target.value)} />
+                )}
+              </Field>
               <Field label="Alamat" error={fe.address}>
                 {({ id, invalid }) => <Textarea id={id} invalid={invalid} value={form.address} onChange={(e) => set("address", e.target.value)} />}
               </Field>
@@ -254,14 +289,29 @@ function ProfilePage() {
                     {({ id, invalid }) => <Input id={id} invalid={invalid} value={ex.company} onChange={(e) => setExp(i, { company: e.target.value })} />}
                   </Field>
                   <Field label="Jabatan" required>{({ id }) => <Input id={id} value={ex.title} onChange={(e) => setExp(i, { title: e.target.value })} />}</Field>
-                  <Field label="Mulai" required error={fe[`experiences.${i}.startDate`]}>
-                    {({ id, invalid }) => <Input id={id} invalid={invalid} type="date" value={ex.startDate} onChange={(e) => setExp(i, { startDate: e.target.value })} />}
-                  </Field>
-                  <Field label="Selesai" hint="Kosongkan bila masih bekerja." error={fe[`experiences.${i}.endDate`]}>
+                  <Field label="Mulai" required hint={precisionHint(ex.startDate, ex.startPrecision)} error={fe[`experiences.${i}.startDate`]}>
                     {({ id, invalid, describedBy }) => (
-                      <Input id={id} aria-describedby={describedBy} invalid={invalid} type="date" value={ex.endDate ?? ""} onChange={(e) => setExp(i, { endDate: e.target.value || null })} />
+                      <Input id={id} aria-describedby={describedBy} invalid={invalid} type="date" value={ex.startDate} onChange={(e) => setExp(i, { startDate: e.target.value, startPrecision: "day" })} />
                     )}
                   </Field>
+                  <Field label="Selesai" hint={ex.isCurrent ? "Masih bekerja di sini." : precisionHint(ex.endDate, ex.endPrecision)} error={fe[`experiences.${i}.endDate`]}>
+                    {({ id, invalid, describedBy }) => (
+                      <Input
+                        id={id}
+                        aria-describedby={describedBy}
+                        invalid={invalid}
+                        type="date"
+                        disabled={ex.isCurrent}
+                        value={ex.isCurrent ? "" : (ex.endDate ?? "")}
+                        onChange={(e) => setExp(i, { endDate: e.target.value || null, endPrecision: "day" })}
+                      />
+                    )}
+                  </Field>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" className="h-5 w-5" checked={!!ex.isCurrent} onChange={(e) => setExp(i, { isCurrent: e.target.checked, endDate: e.target.checked ? null : ex.endDate })} />
+                    Masih bekerja di sini
+                  </label>
+                  <Field label="Lokasi">{({ id }) => <Input id={id} value={ex.location ?? ""} onChange={(e) => setExp(i, { location: e.target.value })} />}</Field>
                   <div className="sm:col-span-2">
                     <Field label="Uraian tugas">{({ id }) => <Textarea id={id} value={ex.description} onChange={(e) => setExp(i, { description: e.target.value })} />}</Field>
                   </div>
@@ -273,11 +323,18 @@ function ProfilePage() {
                 </fieldset>
               ))}
               <div>
-                <Button type="button" onClick={() => set("experiences", [...form.experiences, { company: "", title: "", startDate: "", endDate: null, description: "" }])}>
+                <Button
+                  type="button"
+                  onClick={() =>
+                    set("experiences", [...form.experiences, { company: "", title: "", location: "", startDate: "", startPrecision: "day", endDate: null, endPrecision: "day", isCurrent: false, description: "" }])
+                  }
+                >
                   Tambah pengalaman
                 </Button>
               </div>
             </section>
+
+            <ExtrasSection form={form} set={set} fe={fe} />
 
             <DocumentsSection />
 
@@ -290,6 +347,95 @@ function ProfilePage() {
         ) : null}
       </PageState>
     </div>
+  );
+}
+
+/** Keterangan presisi tanggal dari CV: kolom tanggal menampilkan hari pertama, CV hanya menyebut bulan/tahun. */
+function precisionHint(date: string | null | undefined, precision?: string): string | undefined {
+  if (!date || !precision || precision === "day") return undefined;
+  const [y = 0, m] = date.split("-").map(Number);
+  return `Dari CV: ${fmtPartial({ year: y, month: m, precision: precision as "month" | "year" })} (tanggal tidak tertulis).`;
+}
+
+function ExtrasSection({ form, set, fe }: { form: ProfileInput; set: <K extends keyof ProfileInput>(k: K, v: ProfileInput[K]) => void; fe: Record<string, string> }) {
+  const langs = form.languages ?? [];
+  const links = form.links ?? [];
+  const projects = form.projects ?? [];
+  const [skillText, setSkillText] = useState((form.skills ?? []).join(", "));
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="text-[20px]">Keahlian, bahasa, dan tautan</h2>
+      <Field label="Keahlian" hint="Pisahkan dengan koma, misalnya: Microsoft Excel, Forklift, K3." error={fe.skills}>
+        {({ id, describedBy }) => (
+          <Input
+            id={id}
+            aria-describedby={describedBy}
+            value={skillText}
+            onChange={(e) => {
+              setSkillText(e.target.value);
+              set("skills", e.target.value.split(",").map((x) => x.trim()).filter(Boolean));
+            }}
+          />
+        )}
+      </Field>
+      <fieldset className="flex flex-col gap-3">
+        <legend className="text-sm font-semibold">Bahasa</legend>
+        {langs.map((l, i) => (
+          <div key={i} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <Field label={`Bahasa ${i + 1}`}>{({ id }) => <Input id={id} value={l.name} onChange={(e) => set("languages", langs.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />}</Field>
+            <Field label="Tingkat">{({ id }) => <Input id={id} value={l.level} onChange={(e) => set("languages", langs.map((x, j) => (j === i ? { ...x, level: e.target.value } : x)))} />}</Field>
+            <Button type="button" variant="ghost" onClick={() => set("languages", langs.filter((_, j) => j !== i))}>
+              Hapus bahasa {i + 1}
+            </Button>
+          </div>
+        ))}
+        <div>
+          <Button type="button" onClick={() => set("languages", [...langs, { name: "", level: "" }])}>
+            Tambah bahasa
+          </Button>
+        </div>
+      </fieldset>
+      <fieldset className="flex flex-col gap-3">
+        <legend className="text-sm font-semibold">Tautan profesional</legend>
+        {links.map((l, i) => (
+          <div key={i} className="grid gap-2 sm:grid-cols-[1fr_2fr_auto] sm:items-end">
+            <Field label={`Label ${i + 1}`}>{({ id }) => <Input id={id} value={l.label} onChange={(e) => set("links", links.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />}</Field>
+            <Field label="Alamat" error={fe[`links.${i}.url`]}>
+              {({ id, invalid }) => (
+                <Input id={id} invalid={invalid} type="url" placeholder="https://" value={l.url} onChange={(e) => set("links", links.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))} />
+              )}
+            </Field>
+            <Button type="button" variant="ghost" onClick={() => set("links", links.filter((_, j) => j !== i))}>
+              Hapus tautan {i + 1}
+            </Button>
+          </div>
+        ))}
+        <div>
+          <Button type="button" onClick={() => set("links", [...links, { label: "", url: "" }])}>
+            Tambah tautan
+          </Button>
+        </div>
+      </fieldset>
+      <fieldset className="flex flex-col gap-3">
+        <legend className="text-sm font-semibold">Proyek</legend>
+        {projects.map((p, i) => (
+          <div key={i} className="grid gap-2">
+            <Field label={`Nama proyek ${i + 1}`}>{({ id }) => <Input id={id} value={p.name} onChange={(e) => set("projects", projects.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} />}</Field>
+            <Field label="Uraian">{({ id }) => <Textarea id={id} value={p.description} onChange={(e) => set("projects", projects.map((x, j) => (j === i ? { ...x, description: e.target.value } : x)))} />}</Field>
+            <div>
+              <Button type="button" variant="ghost" onClick={() => set("projects", projects.filter((_, j) => j !== i))}>
+                Hapus proyek {i + 1}
+              </Button>
+            </div>
+          </div>
+        ))}
+        <div>
+          <Button type="button" onClick={() => set("projects", [...projects, { name: "", description: "" }])}>
+            Tambah proyek
+          </Button>
+        </div>
+      </fieldset>
+    </section>
   );
 }
 

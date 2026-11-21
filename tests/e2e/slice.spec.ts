@@ -143,14 +143,14 @@ test.describe.serial("vertical slice karier -> recruiter", () => {
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/staf/);
     // HM hanya melihat lamaran dan permintaan tenaga kerja; tidak ada lowongan/workflow/admin.
-    await expect(page.getByRole("navigation", { name: "Menu back office" }).getByRole("link")).toHaveText(["Lamaran", "Permintaan tenaga kerja"]);
+    await expect(page.getByRole("navigation", { name: "Menu back office" }).getByRole("link")).toHaveText(["Lamaran", "Permintaan tenaga kerja", "Keamanan akun"]);
   });
 });
 
 test("kandidat: unggah CV, menunggu pindai, lalu dapat diunduh", async ({ page }) => {
   await login(page, "sari.kandidat@contoh.test");
   await page.goto("/akun/profil");
-  await page.getByLabel("Berkas").setInputFiles({ name: "cv-sari.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7\nCV Sari Wulandari\n") });
+  await page.getByLabel("Berkas (wajib)", { exact: true }).setInputFiles({ name: "cv-sari.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7\nCV Sari Wulandari\n") });
   await page.getByRole("button", { name: "Unggah" }).click();
   await expect(page.getByText("Dokumen diunggah dan menunggu pemindaian keamanan.")).toBeVisible();
   await expect
@@ -165,7 +165,7 @@ test("kandidat: unggah CV, menunggu pindai, lalu dapat diunduh", async ({ page }
   ]);
   expect(download.suggestedFilename()).toBe("cv-sari.pdf");
   // Berkas dengan isi bukan PDF ditolak walau berekstensi .pdf.
-  await page.getByLabel("Berkas").setInputFiles({ name: "palsu.pdf", mimeType: "application/pdf", buffer: Buffer.from("MZ bukan pdf") });
+  await page.getByLabel("Berkas (wajib)", { exact: true }).setInputFiles({ name: "palsu.pdf", mimeType: "application/pdf", buffer: Buffer.from("MZ bukan pdf") });
   await page.getByRole("button", { name: "Unggah" }).click();
   await expect(page.getByText(/Format tidak didukung/)).toBeVisible();
 });

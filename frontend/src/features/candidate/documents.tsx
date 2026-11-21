@@ -34,8 +34,9 @@ export function DocumentsSection() {
       setErr(new ApiError(422, { error: { code: "validation_failed", message: "Pilih berkas terlebih dahulu.", fieldErrors: { file: "Pilih berkas." } }, requestId: "" }, null));
       return;
     }
-    if (f.size > 5 * 1024 * 1024) {
-      setErr(new ApiError(413, { error: { code: "payload_too_large", message: "Ukuran berkas maksimal 5 MB." }, requestId: "" }, null));
+    const limitMB = kind === "cv" ? 15 : 5;
+    if (f.size > limitMB * 1024 * 1024) {
+      setErr(new ApiError(413, { error: { code: "payload_too_large", message: `Ukuran berkas maksimal ${limitMB} MB.` }, requestId: "" }, null));
       return;
     }
     const fd = new FormData();
@@ -58,7 +59,7 @@ export function DocumentsSection() {
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-[20px]">Dokumen</h2>
-      <p className="text-sm text-ink-2">PDF, DOCX, JPG, atau PNG, maksimal 5 MB. Dokumen dapat dibuka setelah lolos pemindaian keamanan.</p>
+      <p className="text-sm text-ink-2">PDF, DOCX, DOC, JPG, PNG, atau WebP. CV maksimal 15 MB, dokumen lain 5 MB. Dokumen dapat dibuka setelah lolos pemindaian keamanan.</p>
       {err ? <Alert tone="danger">{err.fieldErrors.file ?? err.message}</Alert> : null}
       <div className="grid gap-3 sm:grid-cols-[160px_1fr_auto] sm:items-end">
         <Field label="Jenis" required>
@@ -73,7 +74,7 @@ export function DocumentsSection() {
           )}
         </Field>
         <Field label="Berkas" required>
-          {({ id }) => <input id={id} ref={fileRef} type="file" accept=".pdf,.docx,.jpg,.jpeg,.png" className="field-input py-2" />}
+          {({ id }) => <input id={id} ref={fileRef} type="file" accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.webp" className="field-input py-2" />}
         </Field>
         <Button type="button" busy={busy} onClick={upload}>
           Unggah

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Menjalankan API, worker, dan server dev frontend di latar belakang. Log di .data\logs, PID di .data\pids.json.
+  Menjalankan API, worker, worker CV, dan server dev frontend di latar belakang. Log di .data\logs, PID di .data\pids.json.
 .EXAMPLE
   powershell -File ops\windows\start.ps1
 #>
@@ -19,6 +19,11 @@ $procs.api = Start-Process -FilePath (Join-Path $bin "api$Exe") -WorkingDirector
     -RedirectStandardOutput (Join-Path $logs 'api.log') -RedirectStandardError (Join-Path $logs 'api.err.log')
 $procs.worker = Start-Process -FilePath (Join-Path $bin "worker$Exe") -WorkingDirectory $Root -WindowStyle Hidden -PassThru `
     -RedirectStandardOutput (Join-Path $logs 'worker.log') -RedirectStandardError (Join-Path $logs 'worker.err.log')
+# Worker CV terpisah (antrean dan sumber daya sendiri). Redis opsional: tanpa Redis, job diambil dari PostgreSQL.
+if (Test-Path (Join-Path $bin "cvworker$Exe")) {
+    $procs.cvworker = Start-Process -FilePath (Join-Path $bin "cvworker$Exe") -WorkingDirectory $Root -WindowStyle Hidden -PassThru `
+        -RedirectStandardOutput (Join-Path $logs 'cvworker.log') -RedirectStandardError (Join-Path $logs 'cvworker.err.log')
+}
 if (-not $NoFrontend) {
     $procs.web = Start-Process -FilePath 'npm.cmd' -ArgumentList 'run', 'dev' -WorkingDirectory (Join-Path $Root 'frontend') -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput (Join-Path $logs 'web.log') -RedirectStandardError (Join-Path $logs 'web.err.log')
@@ -38,4 +43,9 @@ do {
 if (-not $r) { throw "API tidak siap dalam 30 detik. Lihat $logs\api.log" }
 Write-Ok "API siap di http://$addr (database: $($r.dependencies.database), redis: $($r.dependencies.redis))"
 Write-Ok "Worker PID $($procs.worker.Id)"
+if ($procs.cvworker) {
+    Start-Sleep -Seconds 2
+    if ($procs.cvworker.HasExited) { Write-Warn2 "Worker CV berhenti (preflight gagal?). Lihat $logs\cvworker.log; jalankan ops\windows\cv-check.ps1 -Mode preflight" }
+    else { Write-Ok "Worker CV PID $($procs.cvworker.Id) (Redis: $(if ($env:REDIS_URL) { 'dipakai' } else { 'tidak, antrean via PostgreSQL' }))" }
+}
 if (-not $NoFrontend) { Write-Ok "Frontend dev: $env:PUBLIC_ORIGIN (menunggu Vite beberapa detik)" }

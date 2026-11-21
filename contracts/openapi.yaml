@@ -764,7 +764,7 @@ paths:
                   items: { type: array, items: { $ref: "#/components/schemas/Document" } }
     post:
       tags: [kandidat]
-      summary: Unggah dokumen (multipart kind + file, maks 5 MiB). Signature diperiksa; objek di karantina dengan nama acak.
+      summary: Unggah dokumen (multipart kind + file; CV maks 15 MiB, lainnya 5 MiB). PDF/DOCX/DOC/JPG/PNG/WebP, signature diperiksa; objek di karantina dengan nama acak.
       parameters: [{ $ref: "#/components/parameters/CSRF" }]
       requestBody:
         required: true
@@ -788,6 +788,121 @@ paths:
       responses:
         "204": { description: Dihapus lunak }
         "404": { $ref: "#/components/responses/Error" }
+  /me/documents/{id}/parse:
+    post:
+      tags: [kandidat]
+      summary: Minta pembacaan CV. Idempoten per (kandidat, dokumen, versi konfigurasi parser). Dokumen orang lain = 404. retry=1 mencoba ulang run yang gagal.
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }, { name: retry, in: query, schema: { type: string, enum: ["1"] } }]
+      responses:
+        "202": { description: Diterima; header Location = URL status, content: { application/json: { schema: { $ref: "#/components/schemas/CvParseRun" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /me/cv-parses:
+    get:
+      tags: [kandidat]
+      summary: Pembacaan CV terbaru milik kandidat (melanjutkan setelah refresh)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/CvParseRunItem" } }
+  /me/cv-parses/{id}:
+    get:
+      tags: [kandidat]
+      summary: Progres, kegagalan per halaman, saran, bukti, status review
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/CvParseRun" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [kandidat]
+      summary: Abaikan hasil pembacaan (profil tidak berubah)
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      responses:
+        "204": { description: Diabaikan }
+  /me/cv-parses/{id}/pages/{n}/image:
+    get:
+      tags: [kandidat]
+      summary: Preview halaman privat (JPEG) untuk panel bukti
+      parameters: [{ $ref: "#/components/parameters/Id" }, { name: n, in: path, required: true, schema: { type: integer, minimum: 1 } }]
+      responses:
+        "200": { description: JPEG, content: { image/jpeg: { schema: { type: string, format: binary } } } }
+        "404": { $ref: "#/components/responses/Error" }
+  /me/cv-parses/{id}/review:
+    patch:
+      tags: [kandidat]
+      summary: Terima, ubah, tolak, atau reset per field atau entri (optimistic concurrency dengan reviewVersion)
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reviewVersion, decisions]
+              properties:
+                reviewVersion: { type: integer }
+                decisions:
+                  type: array
+                  maxItems: 500
+                  items: { $ref: "#/components/schemas/CvDecision" }
+      responses:
+        "200": { description: Run terbaru, content: { application/json: { schema: { $ref: "#/components/schemas/CvParseRun" } } } }
+        "409": { description: stale_review atau not_reviewable, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+        "422": { $ref: "#/components/responses/Error" }
+  /me/cv-parses/{id}/apply:
+    post:
+      tags: [kandidat]
+      summary: Terapkan pilihan yang disetujui ke profil dalam satu transaksi. Ulang atau klik ganda menghasilkan hasil sama tanpa efek kedua.
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reviewVersion, profileVersion]
+              properties:
+                reviewVersion: { type: integer }
+                profileVersion: { type: integer }
+                entries:
+                  type: object
+                  description: "Pilihan per entri (mis. experience[1]): add, skip, atau replace dengan targetId"
+                  additionalProperties: { $ref: "#/components/schemas/CvEntryChoice" }
+      responses:
+        "200":
+          description: Diterapkan
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [result, alreadyApplied]
+                properties:
+                  result: { $ref: "#/components/schemas/CvApplyResult" }
+                  alreadyApplied: { type: boolean }
+        "409": { description: profile_changed, stale_review, atau not_reviewable, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+  /cv-parses/{id}:
+    get:
+      tags: [staf]
+      summary: Hasil pembacaan CV kandidat (applications.read pada salah satu lamaran kandidat; dicatat di audit)
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/CvParseRun" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+  /admin/cv-parses/{id}/replay:
+    post:
+      tags: [staf]
+      summary: Jalankan ulang run dead-letter (cv_parses.replay)
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      responses:
+        "202": { description: Diantrekan ulang }
+        "409": { $ref: "#/components/responses/Error" }
   /documents/{id}/link:
     post:
       tags: [kandidat, staf]
@@ -1146,6 +1261,7 @@ components:
       type: object
       required: [level, institution, major, startYear, endYear, gpa]
       properties:
+        id: { type: string, format: uuid, description: "Hanya di respons" }
         level: { type: string, enum: [SMA, SMK, D3, D4, S1, S2, S3, Lainnya] }
         institution: { type: string }
         major: { type: string }
@@ -1156,10 +1272,33 @@ components:
       type: object
       required: [company, title, startDate, endDate, description]
       properties:
+        id: { type: string, format: uuid, description: "Hanya di respons" }
         company: { type: string }
         title: { type: string }
+        location: { type: string }
         startDate: { type: string, format: date }
+        startPrecision: { type: string, enum: [day, month, year], description: "Presisi tanggal (dari CV); 2021 tidak berarti 1 Januari" }
         endDate: { type: [string, "null"], format: date }
+        endPrecision: { type: string, enum: [day, month, year] }
+        isCurrent: { type: boolean }
+        description: { type: string }
+    LanguageSkill:
+      type: object
+      required: [name, level]
+      properties:
+        name: { type: string }
+        level: { type: string }
+    ProfileLink:
+      type: object
+      required: [label, url]
+      properties:
+        label: { type: string }
+        url: { type: string }
+    Project:
+      type: object
+      required: [name, description]
+      properties:
+        name: { type: string }
         description: { type: string }
     Certification:
       type: object
@@ -1182,6 +1321,11 @@ components:
         education: { type: array, maxItems: 10, items: { $ref: "#/components/schemas/Education" } }
         experiences: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/Experience" } }
         certifications: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/Certification" } }
+        contactEmail: { type: [string, "null"], description: "Email kontak (opsional; email akun tidak berubah). Tidak dikirim = tidak diubah." }
+        skills: { type: [array, "null"], maxItems: 100, items: { type: string } }
+        languages: { type: [array, "null"], maxItems: 20, items: { $ref: "#/components/schemas/LanguageSkill" } }
+        links: { type: [array, "null"], maxItems: 20, items: { $ref: "#/components/schemas/ProfileLink" } }
+        projects: { type: [array, "null"], maxItems: 30, items: { $ref: "#/components/schemas/Project" } }
         version: { type: integer }
     Profile:
       allOf:
@@ -1200,6 +1344,100 @@ components:
             complete: { type: boolean }
             missing: { type: array, items: { type: string } }
             updatedAt: { type: string, format: date-time }
+    CvParseRun:
+      type: object
+      required: [id, documentId, status, stage, pagesTotal, pagesDone, reviewVersion, createdAt, finishedAt, pages, suggestions, evidence, statusUrl]
+      properties:
+        id: { type: string, format: uuid }
+        documentId: { type: string, format: uuid }
+        status: { type: string, enum: [waiting_scan, queued, processing, ready_for_review, partial, failed, applied, dismissed, cancelled] }
+        stage: { type: string }
+        pagesTotal: { type: [integer, "null"] }
+        pagesDone: { type: integer }
+        failure: { $ref: "#/components/schemas/CvFailure" }
+        reviewVersion: { type: integer }
+        createdAt: { type: string, format: date-time }
+        finishedAt: { type: [string, "null"], format: date-time }
+        pages: { type: array, items: { $ref: "#/components/schemas/CvPage" } }
+        suggestions: { type: array, items: { $ref: "#/components/schemas/CvSuggestion" } }
+        evidence: { type: array, items: { $ref: "#/components/schemas/CvEvidence" } }
+        applyResult: { $ref: "#/components/schemas/CvApplyResult" }
+        statusUrl: { type: string }
+    CvParseRunItem:
+      allOf:
+        - $ref: "#/components/schemas/CvParseRun"
+        - type: object
+          required: [documentName]
+          properties:
+            documentName: { type: string }
+    CvFailure:
+      type: object
+      required: [reason, message, transient]
+      properties:
+        reason: { type: string }
+        message: { type: string }
+        transient: { type: boolean }
+    CvPage:
+      type: object
+      required: [no, method, status, hasImage]
+      properties:
+        no: { type: integer }
+        method: { type: string }
+        status: { type: string, enum: [ok, failed] }
+        failure: { type: string }
+        message: { type: string }
+        hasImage: { type: boolean }
+        width: { type: number }
+        height: { type: number }
+        scale: { type: number, description: "Piksel preview per satuan bbox" }
+    CvEvidence:
+      type: object
+      required: [id, page, snippet, source]
+      properties:
+        id: { type: string, format: uuid }
+        page: { type: integer }
+        bbox: { type: array, items: { type: number }, minItems: 4, maxItems: 4 }
+        snippet: { type: string }
+        source: { type: string, enum: [native, ocr, docx] }
+        locator: { type: string, description: "Lokasi semantik DOCX (part, paragraf, tabel, baris, sel)" }
+    CvSuggestion:
+      type: object
+      required: [id, path, section, entryKey, field, raw, normalized, status, readDoubts, assocDoubts, evidenceIds]
+      properties:
+        id: { type: string, format: uuid }
+        path: { type: string }
+        section: { type: string, enum: [contact, summary, experience, education, skills, languages, certifications, links, projects] }
+        entryKey: { type: string }
+        field: { type: string }
+        raw: { type: string }
+        normalized: {}
+        editedValue: {}
+        status: { type: string, enum: [pending, accepted, edited, rejected] }
+        readDoubts: { type: array, items: { type: string } }
+        assocDoubts: { type: array, items: { type: string } }
+        evidenceIds: { type: array, items: { type: string, format: uuid } }
+    CvDecision:
+      type: object
+      required: [suggestionId, action]
+      properties:
+        suggestionId: { type: string, format: uuid }
+        action: { type: string, enum: [accept, edit, reject, reset] }
+        value: { description: "Nilai edit: string; periode {start,end,current}; bahasa {name,level}; IPK number" }
+    CvEntryChoice:
+      type: object
+      required: [mode]
+      properties:
+        mode: { type: string, enum: [add, skip, replace] }
+        targetId: { type: string, format: uuid }
+    CvApplyResult:
+      type: object
+      required: [profileVersion, updatedFields, added, replaced, skipped]
+      properties:
+        profileVersion: { type: integer }
+        updatedFields: { type: array, items: { type: string } }
+        added: { type: object, additionalProperties: { type: integer } }
+        replaced: { type: object, additionalProperties: { type: integer } }
+        skipped: { type: array, items: { type: string } }
     MyApplication:
       type: object
       required: [id, status, stageKey, appliedAt, stageEnteredAt, version, jobTitle, jobSlug, jobStatus, stageName, stageType]

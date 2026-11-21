@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 
@@ -11,7 +12,28 @@ process.env.NODE_PATH = resolve(process.cwd(), "node_modules");
 // Dijalankan dari direktori frontend (npm run e2e).
 const root = resolve(process.cwd(), "..");
 const exe = process.platform === "win32" ? ".exe" : "";
+// Lokasi tool pembaca CV diambil dari environment atau ../.env (CV_*). E2E sengaja tanpa Redis:
+// worker CV mengambil job langsung dari PostgreSQL (jalur fallback ikut teruji).
+function cvTools(): Record<string, string> {
+  const out: Record<string, string> = {};
+  let text = "";
+  try {
+    text = readFileSync(resolve(root, ".env"), "utf8");
+  } catch {
+    /* .env opsional */
+  }
+  for (const line of text.split(/\r?\n/)) {
+    const m = /^(CV_[A-Z_]+)=(.*)$/.exec(line.trim());
+    if (m && !["CV_WORK_DIR", "CV_WORKER_HEALTH_ADDR"].includes(m[1])) out[m[1]] = m[2].replace(/^"|"$/g, "");
+  }
+  for (const [k, v] of Object.entries(process.env)) if (k.startsWith("CV_") && v) out[k] = v;
+  return out;
+}
+
 export const e2eEnv: Record<string, string> = {
+  ...cvTools(),
+  CV_WORK_DIR: resolve(root, ".data/e2e-cvwork"),
+  CV_WORKER_HEALTH_ADDR: "127.0.0.1:18082",
   APP_ENV: "test",
   HTTP_ADDR: "127.0.0.1:18080",
   PUBLIC_ORIGIN: "http://localhost:15173",
@@ -54,6 +76,7 @@ export default defineConfig({
     // Playwright menyalakan webServer sebelum globalSetup, jadi reset + seed dijalankan di sini sebelum API.
     { command: `"${resolve(root, "backend/bin/seed" + exe)}" --reset && "${resolve(root, "backend/bin/api" + exe)}"`, url: "http://127.0.0.1:18080/readyz", env: e2eEnv, reuseExistingServer: false, timeout: 60_000 },
     { command: `"${resolve(root, "backend/bin/worker" + exe)}"`, url: "http://127.0.0.1:18081/healthz", env: e2eEnv, reuseExistingServer: false, timeout: 60_000 },
+    { command: `"${resolve(root, "backend/bin/cvworker" + exe)}"`, url: "http://127.0.0.1:18082/healthz", env: e2eEnv, reuseExistingServer: false, timeout: 120_000 },
     {
       command: "npx vite --port 15173",
       url: "http://localhost:15173",

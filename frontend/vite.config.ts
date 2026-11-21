@@ -8,6 +8,9 @@ export default defineConfig({
   server: {
     port: Number(process.env.VITE_PORT ?? 5173),
     strictPort: true,
+    // Keluaran Playwright tidak dipantau: menulis report saat dev server berjalan memicu EBUSY di Windows
+    // dan mematikan proses Vite.
+    watch: { ignored: ["**/playwright-report/**", "**/test-results/**"] },
     proxy: { "/api": { target: process.env.VITE_API_TARGET ?? "http://127.0.0.1:8080", changeOrigin: false } },
   },
   build: {

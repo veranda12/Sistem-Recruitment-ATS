@@ -57,3 +57,13 @@ export async function moveToExamAndInvite(applicationId: string) {
   expect(inv.body.results[0].outcome).toBe("invited");
   return { hr, scheduleId };
 }
+
+/** Kandidat baru terverifikasi dengan profil awal (tanpa pengalaman), untuk uji pengisian profil dari CV. */
+export async function verifiedCandidate(email: string, nik: string, name: string) {
+  const anon = await request.newContext({ baseURL: BASE, extraHTTPHeaders: { Origin: BASE } });
+  const reg = await anon.post("/api/v1/auth/register", { data: { email, password: PASSWORD, fullName: name, nik, acceptPrivacy: true } });
+  expect(reg.status()).toBe(202);
+  const token = new URL(await linkFromMail(email)).searchParams.get("token");
+  expect((await anon.post("/api/v1/auth/verify-email", { data: { token } })).status()).toBe(200);
+  return Api.login(email);
+}

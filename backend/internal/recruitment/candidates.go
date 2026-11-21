@@ -14,6 +14,7 @@ import (
 	"ats/internal/platform"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -120,24 +121,26 @@ func (h *Handler) Register(c *gin.Context) {
 // ---- Profil (/me/profile) ----
 
 type educationDTO struct {
-	Level       string   `json:"level"`
-	Institution string   `json:"institution"`
-	Major       string   `json:"major"`
-	StartYear   *int32   `json:"startYear"`
-	EndYear     *int32   `json:"endYear"`
-	GPA         *float64 `json:"gpa"`
+	ID          *uuid.UUID `json:"id,omitempty"` // hanya respons; dipakai pilihan "ganti entri" saat menerapkan CV
+	Level       string     `json:"level"`
+	Institution string     `json:"institution"`
+	Major       string     `json:"major"`
+	StartYear   *int32     `json:"startYear"`
+	EndYear     *int32     `json:"endYear"`
+	GPA         *float64   `json:"gpa"`
 }
 
 type experienceDTO struct {
-	Company        string  `json:"company"`
-	Title          string  `json:"title"`
-	Location       string  `json:"location"`
-	StartDate      string  `json:"startDate"`
-	StartPrecision string  `json:"startPrecision"` // day | month | year (dari CV); form manual = day
-	EndDate        *string `json:"endDate"`
-	EndPrecision   string  `json:"endPrecision"`
-	IsCurrent      bool    `json:"isCurrent"`
-	Description    string  `json:"description"`
+	ID             *uuid.UUID `json:"id,omitempty"` // hanya respons
+	Company        string     `json:"company"`
+	Title          string     `json:"title"`
+	Location       string     `json:"location"`
+	StartDate      string     `json:"startDate"`
+	StartPrecision string     `json:"startPrecision"` // day | month | year (dari CV); form manual = day
+	EndDate        *string    `json:"endDate"`
+	EndPrecision   string     `json:"endPrecision"`
+	IsCurrent      bool       `json:"isCurrent"`
+	Description    string     `json:"description"`
 }
 
 type languageDTO struct {
@@ -236,10 +239,12 @@ func (h *Handler) loadProfile(c *gin.Context, q *sqlc.Queries, p *auth.Principal
 		prof.FullName, prof.Phone, dateStr(prof.BirthDate), prof.City, prof.Address, prof.Summary, prof.Version, prof.UpdatedAt
 	r.Education, r.Experiences, r.Certifications = []educationDTO{}, []experienceDTO{}, []certificationDTO{}
 	for _, e := range ed {
-		r.Education = append(r.Education, educationDTO{e.Level, e.Institution, e.Major, e.StartYear, e.EndYear, e.Gpa})
+		id := e.ID
+		r.Education = append(r.Education, educationDTO{ID: &id, Level: e.Level, Institution: e.Institution, Major: e.Major, StartYear: e.StartYear, EndYear: e.EndYear, GPA: e.Gpa})
 	}
 	for _, e := range ex {
-		r.Experiences = append(r.Experiences, experienceDTO{Company: e.Company, Title: e.Title, Location: e.Location, StartDate: e.StartDate.Format("2006-01-02"),
+		id := e.ID
+		r.Experiences = append(r.Experiences, experienceDTO{ID: &id, Company: e.Company, Title: e.Title, Location: e.Location, StartDate: e.StartDate.Format("2006-01-02"),
 			StartPrecision: e.StartPrecision, EndDate: dateStr(e.EndDate), EndPrecision: e.EndPrecision, IsCurrent: e.IsCurrent, Description: e.Description})
 	}
 	contact := prof.ContactEmail

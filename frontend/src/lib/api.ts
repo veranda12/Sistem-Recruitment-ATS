@@ -29,7 +29,7 @@ export function setCsrf(token: string) {
   csrfToken = token;
 }
 
-type Method = "GET" | "POST" | "PUT" | "DELETE";
+type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export async function api<T>(method: Method, path: string, body?: unknown, headers: Record<string, string> = {}, signal?: AbortSignal): Promise<T> {
   const h: Record<string, string> = { Accept: "application/json", ...headers };
@@ -66,6 +66,7 @@ export async function api<T>(method: Method, path: string, body?: unknown, heade
 export const get = <T,>(path: string, signal?: AbortSignal) => api<T>("GET", path, undefined, {}, signal);
 export const post = <T,>(path: string, body?: unknown, headers?: Record<string, string>) => api<T>("POST", path, body ?? {}, headers);
 export const put = <T,>(path: string, body: unknown) => api<T>("PUT", path, body);
+export const patch = <T,>(path: string, body: unknown) => api<T>("PATCH", path, body);
 
 export function newIdempotencyKey(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;

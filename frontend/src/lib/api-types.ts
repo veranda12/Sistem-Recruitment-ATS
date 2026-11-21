@@ -2184,7 +2184,7 @@ export interface paths {
             };
         };
         put?: never;
-        /** Unggah dokumen (multipart kind + file, maks 5 MiB). Signature diperiksa; objek di karantina dengan nama acak. */
+        /** Unggah dokumen (multipart kind + file; CV maks 15 MiB, lainnya 5 MiB). PDF/DOCX/DOC/JPG/PNG/WebP, signature diperiksa; objek di karantina dengan nama acak. */
         post: {
             parameters: {
                 query?: never;
@@ -2264,6 +2264,388 @@ export interface paths {
                 404: components["responses"]["Error"];
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/documents/{id}/parse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Minta pembacaan CV. Idempoten per (kandidat, dokumen, versi konfigurasi parser). Dokumen orang lain = 404. retry=1 mencoba ulang run yang gagal. */
+        post: {
+            parameters: {
+                query?: {
+                    retry?: "1";
+                };
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Diterima; header Location = URL status */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CvParseRun"];
+                    };
+                };
+                404: components["responses"]["Error"];
+                409: components["responses"]["Error"];
+                422: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/cv-parses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pembacaan CV terbaru milik kandidat (melanjutkan setelah refresh) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["CvParseRunItem"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/cv-parses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Progres, kegagalan per halaman, saran, bukti, status review */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CvParseRun"];
+                    };
+                };
+                404: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Abaikan hasil pembacaan (profil tidak berubah) */
+        delete: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Diabaikan */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/cv-parses/{id}/pages/{n}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview halaman privat (JPEG) untuk panel bukti */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["Id"];
+                    n: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description JPEG */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "image/jpeg": string;
+                    };
+                };
+                404: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/cv-parses/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Terima, ubah, tolak, atau reset per field atau entri (optimistic concurrency dengan reviewVersion) */
+        patch: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        reviewVersion: number;
+                        decisions: components["schemas"]["CvDecision"][];
+                    };
+                };
+            };
+            responses: {
+                /** @description Run terbaru */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CvParseRun"];
+                    };
+                };
+                /** @description stale_review atau not_reviewable */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorBody"];
+                    };
+                };
+                422: components["responses"]["Error"];
+            };
+        };
+        trace?: never;
+    };
+    "/me/cv-parses/{id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Terapkan pilihan yang disetujui ke profil dalam satu transaksi. Ulang atau klik ganda menghasilkan hasil sama tanpa efek kedua. */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        reviewVersion: number;
+                        profileVersion: number;
+                        /** @description Pilihan per entri (mis. experience[1]): add, skip, atau replace dengan targetId */
+                        entries?: {
+                            [key: string]: components["schemas"]["CvEntryChoice"];
+                        };
+                    };
+                };
+            };
+            responses: {
+                /** @description Diterapkan */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            result: components["schemas"]["CvApplyResult"];
+                            alreadyApplied: boolean;
+                        };
+                    };
+                };
+                /** @description profile_changed */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorBody"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cv-parses/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Hasil pembacaan CV kandidat (applications.read pada salah satu lamaran kandidat; dicatat di audit) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CvParseRun"];
+                    };
+                };
+                404: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/cv-parses/{id}/replay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Jalankan ulang run dead-letter (cv_parses.replay) */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Diantrekan ulang */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                409: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2945,6 +3327,11 @@ export interface components {
             queued: boolean;
         };
         Education: {
+            /**
+             * Format: uuid
+             * @description Hanya di respons
+             */
+            id?: string;
             /** @enum {string} */
             level: "SMA" | "SMK" | "D3" | "D4" | "S1" | "S2" | "S3" | "Lainnya";
             institution: string;
@@ -2954,12 +3341,38 @@ export interface components {
             gpa: number | null;
         };
         Experience: {
+            /**
+             * Format: uuid
+             * @description Hanya di respons
+             */
+            id?: string;
             company: string;
             title: string;
+            location?: string;
             /** Format: date */
             startDate: string;
+            /**
+             * @description Presisi tanggal (dari CV); 2021 tidak berarti 1 Januari
+             * @enum {string}
+             */
+            startPrecision?: "day" | "month" | "year";
             /** Format: date */
             endDate: string | null;
+            /** @enum {string} */
+            endPrecision?: "day" | "month" | "year";
+            isCurrent?: boolean;
+            description: string;
+        };
+        LanguageSkill: {
+            name: string;
+            level: string;
+        };
+        ProfileLink: {
+            label: string;
+            url: string;
+        };
+        Project: {
+            name: string;
             description: string;
         };
         Certification: {
@@ -2981,6 +3394,12 @@ export interface components {
             education: components["schemas"]["Education"][];
             experiences: components["schemas"]["Experience"][];
             certifications: components["schemas"]["Certification"][];
+            /** @description Email kontak (opsional; email akun tidak berubah). Tidak dikirim = tidak diubah. */
+            contactEmail?: string | null;
+            skills?: string[] | null;
+            languages?: components["schemas"]["LanguageSkill"][] | null;
+            links?: components["schemas"]["ProfileLink"][] | null;
+            projects?: components["schemas"]["Project"][] | null;
             version: number;
         };
         Profile: components["schemas"]["ProfileInput"] & {
@@ -2995,6 +3414,102 @@ export interface components {
             missing: string[];
             /** Format: date-time */
             updatedAt: string;
+        };
+        CvParseRun: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            documentId: string;
+            /** @enum {string} */
+            status: "waiting_scan" | "queued" | "processing" | "ready_for_review" | "partial" | "failed" | "applied" | "dismissed" | "cancelled";
+            stage: string;
+            pagesTotal: number | null;
+            pagesDone: number;
+            failure?: components["schemas"]["CvFailure"];
+            reviewVersion: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            finishedAt: string | null;
+            pages: components["schemas"]["CvPage"][];
+            suggestions: components["schemas"]["CvSuggestion"][];
+            evidence: components["schemas"]["CvEvidence"][];
+            applyResult?: components["schemas"]["CvApplyResult"];
+            statusUrl: string;
+        };
+        CvParseRunItem: components["schemas"]["CvParseRun"] & {
+            documentName: string;
+        };
+        CvFailure: {
+            reason: string;
+            message: string;
+            transient: boolean;
+        };
+        CvPage: {
+            no: number;
+            method: string;
+            /** @enum {string} */
+            status: "ok" | "failed";
+            failure?: string;
+            message?: string;
+            hasImage: boolean;
+            width?: number;
+            height?: number;
+            /** @description Piksel preview per satuan bbox */
+            scale?: number;
+        };
+        CvEvidence: {
+            /** Format: uuid */
+            id: string;
+            page: number;
+            bbox?: number[];
+            snippet: string;
+            /** @enum {string} */
+            source: "native" | "ocr" | "docx";
+            /** @description Lokasi semantik DOCX (part, paragraf, tabel, baris, sel) */
+            locator?: string;
+        };
+        CvSuggestion: {
+            /** Format: uuid */
+            id: string;
+            path: string;
+            /** @enum {string} */
+            section: "contact" | "summary" | "experience" | "education" | "skills" | "languages" | "certifications" | "links" | "projects";
+            entryKey: string;
+            field: string;
+            raw: string;
+            normalized: unknown;
+            editedValue?: unknown;
+            /** @enum {string} */
+            status: "pending" | "accepted" | "edited" | "rejected";
+            readDoubts: string[];
+            assocDoubts: string[];
+            evidenceIds: string[];
+        };
+        CvDecision: {
+            /** Format: uuid */
+            suggestionId: string;
+            /** @enum {string} */
+            action: "accept" | "edit" | "reject" | "reset";
+            /** @description Nilai edit: string; periode {start,end,current}; bahasa {name,level}; IPK number */
+            value?: unknown;
+        };
+        CvEntryChoice: {
+            /** @enum {string} */
+            mode: "add" | "skip" | "replace";
+            /** Format: uuid */
+            targetId?: string;
+        };
+        CvApplyResult: {
+            profileVersion: number;
+            updatedFields: string[];
+            added: {
+                [key: string]: number;
+            };
+            replaced: {
+                [key: string]: number;
+            };
+            skipped: string[];
         };
         MyApplication: {
             /** Format: uuid */

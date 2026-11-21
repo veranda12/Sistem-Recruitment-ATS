@@ -86,7 +86,7 @@ var (
 	instructionRe  = regexp.MustCompile(`(?i)(ignore|abaikan|disregard|lupakan)\b.{0,40}\b(instruction|instruksi|previous|sebelumnya|aturan|rules)|\b(system|assistant|sistem)\s*:|as an ai|you are (now )?(an?|the) |\b(set|ubah|ganti|tambahkan|add)\b.{0,30}\b(email|skill|keahlian|nilai|score|status)\b.{0,30}\b(to|menjadi|jadi|ke)\b|\b(ats|parser|ai|model)\b.{0,20}\b(harus|wajib|must|should)\b`)
 	instruction2Re = regexp.MustCompile(`(?i)(tambahkan|add|ubah|ganti|set|change)\s+(skill|keahlian|email|nilai|score|status)`)
 	// termasuk salah-baca OCR yang umum untuk bullet (“ » °)
-	bulletRe      = regexp.MustCompile(`^\s*(?:[•▪●◦·‣∙○■□➢➤✓✔*“”»«°]|-\s|–\s|\d{1,2}[.)]\s)`)
+	bulletRe      = regexp.MustCompile(`^\s*(?:[•▪●◦·‣∙○■□➢➤✓✔*“”»«°]|-\s|–\s|\+\s|\d{1,2}[.)]\s)`)
 	splitHeaderRe = regexp.MustCompile(`\s+(?:\||—|–|-|•|·|@|at|di)\s+|\s*\|\s*`)
 	ocrPlusRe     = regexp.MustCompile(`(^|[\s|:])[tT](62\s?\d)`)
 	gpaRe         = regexp.MustCompile(`(?i)\b(?:ipk|gpa|ip)\s*[:=]?\s*([0-4][.,]\d{1,2})(?:\s*/\s*4(?:[.,]0{1,2})?)?`)
