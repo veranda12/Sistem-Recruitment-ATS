@@ -22,6 +22,7 @@ edis` | Tidak wajib; lihat bagian Redis |
 |---|---|
 | `new-env.ps1 -DatabaseUrl ... -SeedPassword ...` | Membuat `.env` dari `.env.example` dengan kunci acak baru |
 | `preflight.ps1` | Memeriksa tool, konfigurasi, koneksi DB, Redis, port |
+| `detect-tools.ps1 [-Install] [-WithLibreOffice] [-Force]` | Mengisi `CV_*` di `.env` dari alat yang terpasang (dipanggil otomatis oleh `new-env.ps1` dan `setup.ps1`); `-Install` memasang Poppler/Tesseract lewat winget |
 | `setup.ps1 [-SkipSeed] [-SkipFrontend]` | go mod download, build binary, npm ci, buat DB, migrasi, seed |
 | `start.ps1` / `stop.ps1` | Menjalankan / menghentikan API, worker, Vite (PID di `.data\pids.json`) |
 | `smoke.ps1` | readyz, lowongan, login, lamaran terscope, CSRF, logout |

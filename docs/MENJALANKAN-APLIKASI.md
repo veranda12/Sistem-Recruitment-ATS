@@ -94,25 +94,32 @@ Gunakan `SMTP_TLS=implicit` untuk server yang memakai port 465. Restart dengan `
 Lewati bagian ini bila belum memerlukan fitur "Isi profil dari CV". Aplikasi lain tetap berjalan, dan
 `start.ps1` hanya akan memberi peringatan bahwa worker CV berhenti.
 
-1. Pasang Poppler (misalnya diekstrak ke `C:\poppler-24.08.0`) dan Tesseract 5.5.
-2. Pasang LibreOffice (opsional, untuk CV Word lama):
-   `winget install --id TheDocumentFoundation.LibreOffice --exact --version 26.2.5.2`
-3. Unduh data bahasa Tesseract (Indonesia, Inggris) dan Redis portabel ke folder `tools\`. Semua berkas
-   diverifikasi dengan checksum:
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File ops\windows\cv-tools.ps1
-   ```
-4. Isi bagian "Pembaca CV" di `.env`. Path yang berisi spasi diberi tanda kutip:
-   ```
-   CV_PDFINFO=C:/poppler-24.08.0/Library/bin/pdfinfo.exe
-   CV_PDFTOTEXT=C:/poppler-24.08.0/Library/bin/pdftotext.exe
-   CV_PDFTOPPM=C:/poppler-24.08.0/Library/bin/pdftoppm.exe
-   CV_PDFIMAGES=C:/poppler-24.08.0/Library/bin/pdfimages.exe
-   CV_TESSERACT="C:/Program Files/Tesseract-OCR/tesseract.exe"
-   CV_TESSDATA=D:/Portfolio/ats/tools/tessdata
-   CV_SOFFICE="C:/Program Files/LibreOffice/program/soffice.com"
-   CV_WORK_DIR=D:/Portfolio/ats/.data/cvwork
-   ```
+`new-env.ps1` dan `setup.ps1` **mengisi `CV_*` di `.env` secara otomatis**:
+
+- Poppler, Tesseract, dan LibreOffice dicari di PATH dan lokasi pemasangan umum (`C:\poppler-*`,
+  `C:\Program Files\Tesseract-OCR`, `C:\Program Files\LibreOffice`, paket winget, `D:\Tools\...`).
+- Data bahasa Tesseract (Indonesia, Inggris, deteksi orientasi) diunduh ke `tools\tessdata` dan diverifikasi
+  checksum-nya bila Tesseract ditemukan.
+- Nilai yang sudah Anda isi tidak diubah.
+
+Bila alatnya belum terpasang, pasang sekaligus lewat winget lalu isi `.env`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ops\windows\detect-tools.ps1 -Install
+# tambahkan -WithLibreOffice untuk CV Word lama (.doc), unduhan ~350 MB
+```
+
+Setelah memasang alat baru secara manual, cukup jalankan ulang `detect-tools.ps1` (tanpa parameter). Hasil yang
+ditulis ke `.env` kira-kira seperti ini (path berspasi diberi tanda kutip):
+
+```
+CV_PDFTOPPM=C:/poppler-24.08.0/Library/bin/pdftoppm.exe
+CV_TESSERACT="C:/Program Files/Tesseract-OCR/tesseract.exe"
+CV_TESSDATA=D:/Portfolio/ats/tools/tessdata
+CV_SOFFICE="C:/Program Files/LibreOffice/program/soffice.com"
+```
+
+Redis portabel (opsional) tetap dipasang terpisah: `powershell -ExecutionPolicy Bypass -File ops\windows\cv-tools.ps1`.
 
 ---
 

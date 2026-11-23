@@ -9,6 +9,8 @@
 param([switch]$SkipSeed, [switch]$SkipFrontend)
 . "$PSScriptRoot\common.ps1"
 
+# Lengkapi CV_* yang masih kosong (alat yang baru dipasang setelah .env dibuat); nilai yang ada tidak diubah.
+if (Test-Path $EnvFile) { & "$PSScriptRoot\detect-tools.ps1" }
 & "$PSScriptRoot\preflight.ps1"
 if ($LASTEXITCODE -ne 0) { throw 'Perbaiki temuan preflight terlebih dahulu.' }
 Import-DotEnv

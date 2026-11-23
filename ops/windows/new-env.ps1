@@ -43,3 +43,5 @@ $out = foreach ($l in $lines) {
 # UTF-8 tanpa BOM agar terbaca juga oleh alat lain.
 [System.IO.File]::WriteAllLines($EnvFile, $out, (New-Object System.Text.UTF8Encoding($false)))
 Write-Ok ".env dibuat di $EnvFile. Simpan salinan NIK_ENC_KEY dan NIK_INDEX_KEY di brankas terpisah dari backup database."
+# Isi lokasi Poppler, Tesseract, data bahasa, dan LibreOffice yang sudah terpasang di komputer ini.
+& "$PSScriptRoot\detect-tools.ps1"
