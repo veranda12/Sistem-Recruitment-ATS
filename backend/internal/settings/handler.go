@@ -192,6 +192,22 @@ func (h *Handler) Assign(c *gin.Context) {
 			return
 		}
 	}
+	if unitID != nil && req.JobID != nil {
+		platform.Fail(c, platform.ErrValidation(map[string]string{"jobId": "Pilih unit atau lowongan, tidak keduanya."}))
+		return
+	}
+	if req.JobID != nil {
+		// job_id tidak ber-FK di tabel penugasan, jadi keberadaan dan organisasinya diperiksa di sini.
+		job, err := h.Q.GetJob(ctx, *req.JobID)
+		if platform.IsNoRows(err) || (err == nil && job.OrgID != h.OrgID) {
+			platform.Fail(c, platform.ErrValidation(map[string]string{"jobId": "Lowongan tidak dikenal."}))
+			return
+		}
+		if err != nil {
+			platform.Fail(c, err)
+			return
+		}
+	}
 	target, err := h.Q.GetUser(ctx, uid)
 	if platform.IsNoRows(err) || (err == nil && (target.OrgID != h.OrgID || target.Kind != "staff")) {
 		platform.Fail(c, platform.ErrNotFound("Pengguna tidak ditemukan."))
@@ -210,7 +226,7 @@ func (h *Handler) Assign(c *gin.Context) {
 			return platform.ErrConflict("already_assigned", "Peran dengan scope yang sama sudah aktif.")
 		}
 		if err != nil {
-			return platform.ErrValidation(map[string]string{"jobId": "Lowongan tidak dikenal."})
+			return err
 		}
 		return h.audit(ctx, q, c, "admin.role_grant", "user", uid.String(), req.Reason, map[string]any{"role": role.Key, "unit": req.UnitCode, "job": req.JobID})
 	})

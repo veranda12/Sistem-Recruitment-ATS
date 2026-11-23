@@ -18,7 +18,8 @@ export function UsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [nu, setNu] = useState({ email: "", name: "" });
   const [assignFor, setAssignFor] = useState<User | null>(null);
-  const [asg, setAsg] = useState({ roleKey: "recruiter", unitCode: "", reason: "" });
+  const [asg, setAsg] = useState({ roleKey: "recruiter", unitCode: "", jobId: "", reason: "" });
+  const jobs = useQuery<{ items: { id: string; title: string; unitName: string; status: string }[] }>(assignFor ? "/staff/jobs" : null);
   const [busy, setBusy] = useState(false);
   const [mfaFor, setMfaFor] = useState<User | null>(null);
   const [mfaReason, setMfaReason] = useState("");
@@ -170,7 +171,7 @@ export function UsersPage() {
           </Field>
           <Field label="Unit" hint="Kosongkan untuk seluruh organisasi.">
             {({ id, describedBy }) => (
-              <Select id={id} aria-describedby={describedBy} value={asg.unitCode} onChange={(e) => setAsg({ ...asg, unitCode: e.target.value })}>
+              <Select id={id} aria-describedby={describedBy} value={asg.unitCode} disabled={!!asg.jobId} onChange={(e) => setAsg({ ...asg, unitCode: e.target.value })}>
                 <option value="">Seluruh organisasi</option>
                 {org.data?.units.filter((u) => u.active).map((u) => (
                   <option key={u.code} value={u.code}>
@@ -180,11 +181,25 @@ export function UsersPage() {
               </Select>
             )}
           </Field>
+          <Field label="Lowongan" hint="Pilih bila peran hanya berlaku untuk satu lowongan. Unit dikosongkan otomatis.">
+            {({ id, describedBy }) => (
+              <Select id={id} aria-describedby={describedBy} value={asg.jobId} onChange={(e) => setAsg({ ...asg, jobId: e.target.value, unitCode: e.target.value ? "" : asg.unitCode })}>
+                <option value="">Tidak dibatasi lowongan</option>
+                {jobs.data?.items
+                  .filter((j) => j.status !== "closed")
+                  .map((j) => (
+                    <option key={j.id} value={j.id}>
+                      {j.title} · {j.unitName}
+                    </option>
+                  ))}
+              </Select>
+            )}
+          </Field>
           <Field label="Alasan">{({ id }) => <Textarea id={id} className="min-h-11" value={asg.reason} onChange={(e) => setAsg({ ...asg, reason: e.target.value })} />}</Field>
         </div>
         <div className="mt-4 flex justify-end gap-2">
           <Button onClick={() => setAssignFor(null)}>Batal</Button>
-          <Button variant="primary" busy={busy} onClick={() => run(() => post(`/admin/users/${assignFor!.id}/assignments`, asg), "Peran diberikan.", () => setAssignFor(null))}>
+          <Button variant="primary" busy={busy} onClick={() => run(() => post(`/admin/users/${assignFor!.id}/assignments`, { roleKey: asg.roleKey, unitCode: asg.unitCode, jobId: asg.jobId || null, reason: asg.reason }), "Peran diberikan.", () => setAssignFor(null))}>
             Simpan
           </Button>
         </div>

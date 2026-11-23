@@ -58,3 +58,24 @@ func TestShortlistAndRecruiterAssignment(t *testing.T) {
 		t.Fatalf("audit shortlist/penugasan: %d", n)
 	}
 }
+
+func TestRoleAssignmentPerJob(t *testing.T) {
+	e := newEnv(t)
+	cand := e.registerVerified("perjob@contoh.test", "Kandidat Per Lowongan", "3201014507997302")
+	app := idOf(cand.do("POST", "/jobs/operator-produksi-karawang/apply", nil), "applicationId")
+	admin := e.client().mustLogin("admin@arunika.example")
+	tiID := e.userID("rekruter.ti@arunika.example").String()
+	jobID := e.scalar(`SELECT id::text FROM job_openings WHERE slug = 'operator-produksi-karawang'`).(string)
+	grant := func(body map[string]any) resp { return admin.do("POST", "/admin/users/"+tiID+"/assignments", body) }
+
+	expect(t, grant(map[string]any{"roleKey": "recruiter", "jobId": "00000000-0000-0000-0000-000000000001"}), 422, "lowongan tidak dikenal")
+	expect(t, grant(map[string]any{"roleKey": "recruiter", "unitCode": "OPS", "jobId": jobID}), 422, "unit dan lowongan sekaligus")
+	recTI := e.client().mustLogin("rekruter.ti@arunika.example")
+	expect(t, recTI.do("GET", "/applications/"+app, nil), 404, "sebelum diberi peran")
+	expect(t, grant(map[string]any{"roleKey": "recruiter", "jobId": jobID, "reason": "Bantu lowongan operator"}), 201, "peran per lowongan")
+	expect(t, recTI.do("GET", "/applications/"+app, nil), 200, "sesudah diberi peran per lowongan")
+	// Lowongan lain di unit yang sama tetap di luar scope.
+	other := e.registerVerified("perjob2@contoh.test", "Kandidat QC", "3201014507997303")
+	qc := idOf(other.do("POST", "/jobs/supervisor-quality-control/apply", nil), "applicationId")
+	expect(t, recTI.do("GET", "/applications/"+qc, nil), 404, "lowongan lain tetap di luar scope")
+}
