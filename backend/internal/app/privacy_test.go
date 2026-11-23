@@ -63,12 +63,12 @@ func TestPrivacyExportAnonymizeAndRetention(t *testing.T) {
 	checks := map[string]int64{
 		`SELECT count(*) FROM users WHERE id::text = $1 AND email LIKE 'anonim-%' AND display_name = 'Kandidat dianonimkan' AND status = 'disabled'`: 1,
 		`SELECT count(*) FROM candidate_profiles WHERE user_id::text = $1 AND phone = '' AND birth_date IS NULL AND city = ''`:                       1,
-		`SELECT count(*) FROM education WHERE user_id::text = $1`:                                                                                  0,
-		`SELECT count(*) FROM candidate_identities WHERE user_id::text = $1`:                                                                       0,
-		`SELECT count(*) FROM notifications WHERE user_id::text = $1`:                                                                              0,
-		`SELECT count(*) FROM sessions WHERE user_id::text = $1`:                                                                                   0,
-		`SELECT count(*) FROM documents WHERE owner_user_id::text = $1 AND deleted_at IS NOT NULL AND file_name = 'dihapus'`:                        1,
-		`SELECT count(*) FROM email_deliveries WHERE to_user_id::text = $1 AND to_address <> 'anonim'`:                                              0,
+		`SELECT count(*) FROM education WHERE user_id::text = $1`:                                                                                    0,
+		`SELECT count(*) FROM candidate_identities WHERE user_id::text = $1`:                                                                         0,
+		`SELECT count(*) FROM notifications WHERE user_id::text = $1`:                                                                                0,
+		`SELECT count(*) FROM sessions WHERE user_id::text = $1`:                                                                                     0,
+		`SELECT count(*) FROM documents WHERE owner_user_id::text = $1 AND deleted_at IS NOT NULL AND file_name = 'dihapus'`:                         1,
+		`SELECT count(*) FROM email_deliveries WHERE to_user_id::text = $1 AND to_address <> 'anonim'`:                                               0,
 		`SELECT count(*) FROM application_snapshots s JOIN job_applications a ON a.id = s.application_id
 		  WHERE a.candidate_user_id::text = $1 AND s.profile->'profile'->>'fullName' = 'Kandidat dianonimkan' AND s.profile->>'email' = ''`: 1,
 		`SELECT count(*) FROM transition_history t JOIN job_applications a ON a.id = t.application_id WHERE a.candidate_user_id::text = $1`: 2,
