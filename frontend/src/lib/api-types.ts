@@ -3294,6 +3294,211 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/message-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Template pesan (email, WhatsApp) beserta isi yang berlaku, placeholder, dan placeholder wajib (settings.manage) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["MessageTemplate"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/message-templates/{key}/{channel}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Simpan versi baru (isi baru, pulihkan versi lama, atau kembalikan ke bawaan); dicatat di audit */
+        put: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path: {
+                    key: string;
+                    channel: "email" | "whatsapp";
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        subject?: string;
+                        body?: string;
+                        note?: string;
+                        /** @description Versi yang sedang dilihat (0 = bawaan) */
+                        expectedVersion: number;
+                        resetToDefault?: boolean;
+                        restoreVersion?: number | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            version: number;
+                        };
+                    };
+                };
+                /** @description stale_version */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorBody"];
+                    };
+                };
+                422: components["responses"]["Error"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/message-templates/{key}/{channel}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Riwayat versi template (terbaru dulu, maks 50) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    key: string;
+                    channel: "email" | "whatsapp";
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: {
+                                version: number;
+                                subject: string;
+                                body: string;
+                                isDefault: boolean;
+                                note: string;
+                                /** Format: date-time */
+                                createdAt: string;
+                                authorName: string | null;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/message-templates/{key}/{channel}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validasi dan render dengan data contoh */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path: {
+                    key: string;
+                    channel: "email" | "whatsapp";
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        subject?: string;
+                        body: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            subject: string;
+                            body: string;
+                        };
+                    };
+                };
+                422: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/requisitions": {
         parameters: {
             query?: never;
@@ -3866,6 +4071,22 @@ export interface components {
             requirements: string;
             /** Format: date-time */
             closesAt?: string | null;
+        };
+        MessageTemplate: {
+            key: string;
+            /** @enum {string} */
+            channel: "email" | "whatsapp";
+            label: string;
+            when: string;
+            subject: string;
+            body: string;
+            /** @description 0 = belum pernah diubah */
+            version: number;
+            customized: boolean;
+            required: string[];
+            placeholders: {
+                [key: string]: string;
+            };
         };
         StaffApplication: {
             /** Format: uuid */

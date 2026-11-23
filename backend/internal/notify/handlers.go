@@ -16,7 +16,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Template berversi di kode untuk fase awal. Placeholder hanya dari allowlist; nilai disisipkan sebagai teks polos.
+// Template bawaan berversi di kode; admin dapat menggantinya per organisasi lewat editor (lihat Resolve).
+// Placeholder hanya dari allowlist; nilai disisipkan sebagai teks polos.
 type Template struct {
 	Key     string
 	Version int
@@ -202,7 +203,10 @@ func (h *Handlers) applicationEvent(ctx context.Context, ev sqlc.Outbox, tpl, st
 	vars["waktu"], vars["waktu_lama"] = extra.When, extra.OldWhen
 	_ = stageKey
 	// Inbox: idempoten melalui unique(event_id, user_id, template_key).
-	t := Templates[tpl]
+	t, err := Resolve(ctx, h.Q, u.OrgID, tpl, "email")
+	if err != nil {
+		return err
+	}
 	vars["nama"], vars["organisasi"] = u.DisplayName, h.orgName(ctx, u.OrgID)
 	subject, body, err := Render(t, vars)
 	if err != nil {
@@ -217,7 +221,10 @@ func (h *Handlers) applicationEvent(ctx context.Context, ev sqlc.Outbox, tpl, st
 
 // send: catat delivery sebelum kirim, kirim di luar transaksi, lalu catat hasil.
 func (h *Handlers) send(ctx context.Context, ev sqlc.Outbox, u sqlc.User, tpl string, vars map[string]string) error {
-	t := Templates[tpl]
+	t, err := Resolve(ctx, h.Q, u.OrgID, tpl, "email")
+	if err != nil {
+		return err
+	}
 	if vars["nama"] == "" {
 		vars["nama"] = u.DisplayName
 	}

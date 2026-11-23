@@ -223,6 +223,10 @@ func NewRouter(d Deps) *gin.Engine {
 	admin.PUT("/organization", auth.RequireAnyPerm(auth.PermSettingsManage), adm.PutOrganization)
 	admin.POST("/units/:id/active", auth.RequireAnyPerm(auth.PermSettingsManage), adm.SetMasterActive("unit"))
 	admin.POST("/locations/:id/active", auth.RequireAnyPerm(auth.PermSettingsManage), adm.SetMasterActive("location"))
+	admin.GET("/message-templates", auth.RequireAnyPerm(auth.PermSettingsManage), adm.ListTemplates)
+	admin.GET("/message-templates/:key/:channel/versions", auth.RequireAnyPerm(auth.PermSettingsManage), adm.TemplateVersions)
+	admin.PUT("/message-templates/:key/:channel", auth.RequireAnyPerm(auth.PermSettingsManage), adm.SaveTemplate)
+	admin.POST("/message-templates/:key/:channel/preview", auth.RequireAnyPerm(auth.PermSettingsManage), adm.PreviewTemplate)
 	admin.GET("/deliveries", auth.RequireAnyPerm(auth.PermSettingsManage), adm.Deliveries)
 	admin.POST("/outbox/:id/replay", auth.RequireAnyPerm(auth.PermSettingsManage), adm.Replay)
 

@@ -1123,6 +1123,88 @@ paths:
                 properties: { recruiterUserId: { type: [string, "null"], format: uuid }, version: { type: integer } }
         "409": { description: stale_version, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
         "422": { $ref: "#/components/responses/Error" }
+  /admin/message-templates:
+    get:
+      tags: [staf]
+      summary: Template pesan (email, WhatsApp) beserta isi yang berlaku, placeholder, dan placeholder wajib (settings.manage)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties: { items: { type: array, items: { $ref: "#/components/schemas/MessageTemplate" } } }
+  /admin/message-templates/{key}/{channel}:
+    put:
+      tags: [staf]
+      summary: Simpan versi baru (isi baru, pulihkan versi lama, atau kembalikan ke bawaan); dicatat di audit
+      parameters:
+        - { name: key, in: path, required: true, schema: { type: string } }
+        - { name: channel, in: path, required: true, schema: { type: string, enum: [email, whatsapp] } }
+        - { $ref: "#/components/parameters/CSRF" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expectedVersion]
+              properties:
+                subject: { type: string }
+                body: { type: string }
+                note: { type: string }
+                expectedVersion: { type: integer, description: Versi yang sedang dilihat (0 = bawaan) }
+                resetToDefault: { type: boolean }
+                restoreVersion: { type: [integer, "null"] }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object, required: [version], properties: { version: { type: integer } } } } } }
+        "409": { description: stale_version, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+        "422": { $ref: "#/components/responses/Error" }
+  /admin/message-templates/{key}/{channel}/versions:
+    get:
+      tags: [staf]
+      summary: Riwayat versi template (terbaru dulu, maks 50)
+      parameters:
+        - { name: key, in: path, required: true, schema: { type: string } }
+        - { name: channel, in: path, required: true, schema: { type: string, enum: [email, whatsapp] } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [version, subject, body, isDefault, note, createdAt, authorName]
+                      properties:
+                        version: { type: integer }
+                        subject: { type: string }
+                        body: { type: string }
+                        isDefault: { type: boolean }
+                        note: { type: string }
+                        createdAt: { type: string, format: date-time }
+                        authorName: { type: [string, "null"] }
+  /admin/message-templates/{key}/{channel}/preview:
+    post:
+      tags: [staf]
+      summary: Validasi dan render dengan data contoh
+      parameters:
+        - { name: key, in: path, required: true, schema: { type: string } }
+        - { name: channel, in: path, required: true, schema: { type: string, enum: [email, whatsapp] } }
+        - { $ref: "#/components/parameters/CSRF" }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [body], properties: { subject: { type: string }, body: { type: string } } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object, required: [subject, body], properties: { subject: { type: string }, body: { type: string } } } } } }
+        "422": { $ref: "#/components/responses/Error" }
   /requisitions:
     get:
       tags: [staf]
@@ -1629,6 +1711,20 @@ components:
         description: { type: string }
         requirements: { type: string }
         closesAt: { type: [string, "null"], format: date-time }
+    MessageTemplate:
+      type: object
+      required: [key, channel, label, when, subject, body, version, customized, required, placeholders]
+      properties:
+        key: { type: string }
+        channel: { type: string, enum: [email, whatsapp] }
+        label: { type: string }
+        when: { type: string }
+        subject: { type: string }
+        body: { type: string }
+        version: { type: integer, description: 0 = belum pernah diubah }
+        customized: { type: boolean }
+        required: { type: array, items: { type: string } }
+        placeholders: { type: object, additionalProperties: { type: string } }
     StaffApplication:
       type: object
       required: [id, jobId, status, stageKey, appliedAt, stageEnteredAt, unitId, version, shortlisted, jobTitle, candidateName, stageName, stageType, recruiterUserId, recruiterName]

@@ -544,6 +544,20 @@ type Location struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
+type MessageTemplate struct {
+	ID        uuid.UUID  `json:"id"`
+	OrgID     uuid.UUID  `json:"orgId"`
+	Key       string     `json:"key"`
+	Channel   string     `json:"channel"`
+	Version   int32      `json:"version"`
+	Subject   string     `json:"subject"`
+	Body      string     `json:"body"`
+	IsDefault bool       `json:"isDefault"`
+	Note      string     `json:"note"`
+	CreatedBy *uuid.UUID `json:"createdBy"`
+	CreatedAt time.Time  `json:"createdAt"`
+}
+
 type MfaRecoveryCode struct {
 	ID         uuid.UUID  `json:"id"`
 	UserID     uuid.UUID  `json:"userId"`
