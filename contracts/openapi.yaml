@@ -1274,6 +1274,191 @@ paths:
       responses:
         "200": { description: OK, content: { application/json: { schema: { type: object, required: [subject, body], properties: { subject: { type: string }, body: { type: string } } } } } }
         "422": { $ref: "#/components/responses/Error" }
+  /workflows/{id}/migrations:
+    get:
+      tags: [staf]
+      summary: Versi workflow beserta jumlah lamaran aktif yang masih memakainya (workflows.read)
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [versions, activeVersionId]
+                properties:
+                  activeVersionId: { type: [string, "null"], format: uuid }
+                  versions:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, versionNo, activeApplications, current]
+                      properties:
+                        id: { type: string, format: uuid }
+                        versionNo: { type: integer }
+                        activeApplications: { type: integer }
+                        current: { type: boolean }
+    post:
+      tags: [staf]
+      summary: Pindahkan lamaran aktif dari versi lama ke versi aktif sesuai pemetaan tahap (workflows.publish); diaudit per lamaran
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/WorkflowMigrationRequest" } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object, required: [moved, toVersion], properties: { moved: { type: integer }, toVersion: { type: integer } } } } } }
+        "409": { description: "stale_version (versi aktif berubah) atau pemetaan tidak valid", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+        "422": { $ref: "#/components/responses/Error" }
+  /workflows/{id}/migrations/preview:
+    post:
+      tags: [staf]
+      summary: Pratinjau pemindahan (tanpa perubahan); jumlah per tahap, tahap tujuan, masalah dan peringatan
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/WorkflowMigrationRequest" } } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [from, to, stages, total, ready, targets]
+                properties:
+                  from: { type: object, properties: { id: { type: string, format: uuid }, versionNo: { type: integer } } }
+                  to: { type: object, properties: { id: { type: string, format: uuid }, versionNo: { type: integer } } }
+                  total: { type: integer }
+                  ready: { type: boolean, description: true bila semua tahap berlamaran punya tujuan yang valid }
+                  targets: { type: array, items: { type: object, properties: { key: { type: string }, name: { type: string } } } }
+                  stages:
+                    type: array
+                    items:
+                      type: object
+                      required: [fromKey, fromName, count, toKey, toName, warnings]
+                      properties:
+                        fromKey: { type: string }
+                        fromName: { type: string }
+                        count: { type: integer }
+                        toKey: { type: string }
+                        toName: { type: string }
+                        problem: { type: string }
+                        warnings: { type: array, items: { type: string } }
+        "422": { $ref: "#/components/responses/Error" }
+  /admin/roles:
+    post:
+      tags: [staf]
+      summary: Buat peran kustom dari katalog izin (roles.manage); roles.manage dan credentials.manage tidak boleh diberikan
+      parameters: [{ $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [name, permissions], properties: { name: { type: string }, permissions: { type: array, items: { type: string } } } } } }
+      responses:
+        "201": { description: Dibuat, content: { application/json: { schema: { type: object, required: [key, version], properties: { key: { type: string }, version: { type: integer } } } } } }
+        "422": { $ref: "#/components/responses/Error" }
+  /admin/roles/{key}:
+    put:
+      tags: [staf]
+      summary: Ubah nama dan izin peran kustom (peran sistem dan peran diarsipkan ditolak)
+      parameters:
+        - { name: key, in: path, required: true, schema: { type: string } }
+        - { $ref: "#/components/parameters/CSRF" }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [name, permissions, expectedVersion], properties: { name: { type: string }, permissions: { type: array, items: { type: string } }, expectedVersion: { type: integer } } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object, required: [key, version], properties: { key: { type: string }, version: { type: integer } } } } } }
+        "409": { description: stale_version, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+        "422": { $ref: "#/components/responses/Error" }
+  /admin/roles/{key}/archive:
+    post:
+      tags: [staf]
+      summary: Arsipkan peran kustom yang tidak lagi ditugaskan
+      parameters:
+        - { name: key, in: path, required: true, schema: { type: string } }
+        - { $ref: "#/components/parameters/CSRF" }
+      responses:
+        "204": { description: Diarsipkan }
+        "409": { description: role_in_use, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+  /admin/privacy/candidates:
+    get:
+      tags: [staf]
+      summary: Cari kandidat berdasarkan email persis (privacy.manage, scope seluruh organisasi)
+      parameters: [{ name: email, in: query, required: true, schema: { type: string, format: email } }]
+      responses:
+        "200":
+          description: OK (kosong bila tidak ditemukan)
+          content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: "#/components/schemas/PrivacyCandidate" } } } } } }
+        "403": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /admin/privacy/candidates/{id}/export:
+    get:
+      tags: [staf]
+      summary: Unduh salinan data kandidat (JSON, Content-Disposition attachment); tanpa rahasia, NIK hanya 4 digit terakhir; diaudit
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [dibuat, kandidat, data]
+                properties:
+                  dibuat: { type: string, format: date-time }
+                  kandidat: { type: string, format: uuid }
+                  data: { type: object, additionalProperties: { type: array, items: { type: object } }, description: "Bagian: akun, profil, identitas, pendidikan, pengalaman, sertifikasi, keahlian, bahasa, tautan, proyek, dokumen, lamaran, riwayat_tahap, ujian, interview, pemberitahuan" }
+        "404": { $ref: "#/components/responses/Error" }
+  /admin/privacy/candidates/{id}/anonymize:
+    post:
+      tags: [staf]
+      summary: Anonimkan data kandidat secara permanen; lamaran, riwayat, nilai, dan audit tetap tanpa identitas
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [reason, confirmEmail], properties: { reason: { type: string, minLength: 10 }, confirmEmail: { type: string, description: Email kandidat diketik ulang } } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object, required: [anonymized, filesRemoved], properties: { anonymized: { type: boolean }, filesRemoved: { type: integer } } } } } }
+        "409": { description: "active_applications, legal_hold, atau already_anonymized", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+        "422": { $ref: "#/components/responses/Error" }
+  /admin/privacy/candidates/{id}/legal-hold:
+    post:
+      tags: [staf]
+      summary: Pasang atau lepas legal hold (mencegah anonimisasi manual dan retensi otomatis)
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [hold, reason], properties: { hold: { type: boolean }, reason: { type: string, minLength: 5, maxLength: 500 } } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object, required: [legalHold], properties: { legalHold: { type: boolean } } } } } }
+        "422": { $ref: "#/components/responses/Error" }
+  /admin/privacy/retention:
+    get:
+      tags: [staf]
+      summary: Kebijakan retensi dan pratinjau (dry-run) kandidat yang melewati masa simpan (contoh maks 50)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [months, enabled, eligible, sample]
+                properties:
+                  months: { type: integer }
+                  enabled: { type: boolean }
+                  eligible: { type: integer }
+                  sample:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name, email, lastActivity]
+                      properties:
+                        id: { type: string, format: uuid }
+                        name: { type: string }
+                        email: { type: string }
+                        lastActivity: { type: string, format: date-time }
   /requisitions:
     get:
       tags: [staf]
@@ -1780,6 +1965,27 @@ components:
         description: { type: string }
         requirements: { type: string }
         closesAt: { type: [string, "null"], format: date-time }
+    WorkflowMigrationRequest:
+      type: object
+      required: [fromVersionId, expectedActiveVersionId]
+      properties:
+        fromVersionId: { type: string, format: uuid }
+        expectedActiveVersionId: { type: string, format: uuid, description: Versi aktif yang dilihat saat pratinjau }
+        mapping: { type: object, additionalProperties: { type: string }, description: "kunci tahap lama -> kunci tahap baru; kosong = kunci yang sama" }
+        reason: { type: string, description: Wajib (min. 5 karakter) saat menjalankan }
+    PrivacyCandidate:
+      type: object
+      required: [id, name, email, createdAt, anonymizedAt, legalHoldAt, legalHoldReason, applications, activeApplications]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string }
+        createdAt: { type: string, format: date-time }
+        anonymizedAt: { type: [string, "null"], format: date-time }
+        legalHoldAt: { type: [string, "null"], format: date-time }
+        legalHoldReason: { type: string }
+        applications: { type: integer }
+        activeApplications: { type: integer }
     MessageTemplate:
       type: object
       required: [key, channel, label, when, subject, body, version, customized, required, placeholders]
