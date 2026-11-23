@@ -56,6 +56,11 @@ Skrip ini membuat tiga kunci acak (`SESSION_KEY`, `NIK_ENC_KEY`, `NIK_INDEX_KEY`
 `NIK_INDEX_KEY` di tempat aman: tanpa kunci itu, NIK yang sudah tersimpan tidak bisa dibuka lagi. Karena itu,
 `new-env.ps1` menolak menimpa `.env` yang sudah ada kecuali dengan `-Force`.
 
+**Port 8080 sudah dipakai aplikasi lain** (mis. Java/Tomcat)? Jangan matikan aplikasinya. Tambahkan `-ApiPort`, misalnya
+`-ApiPort 8090`, saat membuat `.env`. Bila `.env` sudah ada, cukup ubah baris `HTTP_ADDR=127.0.0.1:8090`. `start.ps1`,
+`preflight.ps1`, `smoke.ps1`, dan proxy frontend otomatis mengikuti port ini; alamat yang dibuka di browser tetap
+`http://localhost:5173`.
+
 ### 2a. Pemindai berkas
 
 Dokumen dan CV yang diunggah dipindai dulu sebelum diproses. `new-env.ps1` mengisi `SCAN_COMMAND` dengan pemindai

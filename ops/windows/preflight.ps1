@@ -69,8 +69,14 @@ if ($env:REDIS_URL) {
 }
 
 Write-Step 'Port lokal'
-foreach ($p in 8080, 8081, 5173) {
-    if (Test-TcpPort '127.0.0.1' $p 300) { Write-Warn2 "Port $p sudah dipakai proses lain (mungkin instance sebelumnya; jalankan stop.ps1)." } else { Write-Ok "Port $p bebas" }
+# Port mengikuti .env (HTTP_ADDR, WORKER_HEALTH_ADDR); bawaan 8080 dan 8081.
+function Port-Of([string]$v, [int]$d) { if ($v) { [int]($v -replace '^.*:', '') } else { $d } }
+$ports = [ordered]@{ 'API (HTTP_ADDR)' = (Port-Of $env:HTTP_ADDR 8080); 'worker (WORKER_HEALTH_ADDR)' = (Port-Of $env:WORKER_HEALTH_ADDR 8081); 'frontend dev' = 5173 }
+foreach ($k in $ports.Keys) {
+    $p = $ports[$k]
+    if (Test-TcpPort '127.0.0.1' $p 300) {
+        Write-Warn2 "Port $p untuk $k sudah dipakai proses lain. Bila itu instance ATS sebelumnya jalankan stop.ps1; bila aplikasi lain, ganti port di .env (mis. HTTP_ADDR=127.0.0.1:8090)."
+    } else { Write-Ok "Port $p ($k) bebas" }
 }
 
 Write-Host ''

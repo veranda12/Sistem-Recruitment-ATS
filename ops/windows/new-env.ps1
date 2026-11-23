@@ -3,11 +3,14 @@
   Membuat .env dari .env.example dengan kunci acak baru (32 byte, base64). Tidak menimpa .env yang sudah ada kecuali -Force.
 .EXAMPLE
   powershell -File ops\windows\new-env.ps1 -DatabaseUrl 'postgres://pos:SANDI@localhost:5432/ats_dev?sslmode=disable' -SeedPassword 'Dev-Sandi-2026'
+.PARAMETER ApiPort
+  Port API lokal (bawaan 8080). Ganti bila 8080 dipakai aplikasi lain; proxy frontend dev mengikuti otomatis.
 #>
 param(
     [Parameter(Mandatory = $true)][string]$DatabaseUrl,
     [string]$SeedPassword = '',
     [string]$RedisUrl = '',
+    [ValidateRange(1024, 65535)][int]$ApiPort = 8080,
     [switch]$Force
 )
 . "$PSScriptRoot\common.ps1"
@@ -24,6 +27,7 @@ $lines = Get-Content -LiteralPath (Join-Path $Root '.env.example') -Encoding UTF
 $out = foreach ($l in $lines) {
     switch -regex ($l) {
         '^DATABASE_URL=' { "DATABASE_URL=$DatabaseUrl"; break }
+        '^HTTP_ADDR=' { "HTTP_ADDR=127.0.0.1:$ApiPort"; break }
         '^SESSION_KEY=' { "SESSION_KEY=$(New-Key)"; break }
         '^NIK_ENC_KEY=' { "NIK_ENC_KEY=$(New-Key)"; break }
         '^NIK_INDEX_KEY=' { "NIK_INDEX_KEY=$(New-Key)"; break }

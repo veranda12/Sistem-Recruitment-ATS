@@ -13,6 +13,14 @@ New-Item -ItemType Directory -Force $logs | Out-Null
 $pidFile = Join-Path $DataDir 'pids.json'
 if (Test-Path $pidFile) { throw 'Proses sebelumnya mungkin masih berjalan. Jalankan stop.ps1 dulu.' }
 
+$addr = if ($env:HTTP_ADDR) { $env:HTTP_ADDR } else { '127.0.0.1:8080' }
+$apiPort = [int]($addr -replace '^.*:', '')
+if (Test-TcpPort '127.0.0.1' $apiPort 300) {
+    throw "Port $apiPort (HTTP_ADDR) sudah dipakai aplikasi lain. Ganti HTTP_ADDR di .env, mis. HTTP_ADDR=127.0.0.1:8090, lalu jalankan lagi."
+}
+# Proxy /api di Vite dev mengikuti port API dari .env.
+$env:VITE_API_TARGET = "http://$addr"
+
 $bin = Join-Path $Root 'backend\bin'
 $procs = @{}
 $procs.api = Start-Process -FilePath (Join-Path $bin "api$Exe") -WorkingDirectory $Root -WindowStyle Hidden -PassThru `
@@ -33,7 +41,6 @@ foreach ($k in $procs.Keys) { $ids[$k] = $procs[$k].Id }
 $ids | ConvertTo-Json | Set-Content -LiteralPath $pidFile -Encoding UTF8
 
 # Tunggu readiness API (maks 30 detik).
-$addr = if ($env:HTTP_ADDR) { $env:HTTP_ADDR } else { '127.0.0.1:8080' }
 $deadline = (Get-Date).AddSeconds(30)
 do {
     Start-Sleep -Milliseconds 500

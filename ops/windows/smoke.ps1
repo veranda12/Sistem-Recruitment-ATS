@@ -4,9 +4,10 @@
 .EXAMPLE
   powershell -File ops\windows\smoke.ps1 -BaseUrl http://127.0.0.1:8080 -Origin http://localhost:5173
 #>
-param([string]$BaseUrl = 'http://127.0.0.1:8080', [string]$Origin = '', [string]$Email = 'hr.ops@arunika.example', [string]$Password = '')
+param([string]$BaseUrl = '', [string]$Origin = '', [string]$Email = 'hr.ops@arunika.example', [string]$Password = '')
 . "$PSScriptRoot\common.ps1"
 if (Test-Path $EnvFile) { Import-DotEnv }
+if (-not $BaseUrl) { $BaseUrl = 'http://' + $(if ($env:HTTP_ADDR) { $env:HTTP_ADDR } else { '127.0.0.1:8080' }) }
 if (-not $Origin) { $Origin = $env:PUBLIC_ORIGIN }
 if (-not $Password) { $Password = $env:SEED_PASSWORD }
 $failed = 0
