@@ -7,7 +7,9 @@
   Data bertahan di antara sesi. -Reset menghapus dan mengisi ulang data demo dari awal.
 
 .PARAMETER PublicOrigin
-  Alamat yang dibuka penonton, mis. https://nama-anda.ngrok-free.app. Bawaan http://localhost:4173.
+  Alamat yang dibuka penonton, mis. https://nama-anda.ngrok-free.app. Diingat di .data\demo\public-origin.txt:
+  start berikutnya tanpa parameter ini memakai alamat terakhir. Bawaan pertama kali http://localhost:4173;
+  kembali ke lokal dengan -PublicOrigin http://localhost:4173.
   Login hanya diterima dari alamat ini (pemeriksaan Origin), jadi buka aplikasi lewat alamat yang sama.
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File ops\windows\demo.ps1 start -Reset
@@ -17,7 +19,7 @@
 #>
 param(
     [Parameter(Position = 0)][ValidateSet('start', 'stop')][string]$Action = 'start',
-    [string]$PublicOrigin = 'http://localhost:4173',
+    [string]$PublicOrigin = '',
     [switch]$Reset
 )
 . "$PSScriptRoot\common.ps1"
@@ -41,8 +43,15 @@ if (Test-Path $PidFile) { throw 'Stack demo masih berjalan. Jalankan: demo.ps1 s
 foreach ($port in 4173, 8100, 8101, 8102) {
     if ((Test-TcpPort '127.0.0.1' $port) -or (Test-TcpPort '::1' $port)) { throw "Port $port sudah dipakai proses lain." }
 }
+$originFile = Join-Path $DemoDir 'public-origin.txt'
+if (-not $PublicOrigin) {
+    $PublicOrigin = if (Test-Path $originFile) { (Get-Content -LiteralPath $originFile -Raw).Trim() } else { 'http://localhost:4173' }
+    Write-Ok "Alamat publik: $PublicOrigin (ganti dengan -PublicOrigin)"
+}
 $PublicOrigin = $PublicOrigin.TrimEnd('/')
 $publicHost = ([uri]$PublicOrigin).Host
+New-Item -ItemType Directory -Force $DemoDir | Out-Null
+Set-Content -LiteralPath $originFile -Value $PublicOrigin -Encoding ASCII
 
 Import-DotEnv
 if ([string]::IsNullOrWhiteSpace($env:SEED_PASSWORD)) { throw 'SEED_PASSWORD di .env wajib diisi: dipakai sebagai kata sandi semua akun demo.' }

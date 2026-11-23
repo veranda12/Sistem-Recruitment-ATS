@@ -36,6 +36,9 @@ Catatan:
 
 - Selama dijalankan dengan `-PublicOrigin`, login hanya diterima dari alamat itu. Di laptop Anda sendiri, buka juga
   lewat alamat ngrok, bukan `localhost:4173`.
+- Alamat publik diingat di `.data\demo\public-origin.txt`, jadi `demo.ps1 start` berikutnya cukup tanpa parameter.
+  Untuk kembali ke lokal: `demo.ps1 start -PublicOrigin http://localhost:4173`. Pesan Vite "This host ... is not
+  allowed" berarti demo berjalan dengan alamat lain; jalankan `demo.ps1 stop` lalu `start -PublicOrigin <alamat ngrok>`.
 - Ngrok gratis menampilkan halaman peringatan sekali sebelum aplikasi terbuka. Penonton cukup klik "Visit Site".
 - Aplikasi terbuka ke internet selama tunnel berjalan. Semua akun memakai `SEED_PASSWORD` yang sama, jadi gunakan
   sandi yang kuat, jangan unggah data atau CV asli, dan hentikan ngrok setelah demo selesai.
