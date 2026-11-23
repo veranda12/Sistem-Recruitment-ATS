@@ -681,12 +681,15 @@ type Requisition struct {
 }
 
 type Role struct {
-	ID        uuid.UUID `json:"id"`
-	OrgID     uuid.UUID `json:"orgId"`
-	Key       string    `json:"key"`
-	Name      string    `json:"name"`
-	System    bool      `json:"system"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID         uuid.UUID  `json:"id"`
+	OrgID      uuid.UUID  `json:"orgId"`
+	Key        string     `json:"key"`
+	Name       string     `json:"name"`
+	System     bool       `json:"system"`
+	CreatedAt  time.Time  `json:"createdAt"`
+	Version    int32      `json:"version"`
+	UpdatedAt  time.Time  `json:"updatedAt"`
+	ArchivedAt *time.Time `json:"archivedAt"`
 }
 
 type RolePermission struct {

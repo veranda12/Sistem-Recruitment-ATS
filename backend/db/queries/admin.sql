@@ -17,9 +17,35 @@ ORDER BY a.created_at;
 SELECT * FROM roles WHERE org_id = $1 AND key = $2;
 
 -- name: ListRolesWithPermissions :many
-SELECT r.id, r.key, r.name, r.system, coalesce(array_agg(rp.permission_key ORDER BY rp.permission_key) FILTER (WHERE rp.permission_key IS NOT NULL), '{}')::text[] AS permissions
+SELECT r.id, r.key, r.name, r.system, r.version, r.archived_at,
+       coalesce(array_agg(rp.permission_key ORDER BY rp.permission_key) FILTER (WHERE rp.permission_key IS NOT NULL), '{}')::text[] AS permissions,
+       (SELECT count(*) FROM scoped_role_assignments a WHERE a.role_id = r.id AND a.revoked_at IS NULL)::bigint AS active_assignments
 FROM roles r LEFT JOIN role_permissions rp ON rp.role_id = r.id
-WHERE r.org_id = $1 GROUP BY r.id ORDER BY r.name;
+WHERE r.org_id = $1 GROUP BY r.id ORDER BY r.system DESC, r.name;
+
+-- name: InsertRole :one
+INSERT INTO roles (org_id, key, name, system) VALUES ($1, $2, $3, false) RETURNING *;
+
+-- name: LockRole :one
+SELECT * FROM roles WHERE org_id = $1 AND key = $2 FOR UPDATE;
+
+-- name: UpdateRole :one
+UPDATE roles SET name = $2, version = version + 1, updated_at = now() WHERE id = $1 RETURNING *;
+
+-- name: ArchiveRole :exec
+UPDATE roles SET archived_at = now(), version = version + 1, updated_at = now() WHERE id = $1;
+
+-- name: DeleteRolePermissions :exec
+DELETE FROM role_permissions WHERE role_id = $1;
+
+-- name: InsertRolePermission :exec
+INSERT INTO role_permissions (role_id, permission_key) VALUES ($1, $2);
+
+-- name: CountActiveRoleAssignments :one
+SELECT count(*) FROM scoped_role_assignments WHERE role_id = $1 AND revoked_at IS NULL;
+
+-- name: RoleKeyExists :one
+SELECT EXISTS (SELECT 1 FROM roles WHERE org_id = $1 AND key = $2);
 
 -- name: InsertAssignment :one
 INSERT INTO scoped_role_assignments (org_id, user_id, role_id, unit_id, job_id, granted_by)

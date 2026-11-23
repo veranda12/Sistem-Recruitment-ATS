@@ -116,3 +116,44 @@ func TestInterviewCalendarScope(t *testing.T) {
 	}
 	expect(t, rec.do("GET", "/interviews?from=x&to=y", nil), 422, "rentang tidak valid")
 }
+
+func TestCustomRoles(t *testing.T) {
+	e := newEnv(t)
+	admin := e.client().mustLogin("admin@arunika.example")
+	hr := e.client().mustLogin("hr.ops@arunika.example")
+	tiID := e.userID("rekruter.ti@arunika.example").String()
+
+	body := map[string]any{"name": "Koordinator Audit", "permissions": []string{"audit.read", "applications.read"}}
+	expect(t, hr.do("POST", "/admin/roles", body), 403, "HR tanpa roles.manage")
+	expect(t, admin.do("POST", "/admin/roles", map[string]any{"name": "Penyusup", "permissions": []string{"roles.manage"}}), 422, "izin khusus Super Admin")
+	expect(t, admin.do("POST", "/admin/roles", map[string]any{"name": "Kosong", "permissions": []string{}}), 422, "tanpa izin")
+	cr := admin.do("POST", "/admin/roles", body)
+	expect(t, cr, 201, "buat peran")
+	key := cr.Body["key"].(string)
+	if key != "koordinator_audit" {
+		t.Fatalf("kunci peran: %q", key)
+	}
+	if k := admin.do("POST", "/admin/roles", body).Body["key"]; k != "koordinator_audit_a" {
+		t.Fatalf("kunci peran kedua harus diberi akhiran: %v", k)
+	}
+
+	expect(t, admin.do("POST", "/admin/users/"+tiID+"/assignments", map[string]any{"roleKey": key, "reason": "Uji peran kustom"}), 201, "beri peran kustom")
+	recTI := e.client().mustLogin("rekruter.ti@arunika.example")
+	expect(t, recTI.do("GET", "/admin/audit", nil), 200, "izin dari peran kustom berlaku")
+
+	// Ubah izin: berlaku pada permintaan berikutnya; versi basi ditolak; peran bawaan tidak bisa diubah.
+	expect(t, admin.do("PUT", "/admin/roles/"+key, map[string]any{"name": "Koordinator Audit", "permissions": []string{"applications.read"}, "expectedVersion": 1}), 200, "ubah izin")
+	expect(t, recTI.do("GET", "/admin/audit", nil), 403, "izin dicabut langsung berlaku")
+	expect(t, admin.do("PUT", "/admin/roles/"+key, map[string]any{"name": "X Y Z", "permissions": []string{"audit.read"}, "expectedVersion": 1}), 409, "versi basi")
+	expect(t, admin.do("PUT", "/admin/roles/recruiter", map[string]any{"name": "Recruiter", "permissions": []string{"audit.read"}, "expectedVersion": 1}), 409, "peran bawaan")
+
+	// Arsip hanya tanpa penugasan aktif; peran terarsip tidak bisa diberikan.
+	expect(t, admin.do("POST", "/admin/roles/"+key+"/archive", nil), 409, "masih dipakai")
+	asg := e.scalar(`SELECT a.id::text FROM scoped_role_assignments a JOIN roles r ON r.id = a.role_id WHERE r.key = $1 AND a.revoked_at IS NULL`, key).(string)
+	expect(t, admin.do("POST", "/admin/assignments/"+asg+"/revoke", map[string]any{"reason": "Selesai uji"}), 204, "cabut")
+	expect(t, admin.do("POST", "/admin/roles/"+key+"/archive", nil), 204, "arsipkan")
+	expect(t, admin.do("POST", "/admin/users/"+tiID+"/assignments", map[string]any{"roleKey": key}), 422, "peran terarsip")
+	if n := e.count(`SELECT count(*) FROM audit_logs WHERE action IN ('admin.role_create','admin.role_update','admin.role_archive')`); n != 4 {
+		t.Fatalf("audit peran: %d", n)
+	}
+}

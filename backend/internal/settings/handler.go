@@ -83,7 +83,7 @@ func (h *Handler) ListRoles(c *gin.Context) {
 		platform.Fail(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"items": rows, "catalog": auth.PermissionCatalog})
+	c.JSON(http.StatusOK, gin.H{"items": rows, "catalog": auth.PermissionCatalog, "reserved": reservedPerms})
 }
 
 type createUserReq struct {
@@ -171,6 +171,10 @@ func (h *Handler) Assign(c *gin.Context) {
 		return
 	}
 	// Memberi peran super admin hanya oleh pemegang roles.manage, dan selalu berlaku se-organisasi.
+	if role.ArchivedAt != nil {
+		platform.Fail(c, platform.ErrValidation(map[string]string{"roleKey": "Peran sudah diarsipkan."}))
+		return
+	}
 	if role.Key == "super_admin" && (!p.CanAny(auth.PermRolesManage) || req.UnitCode != "" || req.JobID != nil) {
 		platform.Fail(c, platform.ErrForbidden())
 		return

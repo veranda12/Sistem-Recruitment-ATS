@@ -13,8 +13,37 @@ import (
 	"github.com/google/uuid"
 )
 
+const archiveRole = `-- name: ArchiveRole :exec
+UPDATE roles SET archived_at = now(), version = version + 1, updated_at = now() WHERE id = $1
+`
+
+func (q *Queries) ArchiveRole(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, archiveRole, id)
+	return err
+}
+
+const countActiveRoleAssignments = `-- name: CountActiveRoleAssignments :one
+SELECT count(*) FROM scoped_role_assignments WHERE role_id = $1 AND revoked_at IS NULL
+`
+
+func (q *Queries) CountActiveRoleAssignments(ctx context.Context, roleID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countActiveRoleAssignments, roleID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteRolePermissions = `-- name: DeleteRolePermissions :exec
+DELETE FROM role_permissions WHERE role_id = $1
+`
+
+func (q *Queries) DeleteRolePermissions(ctx context.Context, roleID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteRolePermissions, roleID)
+	return err
+}
+
 const getRoleByKey = `-- name: GetRoleByKey :one
-SELECT id, org_id, key, name, system, created_at FROM roles WHERE org_id = $1 AND key = $2
+SELECT id, org_id, key, name, system, created_at, version, updated_at, archived_at FROM roles WHERE org_id = $1 AND key = $2
 `
 
 type GetRoleByKeyParams struct {
@@ -32,6 +61,9 @@ func (q *Queries) GetRoleByKey(ctx context.Context, arg GetRoleByKeyParams) (Rol
 		&i.Name,
 		&i.System,
 		&i.CreatedAt,
+		&i.Version,
+		&i.UpdatedAt,
+		&i.ArchivedAt,
 	)
 	return i, err
 }
@@ -87,6 +119,47 @@ func (q *Queries) InsertAssignment(ctx context.Context, arg InsertAssignmentPara
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const insertRole = `-- name: InsertRole :one
+INSERT INTO roles (org_id, key, name, system) VALUES ($1, $2, $3, false) RETURNING id, org_id, key, name, system, created_at, version, updated_at, archived_at
+`
+
+type InsertRoleParams struct {
+	OrgID uuid.UUID `json:"orgId"`
+	Key   string    `json:"key"`
+	Name  string    `json:"name"`
+}
+
+func (q *Queries) InsertRole(ctx context.Context, arg InsertRoleParams) (Role, error) {
+	row := q.db.QueryRow(ctx, insertRole, arg.OrgID, arg.Key, arg.Name)
+	var i Role
+	err := row.Scan(
+		&i.ID,
+		&i.OrgID,
+		&i.Key,
+		&i.Name,
+		&i.System,
+		&i.CreatedAt,
+		&i.Version,
+		&i.UpdatedAt,
+		&i.ArchivedAt,
+	)
+	return i, err
+}
+
+const insertRolePermission = `-- name: InsertRolePermission :exec
+INSERT INTO role_permissions (role_id, permission_key) VALUES ($1, $2)
+`
+
+type InsertRolePermissionParams struct {
+	RoleID        uuid.UUID `json:"roleId"`
+	PermissionKey string    `json:"permissionKey"`
+}
+
+func (q *Queries) InsertRolePermission(ctx context.Context, arg InsertRolePermissionParams) error {
+	_, err := q.db.Exec(ctx, insertRolePermission, arg.RoleID, arg.PermissionKey)
+	return err
 }
 
 const insertSettingHistory = `-- name: InsertSettingHistory :exec
@@ -289,17 +362,22 @@ func (q *Queries) ListDeadOutbox(ctx context.Context, orgID uuid.UUID) ([]ListDe
 }
 
 const listRolesWithPermissions = `-- name: ListRolesWithPermissions :many
-SELECT r.id, r.key, r.name, r.system, coalesce(array_agg(rp.permission_key ORDER BY rp.permission_key) FILTER (WHERE rp.permission_key IS NOT NULL), '{}')::text[] AS permissions
+SELECT r.id, r.key, r.name, r.system, r.version, r.archived_at,
+       coalesce(array_agg(rp.permission_key ORDER BY rp.permission_key) FILTER (WHERE rp.permission_key IS NOT NULL), '{}')::text[] AS permissions,
+       (SELECT count(*) FROM scoped_role_assignments a WHERE a.role_id = r.id AND a.revoked_at IS NULL)::bigint AS active_assignments
 FROM roles r LEFT JOIN role_permissions rp ON rp.role_id = r.id
-WHERE r.org_id = $1 GROUP BY r.id ORDER BY r.name
+WHERE r.org_id = $1 GROUP BY r.id ORDER BY r.system DESC, r.name
 `
 
 type ListRolesWithPermissionsRow struct {
-	ID          uuid.UUID `json:"id"`
-	Key         string    `json:"key"`
-	Name        string    `json:"name"`
-	System      bool      `json:"system"`
-	Permissions []string  `json:"permissions"`
+	ID                uuid.UUID  `json:"id"`
+	Key               string     `json:"key"`
+	Name              string     `json:"name"`
+	System            bool       `json:"system"`
+	Version           int32      `json:"version"`
+	ArchivedAt        *time.Time `json:"archivedAt"`
+	Permissions       []string   `json:"permissions"`
+	ActiveAssignments int64      `json:"activeAssignments"`
 }
 
 func (q *Queries) ListRolesWithPermissions(ctx context.Context, orgID uuid.UUID) ([]ListRolesWithPermissionsRow, error) {
@@ -316,7 +394,10 @@ func (q *Queries) ListRolesWithPermissions(ctx context.Context, orgID uuid.UUID)
 			&i.Key,
 			&i.Name,
 			&i.System,
+			&i.Version,
+			&i.ArchivedAt,
 			&i.Permissions,
+			&i.ActiveAssignments,
 		); err != nil {
 			return nil, err
 		}
@@ -528,6 +609,32 @@ func (q *Queries) LockAssignment(ctx context.Context, id uuid.UUID) (LockAssignm
 	return i, err
 }
 
+const lockRole = `-- name: LockRole :one
+SELECT id, org_id, key, name, system, created_at, version, updated_at, archived_at FROM roles WHERE org_id = $1 AND key = $2 FOR UPDATE
+`
+
+type LockRoleParams struct {
+	OrgID uuid.UUID `json:"orgId"`
+	Key   string    `json:"key"`
+}
+
+func (q *Queries) LockRole(ctx context.Context, arg LockRoleParams) (Role, error) {
+	row := q.db.QueryRow(ctx, lockRole, arg.OrgID, arg.Key)
+	var i Role
+	err := row.Scan(
+		&i.ID,
+		&i.OrgID,
+		&i.Key,
+		&i.Name,
+		&i.System,
+		&i.CreatedAt,
+		&i.Version,
+		&i.UpdatedAt,
+		&i.ArchivedAt,
+	)
+	return i, err
+}
+
 const revokeAssignment = `-- name: RevokeAssignment :exec
 UPDATE scoped_role_assignments SET revoked_at = now(), revoked_by = $2 WHERE id = $1 AND revoked_at IS NULL
 `
@@ -540,6 +647,22 @@ type RevokeAssignmentParams struct {
 func (q *Queries) RevokeAssignment(ctx context.Context, arg RevokeAssignmentParams) error {
 	_, err := q.db.Exec(ctx, revokeAssignment, arg.ID, arg.RevokedBy)
 	return err
+}
+
+const roleKeyExists = `-- name: RoleKeyExists :one
+SELECT EXISTS (SELECT 1 FROM roles WHERE org_id = $1 AND key = $2)
+`
+
+type RoleKeyExistsParams struct {
+	OrgID uuid.UUID `json:"orgId"`
+	Key   string    `json:"key"`
+}
+
+func (q *Queries) RoleKeyExists(ctx context.Context, arg RoleKeyExistsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, roleKeyExists, arg.OrgID, arg.Key)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const setLocationActive = `-- name: SetLocationActive :execrows
@@ -624,6 +747,32 @@ func (q *Queries) UpdateOrganization(ctx context.Context, arg UpdateOrganization
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateRole = `-- name: UpdateRole :one
+UPDATE roles SET name = $2, version = version + 1, updated_at = now() WHERE id = $1 RETURNING id, org_id, key, name, system, created_at, version, updated_at, archived_at
+`
+
+type UpdateRoleParams struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+func (q *Queries) UpdateRole(ctx context.Context, arg UpdateRoleParams) (Role, error) {
+	row := q.db.QueryRow(ctx, updateRole, arg.ID, arg.Name)
+	var i Role
+	err := row.Scan(
+		&i.ID,
+		&i.OrgID,
+		&i.Key,
+		&i.Name,
+		&i.System,
+		&i.CreatedAt,
+		&i.Version,
+		&i.UpdatedAt,
+		&i.ArchivedAt,
 	)
 	return i, err
 }

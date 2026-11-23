@@ -7,11 +7,13 @@ import { Alert, Badge, Button, Dialog, Field, Input, PageHeader, PageState, Sele
 
 type Assignment = { id: string; roleKey: string; roleName: string; unitName: string | null; jobTitle: string | null };
 type User = { id: string; email: string; displayName: string; status: string; lastActivity: string; assignments: Assignment[] };
-type Role = { key: string; name: string; permissions: string[] };
+type Role = { key: string; name: string; permissions: string[]; system: boolean; version: number; archivedAt: string | null; activeAssignments: number };
+type RolesData = { items: Role[]; catalog: Record<string, string>; reserved: string[] };
 
 export function UsersPage() {
   const q = useQuery<{ items: User[] }>("/admin/users");
-  const roles = useQuery<{ items: Role[]; catalog: Record<string, string> }>("/admin/roles");
+  const roles = useQuery<RolesData>("/admin/roles");
+  const { can } = useSession();
   const org = useQuery<{ units: { code: string; name: string; active: boolean }[] }>("/admin/organization");
   const toast = useToast();
   const [err, setErr] = useState<ApiError | null>(null);
@@ -96,6 +98,8 @@ export function UsersPage() {
         </ul>
       </PageState>
 
+      {roles.data && can("roles.manage") ? <RolesSection data={roles.data} onChange={roles.reload} /> : null}
+
       {roles.data ? (
         <details className="mt-6">
           <summary className="cursor-pointer font-semibold">Matriks peran dan izin</summary>
@@ -104,7 +108,7 @@ export function UsersPage() {
               <thead>
                 <tr>
                   <th scope="col" className="py-1 pr-3">Izin</th>
-                  {roles.data.items.map((r) => (
+                  {roles.data.items.filter((r) => !r.archivedAt).map((r) => (
                     <th key={r.key} scope="col" className="px-2 py-1">
                       {r.name}
                     </th>
@@ -117,7 +121,7 @@ export function UsersPage() {
                     <th scope="row" className="py-1 pr-3 font-normal">
                       {desc}
                     </th>
-                    {roles.data!.items.map((r) => (
+                    {roles.data!.items.filter((r) => !r.archivedAt).map((r) => (
                       <td key={r.key} className="px-2 py-1 text-center">
                         {r.permissions.includes(perm) ? "Ya" : "-"}
                       </td>
@@ -161,7 +165,7 @@ export function UsersPage() {
           <Field label="Peran" required>
             {({ id }) => (
               <Select id={id} value={asg.roleKey} onChange={(e) => setAsg({ ...asg, roleKey: e.target.value })}>
-                {roles.data?.items.map((r) => (
+                {roles.data?.items.filter((r) => !r.archivedAt).map((r) => (
                   <option key={r.key} value={r.key}>
                     {r.name}
                   </option>
@@ -464,5 +468,102 @@ export function CommsPage() {
         ) : null}
       </PageState>
     </div>
+  );
+}
+
+/** Peran kustom: dibuat dari katalog izin. Peran bawaan tetap; peran yang pernah dipakai diarsipkan, tidak dihapus. */
+function RolesSection({ data, onChange }: { data: RolesData; onChange: () => void }) {
+  const toast = useToast();
+  const [edit, setEdit] = useState<{ role: Role | null; name: string; perms: Set<string> } | null>(null);
+  const [err, setErr] = useState<ApiError | null>(null);
+  const [busy, setBusy] = useState(false);
+  const perms = Object.entries(data.catalog).filter(([k]) => !data.reserved.includes(k));
+
+  const save = async () => {
+    if (!edit) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const body = { name: edit.name, permissions: [...edit.perms], expectedVersion: edit.role?.version ?? 0 };
+      if (edit.role) await put(`/admin/roles/${edit.role.key}`, body);
+      else await post("/admin/roles", body);
+      toast("success", edit.role ? "Peran diperbarui. Berlaku pada permintaan berikutnya pemegang peran." : "Peran dibuat.");
+      setEdit(null);
+      onChange();
+    } catch (e) {
+      setErr(e as ApiError);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const archive = async (r: Role) => {
+    setErr(null);
+    try {
+      await post(`/admin/roles/${r.key}/archive`);
+      toast("success", `Peran ${r.name} diarsipkan.`);
+      onChange();
+    } catch (e) {
+      setErr(e as ApiError);
+    }
+  };
+
+  return (
+    <section aria-label="Peran" className="mt-8">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-[20px]">Peran</h2>
+        <Button onClick={() => { setErr(null); setEdit({ role: null, name: "", perms: new Set() }); }}>Buat peran</Button>
+      </div>
+      {err && !edit ? <Alert tone="danger" title={err.message} /> : null}
+      <ul className="divide-y divide-line border-y border-line">
+        {data.items.filter((r) => !r.archivedAt).map((r) => (
+          <li key={r.key} className="flex flex-wrap items-center justify-between gap-2 py-3">
+            <div>
+              <p className="font-semibold">
+                {r.name} <span className="text-sm font-normal text-ink-2">{r.system ? "Bawaan" : "Kustom"} · {r.permissions.length} izin · {r.activeAssignments} penugasan aktif</span>
+              </p>
+            </div>
+            {!r.system ? (
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => { setErr(null); setEdit({ role: r, name: r.name, perms: new Set(r.permissions) }); }}>Ubah</Button>
+                <Button size="sm" variant="ghost" onClick={() => archive(r)}>Arsipkan</Button>
+              </div>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)} title={edit?.role ? `Ubah peran ${edit.role.name}` : "Buat peran"} description="Izin mengelola peran dan kredensial integrasi hanya untuk Super Admin.">
+        {err && edit ? <Alert tone="danger">{err.fieldErrors.name ?? err.fieldErrors.permissions ?? err.message}</Alert> : null}
+        {edit ? (
+          <div className="flex flex-col gap-3">
+            <Field label="Nama peran" required>{({ id }) => <Input id={id} value={edit.name} maxLength={60} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />}</Field>
+            <fieldset>
+              <legend className="mb-1 text-sm font-semibold">Izin</legend>
+              <div className="flex max-h-72 flex-col overflow-y-auto">
+                {perms.map(([k, desc]) => (
+                  <label key={k} className="flex min-h-11 items-center gap-3">
+                    <input
+                      type="checkbox"
+                      className="h-5 w-5"
+                      checked={edit.perms.has(k)}
+                      onChange={(e) => {
+                        const next = new Set(edit.perms);
+                        if (e.target.checked) next.add(k);
+                        else next.delete(k);
+                        setEdit({ ...edit, perms: next });
+                      }}
+                    />
+                    {desc}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+        ) : null}
+        <div className="mt-4 flex justify-end gap-2">
+          <Button onClick={() => setEdit(null)}>Batal</Button>
+          <Button variant="primary" busy={busy} onClick={save}>Simpan</Button>
+        </div>
+      </Dialog>
+    </section>
   );
 }
