@@ -15,6 +15,7 @@ import (
 	"ats/internal/identity"
 	"ats/internal/notify"
 	"ats/internal/platform"
+	"ats/internal/privacy"
 	"ats/internal/recruitment"
 	"ats/internal/reporting"
 	"ats/internal/settings"
@@ -234,6 +235,12 @@ func NewRouter(d Deps) *gin.Engine {
 	admin.PUT("/organization", auth.RequireAnyPerm(auth.PermSettingsManage), adm.PutOrganization)
 	admin.POST("/units/:id/active", auth.RequireAnyPerm(auth.PermSettingsManage), adm.SetMasterActive("unit"))
 	admin.POST("/locations/:id/active", auth.RequireAnyPerm(auth.PermSettingsManage), adm.SetMasterActive("location"))
+	priv := &privacy.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID, ObjectDir: d.Cfg.ObjectDir}
+	admin.GET("/privacy/candidates", auth.RequireAnyPerm(auth.PermPrivacyManage), priv.Find)
+	admin.GET("/privacy/candidates/:id/export", auth.RequireAnyPerm(auth.PermPrivacyManage), priv.Export)
+	admin.POST("/privacy/candidates/:id/anonymize", auth.RequireAnyPerm(auth.PermPrivacyManage), priv.Anonymize)
+	admin.POST("/privacy/candidates/:id/legal-hold", auth.RequireAnyPerm(auth.PermPrivacyManage), priv.LegalHold)
+	admin.GET("/privacy/retention", auth.RequireAnyPerm(auth.PermPrivacyManage), priv.Retention)
 	admin.GET("/message-templates", auth.RequireAnyPerm(auth.PermSettingsManage), adm.ListTemplates)
 	admin.GET("/message-templates/:key/:channel/versions", auth.RequireAnyPerm(auth.PermSettingsManage), adm.TemplateVersions)
 	admin.PUT("/message-templates/:key/:channel", auth.RequireAnyPerm(auth.PermSettingsManage), adm.SaveTemplate)

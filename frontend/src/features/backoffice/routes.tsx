@@ -6,6 +6,7 @@ import { ApplicationDetail, ApplicationsPage } from "./applications";
 import { StaffCvResult } from "./cvresults";
 import { CalendarPage } from "./calendar";
 import { TemplatesPage } from "./templates";
+import { PrivacyPage } from "./privacy";
 import { AuditPage, CommsPage, SettingsPage, UsersPage } from "./admin";
 import { BanksPage } from "./banks";
 import { EssayGrading, ScheduleMonitor, SchedulesPage } from "./exams";
@@ -31,6 +32,7 @@ const items: NavItem[] = [
   { to: "/staf/pengaturan", label: "Pengaturan", perm: "settings.manage" },
   { to: "/staf/komunikasi", label: "Komunikasi", perm: "settings.manage" },
   { to: "/staf/template-pesan", label: "Template pesan", perm: "settings.manage" },
+  { to: "/staf/privasi", label: "Privasi data", perm: "privacy.manage" },
   { to: "/staf/audit", label: "Audit", perm: "audit.read" },
 ];
 
@@ -105,6 +107,7 @@ export default function BackofficeRoutes() {
             <Route path="lamaran/:id/cv/:runId" element={<StaffCvResult />} />
             <Route path="kalender" element={<CalendarPage />} />
             <Route path="template-pesan" element={<TemplatesPage />} />
+            <Route path="privasi" element={<PrivacyPage />} />
             <Route path="lowongan" element={<JobsPage />} />
             <Route path="permintaan" element={<RequisitionsPage />} />
             <Route path="workflow" element={<WorkflowsPage />} />

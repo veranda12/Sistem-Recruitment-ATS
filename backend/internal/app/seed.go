@@ -35,7 +35,7 @@ var SeedUsers = []seedUser{
 
 var rolePerms = map[string][]string{
 	"super_admin": {auth.PermUsersManage, auth.PermRolesManage, auth.PermSettingsManage, auth.PermAuditRead, auth.PermCredentialsManage,
-		auth.PermWorkflowsRead, auth.PermWorkflowsManage, auth.PermWorkflowsPublish, auth.PermJobsRead, auth.PermReportsRead, auth.PermCVReplay},
+		auth.PermWorkflowsRead, auth.PermWorkflowsManage, auth.PermWorkflowsPublish, auth.PermJobsRead, auth.PermReportsRead, auth.PermCVReplay, auth.PermPrivacyManage},
 	"hr_admin": {auth.PermJobsRead, auth.PermJobsManage, auth.PermJobsPublish, auth.PermRequisitionsRead, auth.PermRequisitionsApprove,
 		auth.PermApplicationsRead, auth.PermApplicationsMove, auth.PermApplicationsAssign, auth.PermIdentityReveal, auth.PermPIIExport,
 		auth.PermWorkflowsRead, auth.PermWorkflowsManage, auth.PermWorkflowsPublish, auth.PermReportsRead, auth.PermReportsExport,

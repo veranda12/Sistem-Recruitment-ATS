@@ -215,6 +215,13 @@ export function UsersPage() {
 type Setting = { key: string; label: string; value: unknown; version: number; effectiveAt: string | null };
 type Org = { organization: { name: string; version: number; profile: { tagline?: string; about?: string }; brand: { displayName?: string; primaryColor?: string } } };
 
+// Pengaturan ya/tidak dikenali dari akhiran kuncinya (mis. retention.auto_enabled).
+const isBoolSetting = (key: string) => key.endsWith("_enabled");
+function settingText(s: Setting): string {
+  if (isBoolSetting(s.key)) return s.value === true ? "Ya" : s.value === null ? "Tidak (bawaan)" : "Tidak";
+  return s.value === null ? "belum ditetapkan" : String(s.value);
+}
+
 export function SettingsPage() {
   const q = useQuery<{ items: Setting[] }>("/admin/settings");
   const org = useQuery<Org>("/admin/organization");
@@ -230,7 +237,7 @@ export function SettingsPage() {
     if (!edit) return;
     setErr(null);
     try {
-      await put(`/admin/settings/${edit.key}`, { value: Number(val), expectedVersion: edit.version, reason, effectiveAt: eff ? new Date(eff).toISOString() : undefined });
+      await put(`/admin/settings/${edit.key}`, { value: isBoolSetting(edit.key) ? val === "true" : Number(val), expectedVersion: edit.version, reason, effectiveAt: eff ? new Date(eff).toISOString() : undefined });
       toast("success", "Pengaturan disimpan.");
       setEdit(null);
       q.reload();
@@ -304,10 +311,10 @@ export function SettingsPage() {
             {q.data?.items.map((s) => (
               <li key={s.key} className="flex flex-wrap items-center justify-between gap-2 py-3">
                 <span>
-                  {s.label}: <strong>{s.value === null ? "belum ditetapkan" : String(s.value)}</strong>
+                  {s.label}: <strong>{settingText(s)}</strong>
                   {s.version ? <span className="text-sm text-ink-2"> · versi {s.version}, berlaku {fmtDateTime(s.effectiveAt)}</span> : null}
                 </span>
-                <Button size="sm" onClick={() => { setErr(null); setVal(s.value === null ? "" : String(s.value)); setReason(""); setEff(""); setEdit(s); }}>
+                <Button size="sm" onClick={() => { setErr(null); setVal(s.value === null ? (isBoolSetting(s.key) ? "false" : "") : String(s.value)); setReason(""); setEff(""); setEdit(s); }}>
                   Ubah
                 </Button>
               </li>
@@ -318,7 +325,18 @@ export function SettingsPage() {
       <Dialog open={!!edit} onOpenChange={(x) => !x && setEdit(null)} title={edit?.label ?? ""}>
         {err && edit ? <Alert tone="danger">{Object.values(err.fieldErrors)[0] ?? err.message}</Alert> : null}
         <div className="flex flex-col gap-3">
-          <Field label="Nilai" required>{({ id }) => <Input id={id} inputMode="numeric" value={val} onChange={(e) => setVal(e.target.value)} />}</Field>
+          <Field label="Nilai" required>
+            {({ id }) =>
+              edit && isBoolSetting(edit.key) ? (
+                <Select id={id} value={val} onChange={(e) => setVal(e.target.value)}>
+                  <option value="false">Tidak</option>
+                  <option value="true">Ya</option>
+                </Select>
+              ) : (
+                <Input id={id} inputMode="numeric" value={val} onChange={(e) => setVal(e.target.value)} />
+              )
+            }
+          </Field>
           <Field label="Berlaku mulai" hint="Kosongkan untuk berlaku sekarang.">{({ id, describedBy }) => <Input id={id} aria-describedby={describedBy} type="datetime-local" value={eff} onChange={(e) => setEff(e.target.value)} />}</Field>
           <Field label="Alasan perubahan" required>{({ id }) => <Textarea id={id} className="min-h-11" value={reason} onChange={(e) => setReason(e.target.value)} />}</Field>
         </div>

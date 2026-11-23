@@ -15,6 +15,7 @@ import (
 	"ats/internal/documents"
 	"ats/internal/notify"
 	"ats/internal/platform"
+	"ats/internal/privacy"
 )
 
 // version diisi saat build rilis: -ldflags "-X main.version=<versi>".
@@ -71,6 +72,12 @@ func main() {
 
 	go app.RunExpiry(ctx, pool, 5*time.Second)
 	go app.RunHousekeeping(ctx, pool, cfg.ObjectDir, 15*time.Second)
+	// Retensi data pelamar: tidak melakukan apa pun sampai retention.auto_enabled diaktifkan di Pengaturan.
+	if org, err := q.GetOrganizationBySlug(ctx, cfg.OrgSlug); err == nil {
+		go privacy.RunRetention(ctx, pool, org.ID, cfg.ObjectDir, 6*time.Hour)
+	} else {
+		slog.Warn("retensi tidak dijalankan: organisasi belum ada", "org", cfg.OrgSlug)
+	}
 	go platform.ServeMetrics(ctx, os.Getenv("WORKER_METRICS_ADDR"), "worker", pool)
 	w := &platform.OutboxWorker{Pool: pool, Consumer: "worker", Handle: app.WorkerHandler(pool, h, cfg.ObjectDir, documents.CommandScanner(cfg.ScanCommand)), Interval: cfg.WorkerPollInterval,
 		Concurrency: cfg.WorkerConcurrency, Lease: 60 * time.Second}

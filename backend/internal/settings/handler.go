@@ -406,9 +406,18 @@ func intRange(min, max int) func(json.RawMessage) string {
 	}
 }
 
+func boolValue(v json.RawMessage) string {
+	var b bool
+	if json.Unmarshal(v, &b) != nil {
+		return "Nilai harus ya atau tidak."
+	}
+	return ""
+}
+
 // Allowlist pengaturan. Nilai awal yang belum dikonfirmasi pelanggan dicatat di docs/product/assumptions.md.
 var Specs = map[string]settingSpec{
 	"retention.candidate_months":          {"Retensi data pelamar (bulan)", intRange(1, 120)},
+	"retention.auto_enabled":              {"Anonimkan otomatis data pelamar yang melewati masa simpan", boolValue},
 	"security.session_idle_staff_minutes": {"Batas idle sesi staf (menit)", intRange(5, 240)},
 	"exam.default_max_attempts":           {"Kesempatan ujian bawaan", intRange(1, 5)},
 	"exam.default_extra_minutes_cap":      {"Batas akomodasi waktu (menit)", intRange(0, 240)},
