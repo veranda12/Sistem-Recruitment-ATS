@@ -72,3 +72,23 @@ WHERE id = $1 AND decision_notified_at IS NULL AND status IN ('hired', 'rejected
 
 -- name: ListActiveStaff :many
 SELECT id, display_name FROM users WHERE org_id = $1 AND kind = 'staff' AND status = 'active' ORDER BY display_name;
+
+-- name: ListInterviewsInRange :many
+-- Kalender staf: interview dalam scope applications.read, ditambah interview tempat user menjadi interviewer.
+-- only_mine membatasi ke panel user. Interview yang dibatalkan tidak ditampilkan.
+SELECT i.id, i.application_id, i.starts_at, i.ends_at, i.timezone, i.mode, i.location, i.status,
+       c.display_name AS candidate_name, j.title AS job_title,
+       coalesce((SELECT array_agg(u.display_name ORDER BY u.display_name) FROM interview_panelists p2
+                 JOIN users u ON u.id = p2.interviewer_id WHERE p2.interview_id = i.id AND p2.active), '{}')::text[] AS interviewer_names
+FROM interviews i
+JOIN job_applications a ON a.id = i.application_id
+JOIN users c ON c.id = a.candidate_user_id
+JOIN job_openings j ON j.id = a.job_id
+WHERE i.org_id = @org_id AND i.status <> 'cancelled'
+  AND i.starts_at < @to_at::timestamptz AND i.ends_at > @from_at::timestamptz
+  AND (@org_wide::bool OR a.unit_id = ANY(@unit_ids::uuid[]) OR a.job_id = ANY(@job_ids::uuid[])
+       OR EXISTS (SELECT 1 FROM interview_panelists p3 WHERE p3.interview_id = i.id AND p3.interviewer_id = @user_id::uuid AND p3.active))
+  AND (NOT @only_mine::bool
+       OR EXISTS (SELECT 1 FROM interview_panelists p4 WHERE p4.interview_id = i.id AND p4.interviewer_id = @user_id::uuid AND p4.active))
+ORDER BY i.starts_at
+LIMIT 500;

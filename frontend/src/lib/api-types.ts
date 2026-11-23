@@ -3013,6 +3013,122 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/staff/jobs/{id}/board": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Papan kanban lamaran satu lowongan per tahap workflow aktif (applications.read; maks 500 lamaran) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            job: {
+                                /** Format: uuid */
+                                id: string;
+                                title: string;
+                                unitName: string;
+                            };
+                            stages: {
+                                key: string;
+                                name: string;
+                                type: string;
+                            }[];
+                            items: components["schemas"]["StaffApplication"][];
+                            truncated: boolean;
+                        };
+                    };
+                };
+                404: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/interviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Kalender interview (dalam scope applications.read, ditambah panel milik sendiri); tanpa yang dibatalkan */
+        get: {
+            parameters: {
+                query: {
+                    from: string;
+                    /** @description Maksimal 62 hari setelah from */
+                    to: string;
+                    /** @description Hanya interview tempat pengguna menjadi interviewer */
+                    mine?: "true";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                applicationId: string;
+                                /** Format: date-time */
+                                startsAt: string;
+                                /** Format: date-time */
+                                endsAt: string;
+                                timezone: string;
+                                /** @enum {string} */
+                                mode: "onsite" | "video" | "phone";
+                                location: string;
+                                /** @enum {string} */
+                                status: "scheduled" | "completed";
+                                candidateName: string;
+                                jobTitle: string;
+                                interviewerNames: string[];
+                            }[];
+                        };
+                    };
+                };
+                422: components["responses"]["Error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/applications/{id}/shortlist": {
         parameters: {
             query?: never;

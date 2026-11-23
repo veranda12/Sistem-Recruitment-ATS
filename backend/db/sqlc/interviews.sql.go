@@ -405,6 +405,93 @@ func (q *Queries) ListInterviewsForInterviewer(ctx context.Context, arg ListInte
 	return items, nil
 }
 
+const listInterviewsInRange = `-- name: ListInterviewsInRange :many
+SELECT i.id, i.application_id, i.starts_at, i.ends_at, i.timezone, i.mode, i.location, i.status,
+       c.display_name AS candidate_name, j.title AS job_title,
+       coalesce((SELECT array_agg(u.display_name ORDER BY u.display_name) FROM interview_panelists p2
+                 JOIN users u ON u.id = p2.interviewer_id WHERE p2.interview_id = i.id AND p2.active), '{}')::text[] AS interviewer_names
+FROM interviews i
+JOIN job_applications a ON a.id = i.application_id
+JOIN users c ON c.id = a.candidate_user_id
+JOIN job_openings j ON j.id = a.job_id
+WHERE i.org_id = $1 AND i.status <> 'cancelled'
+  AND i.starts_at < $2::timestamptz AND i.ends_at > $3::timestamptz
+  AND ($4::bool OR a.unit_id = ANY($5::uuid[]) OR a.job_id = ANY($6::uuid[])
+       OR EXISTS (SELECT 1 FROM interview_panelists p3 WHERE p3.interview_id = i.id AND p3.interviewer_id = $7::uuid AND p3.active))
+  AND (NOT $8::bool
+       OR EXISTS (SELECT 1 FROM interview_panelists p4 WHERE p4.interview_id = i.id AND p4.interviewer_id = $7::uuid AND p4.active))
+ORDER BY i.starts_at
+LIMIT 500
+`
+
+type ListInterviewsInRangeParams struct {
+	OrgID    uuid.UUID   `json:"orgId"`
+	ToAt     time.Time   `json:"toAt"`
+	FromAt   time.Time   `json:"fromAt"`
+	OrgWide  bool        `json:"orgWide"`
+	UnitIds  []uuid.UUID `json:"unitIds"`
+	JobIds   []uuid.UUID `json:"jobIds"`
+	UserID   uuid.UUID   `json:"userId"`
+	OnlyMine bool        `json:"onlyMine"`
+}
+
+type ListInterviewsInRangeRow struct {
+	ID               uuid.UUID `json:"id"`
+	ApplicationID    uuid.UUID `json:"applicationId"`
+	StartsAt         time.Time `json:"startsAt"`
+	EndsAt           time.Time `json:"endsAt"`
+	Timezone         string    `json:"timezone"`
+	Mode             string    `json:"mode"`
+	Location         string    `json:"location"`
+	Status           string    `json:"status"`
+	CandidateName    string    `json:"candidateName"`
+	JobTitle         string    `json:"jobTitle"`
+	InterviewerNames []string  `json:"interviewerNames"`
+}
+
+// Kalender staf: interview dalam scope applications.read, ditambah interview tempat user menjadi interviewer.
+// only_mine membatasi ke panel user. Interview yang dibatalkan tidak ditampilkan.
+func (q *Queries) ListInterviewsInRange(ctx context.Context, arg ListInterviewsInRangeParams) ([]ListInterviewsInRangeRow, error) {
+	rows, err := q.db.Query(ctx, listInterviewsInRange,
+		arg.OrgID,
+		arg.ToAt,
+		arg.FromAt,
+		arg.OrgWide,
+		arg.UnitIds,
+		arg.JobIds,
+		arg.UserID,
+		arg.OnlyMine,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListInterviewsInRangeRow{}
+	for rows.Next() {
+		var i ListInterviewsInRangeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ApplicationID,
+			&i.StartsAt,
+			&i.EndsAt,
+			&i.Timezone,
+			&i.Mode,
+			&i.Location,
+			&i.Status,
+			&i.CandidateName,
+			&i.JobTitle,
+			&i.InterviewerNames,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockInterview = `-- name: LockInterview :one
 SELECT id, org_id, application_id, starts_at, ends_at, timezone, mode, location, status, created_by, version, created_at, updated_at FROM interviews WHERE id = $1 FOR UPDATE
 `

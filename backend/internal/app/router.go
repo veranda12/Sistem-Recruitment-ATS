@@ -157,6 +157,8 @@ func NewRouter(d Deps) *gin.Engine {
 	staff.POST("/applications/:id/reveal-identity", auth.RequireAnyPerm(auth.PermIdentityReveal), rec.RevealIdentity)
 	staff.POST("/applications/:id/interviews", auth.RequireAnyPerm(auth.PermApplicationsMove), rec.ScheduleInterview)
 	staff.POST("/applications/:id/decision-notice", auth.RequireAnyPerm(auth.PermApplicationsMove), rec.DecisionNotice)
+	staff.GET("/staff/jobs/:id/board", auth.RequireAnyPerm(auth.PermApplicationsRead), rec.JobBoard)
+	staff.GET("/interviews", rec.InterviewCalendar)
 	staff.POST("/applications/:id/shortlist", auth.RequireAnyPerm(auth.PermApplicationsMove), rec.Shortlist)
 	staff.GET("/applications/:id/assignable-recruiters", auth.RequireAnyPerm(auth.PermApplicationsAssign), rec.AssignableRecruiters)
 	staff.POST("/applications/:id/recruiter", auth.RequireAnyPerm(auth.PermApplicationsAssign), rec.AssignApplicationRecruiter)

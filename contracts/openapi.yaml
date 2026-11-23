@@ -1006,6 +1006,62 @@ paths:
       responses:
         "200": { description: OK }
         "409": { description: decision_notice_unavailable, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+  /staff/jobs/{id}/board:
+    get:
+      tags: [staf]
+      summary: Papan kanban lamaran satu lowongan per tahap workflow aktif (applications.read; maks 500 lamaran)
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job, stages, items, truncated]
+                properties:
+                  job: { type: object, required: [id, title, unitName], properties: { id: { type: string, format: uuid }, title: { type: string }, unitName: { type: string } } }
+                  stages:
+                    type: array
+                    items: { type: object, required: [key, name, type], properties: { key: { type: string }, name: { type: string }, type: { type: string } } }
+                  items: { type: array, items: { $ref: "#/components/schemas/StaffApplication" } }
+                  truncated: { type: boolean }
+        "404": { $ref: "#/components/responses/Error" }
+  /interviews:
+    get:
+      tags: [staf]
+      summary: Kalender interview (dalam scope applications.read, ditambah panel milik sendiri); tanpa yang dibatalkan
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date-time } }
+        - { name: to, in: query, required: true, description: Maksimal 62 hari setelah from, schema: { type: string, format: date-time } }
+        - { name: mine, in: query, description: Hanya interview tempat pengguna menjadi interviewer, schema: { type: string, enum: ["true"] } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, applicationId, startsAt, endsAt, timezone, mode, location, status, candidateName, jobTitle, interviewerNames]
+                      properties:
+                        id: { type: string, format: uuid }
+                        applicationId: { type: string, format: uuid }
+                        startsAt: { type: string, format: date-time }
+                        endsAt: { type: string, format: date-time }
+                        timezone: { type: string }
+                        mode: { type: string, enum: [onsite, video, phone] }
+                        location: { type: string }
+                        status: { type: string, enum: [scheduled, completed] }
+                        candidateName: { type: string }
+                        jobTitle: { type: string }
+                        interviewerNames: { type: array, items: { type: string } }
+        "422": { $ref: "#/components/responses/Error" }
   /applications/{id}/shortlist:
     post:
       tags: [staf]

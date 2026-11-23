@@ -6,11 +6,37 @@ import { useSession } from "../../lib/session";
 import { useQuery } from "../../lib/useQuery";
 import { kindLabel, openDocument, scanLabel } from "../candidate/documents";
 import { InterviewSection } from "./interviews";
+import { BoardView } from "./board";
 import { Alert, Badge, Button, DL, Dialog, Field, PageHeader, PageState, Select, Textarea, useToast } from "../../ui";
 
 type List = { items: Schemas["StaffApplication"][]; nextCursor: string | null };
 
 export function ApplicationsPage() {
+  const [params] = useSearchParams();
+  const { can } = useSession();
+  const board = params.get("tampilan") === "papan" && can("jobs.read");
+  return (
+    <div>
+      <PageHeader title="Lamaran" subtitle="Hanya lamaran dalam unit atau lowongan yang ditugaskan kepada Anda." />
+      {can("jobs.read") ? (
+        <nav aria-label="Tampilan lamaran" className="mb-4 flex gap-2">
+          <Link to="/staf/lamaran" aria-current={!board ? "page" : undefined} className={viewTab(!board)}>
+            Daftar
+          </Link>
+          <Link to="/staf/lamaran?tampilan=papan" aria-current={board ? "page" : undefined} className={viewTab(board)}>
+            Papan
+          </Link>
+        </nav>
+      ) : null}
+      {board ? <BoardView /> : <ApplicationList />}
+    </div>
+  );
+}
+
+const viewTab = (active: boolean) =>
+  `inline-flex min-h-11 items-center rounded-md border px-4 font-medium ${active ? "border-primary bg-primary-soft text-primary" : "border-line text-ink hover:bg-surface"}`;
+
+function ApplicationList() {
   const [params, setParams] = useSearchParams();
   const status = params.get("status") ?? "";
   // Penanganan: semua, shortlist, atau lamaran yang ditugaskan ke pengguna ini.
@@ -34,7 +60,6 @@ export function ApplicationsPage() {
 
   return (
     <div>
-      <PageHeader title="Lamaran" subtitle="Hanya lamaran dalam unit atau lowongan yang ditugaskan kepada Anda." />
       <div className="mb-4 flex flex-wrap items-end gap-3 rounded-md border border-line bg-surface p-3">
         <label className="flex flex-col gap-1 text-sm font-semibold">
           Status

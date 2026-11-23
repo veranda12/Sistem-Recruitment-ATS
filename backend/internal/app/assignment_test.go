@@ -1,6 +1,10 @@
 package app
 
-import "testing"
+import (
+	"net/url"
+	"testing"
+	"time"
+)
 
 func TestShortlistAndRecruiterAssignment(t *testing.T) {
 	e := newEnv(t)
@@ -78,4 +82,37 @@ func TestRoleAssignmentPerJob(t *testing.T) {
 	other := e.registerVerified("perjob2@contoh.test", "Kandidat QC", "3201014507997303")
 	qc := idOf(other.do("POST", "/jobs/supervisor-quality-control/apply", nil), "applicationId")
 	expect(t, recTI.do("GET", "/applications/"+qc, nil), 404, "lowongan lain tetap di luar scope")
+}
+
+func TestInterviewCalendarScope(t *testing.T) {
+	e := newEnv(t)
+	cand := e.registerVerified("kalender@contoh.test", "Kandidat Kalender", "3201014507997304")
+	app := idOf(cand.do("POST", "/jobs/operator-produksi-karawang/apply", nil), "applicationId")
+	rec := e.client().mustLogin("rekruter.ops@arunika.example")
+	tiID := e.userID("rekruter.ti@arunika.example").String()
+	start := time.Now().Add(26 * time.Hour).Truncate(time.Hour)
+	expect(t, rec.do("POST", "/applications/"+app+"/interviews", map[string]any{"startsAt": start.Format(time.RFC3339), "durationMinutes": 60,
+		"timezone": "Asia/Jakarta", "mode": "video", "interviewerIds": []string{e.userID("hm.ops@arunika.example").String()}}), 201, "jadwal")
+	rng := "?from=" + url.QueryEscape(start.Add(-24*time.Hour).Format(time.RFC3339)) + "&to=" + url.QueryEscape(start.Add(24*time.Hour).Format(time.RFC3339))
+	count := func(c *client, extra string) int {
+		return len(c.do("GET", "/interviews"+rng+extra, nil).Body["items"].([]any))
+	}
+
+	if n := count(rec, ""); n != 1 {
+		t.Fatalf("recruiter dalam scope: %d", n)
+	}
+	if n := count(rec, "&mine=true"); n != 0 {
+		t.Fatalf("recruiter bukan interviewer, mine harus kosong: %d", n)
+	}
+	recTI := e.client().mustLogin("rekruter.ti@arunika.example")
+	if n := count(recTI, ""); n != 0 {
+		t.Fatalf("recruiter di luar scope melihat %d interview", n)
+	}
+	// Bila ditugaskan sebagai interviewer, staf di luar scope tetap melihat interview miliknya.
+	expect(t, rec.do("POST", "/applications/"+app+"/interviews", map[string]any{"startsAt": start.Add(3 * time.Hour).Format(time.RFC3339), "durationMinutes": 30,
+		"timezone": "Asia/Jakarta", "mode": "phone", "interviewerIds": []string{tiID}}), 201, "jadwal dengan interviewer luar unit")
+	if n := count(recTI, "&mine=true"); n != 1 {
+		t.Fatalf("interviewer luar unit harus melihat interview miliknya: %d", n)
+	}
+	expect(t, rec.do("GET", "/interviews?from=x&to=y", nil), 422, "rentang tidak valid")
 }
