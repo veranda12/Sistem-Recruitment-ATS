@@ -55,6 +55,12 @@ func Degrade(g *image.Gray, seed int64, skewDeg, noise, contrast float64) *image
 
 // Photo meniru foto ponsel: kertas di atas meja, miring, bayangan gradasi, noise, sedikit blur.
 func Photo(g *image.Gray, seed int64, skewDeg, blur float64) *image.Gray {
+	return PhotoKeystone(g, seed, skewDeg, blur, 0)
+}
+
+// PhotoKeystone seperti Photo, tetapi difoto dari sudut sempit: tepi atas kertas menyempit sebesar fraksi k
+// (efek keystone/perspektif).
+func PhotoKeystone(g *image.Gray, seed int64, skewDeg, blur, k float64) *image.Gray {
 	r := rand.New(rand.NewSource(seed))
 	w, h := g.Rect.Dx(), g.Rect.Dy()
 	pad := w / 12
@@ -63,6 +69,9 @@ func Photo(g *image.Gray, seed int64, skewDeg, blur float64) *image.Gray {
 		canvas.Pix[i] = 95 // meja
 	}
 	draw.Draw(canvas, image.Rect(pad, pad, pad+w, pad+h), g, image.Point{}, draw.Src)
+	if k > 0 {
+		canvas = keystone(canvas, k, 95)
+	}
 	o := rotate(canvas, skewDeg, 95)
 	ow, oh := o.Rect.Dx(), o.Rect.Dy()
 	for y := 0; y < oh; y++ {
@@ -77,6 +86,63 @@ func Photo(g *image.Gray, seed int64, skewDeg, blur float64) *image.Gray {
 		o = boxBlur(o, int(blur))
 	}
 	return o
+}
+
+// keystone memproyeksikan gambar seperti kamera yang condong ke bawah: tepi atas menyempit sebesar fraksi k dan,
+// seperti proyeksi sungguhan, baris di bagian atas juga memendek. Pemetaan balik dihitung dengan homografi.
+func keystone(g *image.Gray, k float64, fill uint8) *image.Gray {
+	w, h := float64(g.Rect.Dx()), float64(g.Rect.Dy())
+	in := k * w / 2
+	// Sudut tujuan (trapesium) -> sudut sumber (gambar penuh), urutan kiri atas, kanan atas, kanan bawah, kiri bawah.
+	H := solveHomography(
+		[4][2]float64{{in, 0}, {w - in, 0}, {w, h}, {0, h}},
+		[4][2]float64{{0, 0}, {w, 0}, {w, h}, {0, h}})
+	o := image.NewGray(g.Rect)
+	for y := 0; y < int(h); y++ {
+		for x := 0; x < int(w); x++ {
+			fx, fy := float64(x)+0.5, float64(y)+0.5
+			d := H[6]*fx + H[7]*fy + 1
+			sx, sy := int((H[0]*fx+H[1]*fy+H[2])/d), int((H[3]*fx+H[4]*fy+H[5])/d)
+			if sx < 0 || sy < 0 || sx >= int(w) || sy >= int(h) {
+				o.Pix[y*o.Stride+x] = fill
+				continue
+			}
+			o.Pix[y*o.Stride+x] = g.Pix[sy*g.Stride+sx]
+		}
+	}
+	return o
+}
+
+// solveHomography: H (h33 = 1) yang memetakan src[i] ke dst[i].
+func solveHomography(src, dst [4][2]float64) [8]float64 {
+	var a [8][9]float64
+	for i := 0; i < 4; i++ {
+		x, y, u, v := src[i][0], src[i][1], dst[i][0], dst[i][1]
+		a[2*i] = [9]float64{x, y, 1, 0, 0, 0, -u * x, -u * y, u}
+		a[2*i+1] = [9]float64{0, 0, 0, x, y, 1, -v * x, -v * y, v}
+	}
+	for c := 0; c < 8; c++ {
+		p := c
+		for r := c + 1; r < 8; r++ {
+			if math.Abs(a[r][c]) > math.Abs(a[p][c]) {
+				p = r
+			}
+		}
+		a[c], a[p] = a[p], a[c]
+		for r := 0; r < 8; r++ {
+			if r != c {
+				f := a[r][c] / a[c][c]
+				for j := c; j < 9; j++ {
+					a[r][j] -= f * a[c][j]
+				}
+			}
+		}
+	}
+	var hm [8]float64
+	for i := range hm {
+		hm[i] = a[i][8] / a[i][i]
+	}
+	return hm
 }
 
 func boxBlur(g *image.Gray, rad int) *image.Gray {

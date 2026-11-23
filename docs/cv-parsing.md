@@ -35,7 +35,7 @@ Kandidat ──unggah (kind=cv, ≤15 MiB)──▶ documents (karantina) ──
 |---|---|---|
 | PDF berteks | `pdftotext -bbox-layout` (kata + koordinat), mutu per halaman, render preview JPEG 110 DPI | `text_layer_good`, `text_layer_sparse_no_images`, `dedupe_duplicate_layer:N` |
 | PDF scan / campuran | halaman bermutu rendah atau berupa gambar penuh dirender 300 DPI (PGM) lalu OCR; layer teks di atas gambar dibandingkan kosakatanya dengan OCR; native diutamakan bila cocok | `no_text_layer`, `text_layer_unmapped_glyphs`, `text_layer_low_letter_rate`, `image_page_with_text_layer`, `text_layer_matches_image:0.92`, `text_layer_mismatch_image:0.01`, `blank_page` |
-| JPG/PNG/WebP | cek dimensi sebelum decode, orientasi EXIF, cek buram, normalisasi latar (bayangan), OSD rotasi 90/180, deskew terverifikasi, OCR; bila keyakinan rendah coba threshold Sauvola, satu kolom, lalu orientasi alternatif (maks. 3 + 1) | `image_input`, langkah di `attempts`, transformasi di `transforms` |
+| JPG/PNG/WebP | cek dimensi sebelum decode, orientasi EXIF, cek buram, koreksi perspektif (kertas trapesium), normalisasi latar (bayangan), OSD rotasi 90/180, deskew terverifikasi, OCR; bila keyakinan rendah coba threshold Sauvola, satu kolom, lalu orientasi alternatif (maks. 3 + 1) | `image_input`, langkah di `attempts`, transformasi di `transforms` |
 | DOCX | OOXML dibaca langsung: header, paragraf, tabel (baris data digabung "tahun \| jabatan"; tabel tata letak dibaca per sel), text box, footer; locator `document.xml#t1.r2.c0.p0` | `ooxml_structured`; render ke PDF bila `docx_image_only` atau `docx_many_textboxes_order_ambiguous` |
 | DOC (Word 97-2003) | validasi CFB + stream `WordDocument` + FIB 0xA5EC, tolak terenkripsi/bermakro, konversi LibreOffice ke PDF privat lalu jalur PDF | `cfb_worddocument` |
 
@@ -147,7 +147,7 @@ Periksa versi paket distribusi dan ulangi `cveval` di host produksi; angka di do
 
 Commit kode parser saat evaluasi: lihat `docs/cv-parsing-eval.json` (`parser: cvparse-1`). Mesin: Intel Core i5-10500H 6c/12t, RAM 15,8 GB, Windows 11, SSD; PostgreSQL 17.5 lokal. Perintah: `powershell -File ops\windows\cv-check.ps1 -Mode all` (atau `go run ./cmd/cvfixtures` lalu `go run ./cmd/cveval -fixtures ../tests/cv-fixtures/out -report ../docs/cv-parsing-eval.json`).
 
-**Korpus:** 14 CV sintetis unik (dev 10, holdout 4; semua render satu persona masuk split yang sama), 88 berkas: PDF native 1/2 kolom 38 (termasuk layer teks ganda 4, batas halaman), scan 6 (2 di antaranya dua halaman), campuran 4 (termasuk halaman 2 gagal), foto 9 (miring+bayangan, rotasi 90/180, EXIF 6, buram, WebP, PNG), DOCX 16 (header, tabel, text box, satu berupa gambar tertanam), DOC asli 14 (CFB hasil LibreOffice "MS Word 97"), kasus gagal 7. Golden ditulis per persona, tidak diturunkan dari aturan parser.
+**Korpus:** 14 CV sintetis unik (dev 10, holdout 4; semua render satu persona masuk split yang sama), 90 berkas: PDF native 1/2 kolom 38 (termasuk layer teks ganda 4, batas halaman), scan 6 (2 di antaranya dua halaman), campuran 4 (termasuk halaman 2 gagal), foto 12 (miring+bayangan, rotasi 90/180, EXIF 6, buram, WebP, PNG, perspektif 25–40%), DOCX 16 (header, tabel, text box, satu berupa gambar tertanam), DOC asli 14 (CFB hasil LibreOffice "MS Word 97"), kasus gagal 7. Golden ditulis per persona, tidak diturunkan dari aturan parser.
 
 | Strata | Field | TP | FP | FN | Precision | Recall | F1 |
 |---|---|---|---|---|---|---|---|
@@ -156,22 +156,49 @@ Commit kode parser saat evaluasi: lihat `docs/cv-parsing-eval.json` (`parser: cv
 | dev / digital | tuple pengalaman | 77 | 0 | 0 | 1,000 | 1,000 | 1,000 |
 | dev / digital | tuple pendidikan | 48 | 0 | 0 | 1,000 | 1,000 | 1,000 |
 | dev / digital | skill | 161 | 1 | 1 | 0,994 | 0,994 | 0,994 |
-| dev / OCR | email | 13 | 0 | 0 | 1,000 | 1,000 | 1,000 |
-| dev / OCR | telepon | 14 | 0 | 0 | 1,000 | 1,000 | 1,000 |
-| dev / OCR | tuple pengalaman | 25 | 0 | 2 | 1,000 | 0,926 | 0,962 |
-| dev / OCR | skill | 47 | 1 | 6 | 0,979 | 0,887 | 0,931 |
+| dev / OCR | email | 15 | 0 | 0 | 1,000 | 1,000 | 1,000 |
+| dev / OCR | telepon | 17 | 0 | 0 | 1,000 | 1,000 | 1,000 |
+| dev / OCR | tuple pengalaman | 28 | 0 | 2 | 1,000 | 0,933 | 0,966 |
+| dev / OCR | skill | 53 | 1 | 6 | 0,981 | 0,898 | 0,938 |
 | holdout / digital | email | 21 | 0 | 0 | 1,000 | 1,000 | 1,000 |
 | holdout / digital | telepon | 17 | 0 | 0 | 1,000 | 1,000 | 1,000 |
 | holdout / digital | tuple pengalaman | 30 | 0 | 0 | 1,000 | 1,000 | 1,000 |
-| holdout / OCR | email / telepon | 6 / 5 | 0 | 0 | 1,000 | 1,000 | 1,000 |
+| holdout / OCR | email | 5 | 1 | 1 | 0,833 | 0,833 | 0,833 |
+| holdout / OCR | telepon | 5 | 0 | 0 | 1,000 | 1,000 | 1,000 |
 | holdout / OCR | tuple pengalaman | 9 | 0 | 0 | 1,000 | 1,000 | 1,000 |
+| holdout / OCR | tuple pendidikan | 4 | 1 | 1 | 0,800 | 0,800 | 0,800 |
 
 - Per format (dev): tuple pengalaman DOC 17/17, DOCX 19/19, foto 10/10, scan 10/10, campuran 5/7 (2 FN = pengalaman di halaman 2 yang sengaja tidak terbaca; tetap masuk denominator).
-- Hasil per berkas sesuai harapan: 88/88 (ok, partial, atau kode gagal yang benar).
-- Bukti: 1.874 saran bernilai, semuanya memiliki bukti yang teksnya memuat nilai (0 tanpa bukti, 0 bukti tidak cocok).
+- Hasil per berkas sesuai harapan: 90/90 (ok, partial, atau kode gagal yang benar).
+- Bukti: 1.908 saran bernilai, semuanya memiliki bukti yang teksnya memuat nilai (0 tanpa bukti, 0 bukti tidak cocok).
 - Nilai rekaan pada fixture yang sengaja menghilangkan/menyisipkan field: 0 (NIK, agama, status, tahun lahir, skill "Kubernetes" dan email dari teks instruksi palsu tidak muncul).
-- CER OCR (scan + foto terhadap teks native persona yang sama): 0,80% (72/9.006 karakter). Error digit email/telepon pada subset OCR: 0 nilai salah setelah normalisasi; satu kasus "+62" terbaca "t62" dikoreksi dengan tanda "Tanda + mungkin salah baca".
-- Target spesifikasi (email/telepon ≥95% digital, ≥90% OCR; F1 pengalaman ≥85% digital, ≥75% OCR): terpenuhi pada sampel ini.
+- CER OCR (scan + foto terhadap teks native persona yang sama): 1,63% dari 10.013 karakter (sebelumnya 0,80% tanpa tiga foto perspektif). Error digit email/telepon pada subset OCR: 0 nilai salah setelah normalisasi; satu kasus "+62" terbaca "t62" dikoreksi dengan tanda "Tanda + mungkin salah baca".
+- Target spesifikasi (email/telepon ≥95% digital, ≥90% OCR; F1 pengalaman ≥85% digital, ≥75% OCR): terpenuhi untuk OCR gabungan (email 20/22 = 0,909), **tidak** terpenuhi untuk email holdout/OCR saja (5/6). Satu-satunya kesalahan adalah foto perspektif 38% (lina: "marlina" terbaca "martina"); semua fixture lain identik dengan evaluasi sebelumnya.
+
+### Koreksi perspektif foto
+
+Foto yang diambil dari sudut sempit membuat kertas berbentuk trapesium. Langkahnya:
+
+1. Kertas dipisahkan dari latar dengan ambang Otsu pada gambar yang diperkecil.
+2. Komponen terang terbesar diambil, dan empat sudutnya dicari dari titik ekstrem x+y dan x−y.
+3. Bila sisi yang berhadapan berbeda panjang ≥6%, kertas diluruskan dengan homografi menjadi persegi panjang 1,5× sisi terpanjang (maks. 4.000 px), langsung dari foto asli.
+
+Langkah ini dilewati bila:
+
+- kertas menyentuh tepi gambar (sudutnya tidak dapat dipercaya);
+- kertas memenuhi gambar atau mengisi <20% gambar;
+- kertas sudah persegi panjang (cukup deskew).
+
+Sudut yang dipakai dicatat di `transforms[n].perspective`, dan preview bukti memakai gambar yang sudah diluruskan.
+
+Fixture perspektif memakai proyeksi homografi sungguhan, yaitu tepi atas menyempit dan baris atas ikut memendek. Hasil terukur (fixture sama, koreksi aktif vs dimatikan sementara):
+
+| Kemiringan | Tanpa koreksi | Dengan koreksi |
+|---|---|---|
+| 20–28% | 3 kesalahan field (2 CV) | 4 kesalahan field: setara; Tesseract masih tahan pada sudut ini |
+| 35–40% | email dan kota hilang (rahmat, nur), dua tuple pengalaman hilang (lina) | email nur dan rahmat serta kedua tuple pengalaman pulih; kota rahmat dan lina, email dan pendidikan lina masih salah |
+
+Manfaatnya nyata hanya pada sudut ekstrem. Batasan utamanya adalah resolusi: huruf di bagian yang jauh dari kamera tetap kecil. Uji unit (`perspective_test.go`) mencakup deteksi sudut, ukuran hasil, homografi, dan penolakan kertas persegi, penuh, atau terpotong. Fixture yang memakai sudut 35–40% adalah rahmat dan lina; nur memakai 25%.
 
 **Batasan validitas:** seluruh fixture dibuat oleh generator yang sama (4 gaya header entri, 2 tata letak PDF, 1 template DOCX). Holdout tidak dipakai untuk menyetel aturan, tetapi berbagi template, sehingga angka di atas membuktikan **tidak ada regresi pada sampel ini**, bukan akurasi pada CV nyata yang jauh lebih beragam (desain grafis, tiga kolom, ikon sebagai label, tabel bersarang, bahasa campur). Kalibrasi lanjutan perlu korpus CV nyata yang disetujui pemiliknya dan tidak di-commit.
 
@@ -198,7 +225,7 @@ Commit kode parser saat evaluasi: lihat `docs/cv-parsing-eval.json` (`parser: cv
 | PDF native (1–2 hal.) | 38 | 176 ms | 203 ms | ≤ 5 s (terpenuhi) |
 | Scan (1–2 hal.) | 6 | 2,3 s | 4,0 s | ≤ 30 s untuk 2 hal. (terpenuhi) |
 | Campuran | 4 | 2,3 s | 10,7 s (halaman noise: 3 percobaan OCR) | |
-| Foto | 9 | 2,3 s | 3,1 s | |
+| Foto | 11 | 2,7 s | 3,5 s | |
 | DOCX | 16 | 1 ms | 2 ms | |
 | DOC (LibreOffice) | 14 | 8,6 s | 9,6 s | |
 
@@ -206,10 +233,9 @@ Backlog 20 unggahan campuran (`node tests/load/cv-backlog.mjs 20`, concurrency 2
 
 ## Belum tersedia / belum teruji
 
-- Koreksi perspektif foto (kertas trapesium) belum diimplementasikan; foto miring dan berputar ditangani.
+- Koreksi perspektif tidak menangani kertas melengkung/terlipat, kertas di atas latar yang sama terangnya, atau foto yang memotong tepi kertas.
 - OCR per wilayah (region) dalam halaman native: saat ini satu halaman memakai native, OCR, atau gabungan seluruh halaman (baris OCR yang tidak bertumpuk dengan native ditambahkan).
 - Adapter model layout/LLM lokal opsional tidak dibuat (baseline memenuhi target pada fixture; tanpa bukti manfaat).
 - Batas memori/CPU per proses di Windows dev (Job Object) belum diterapkan; di Linux lewat systemd.
-- UI staf untuk melihat hasil pembacaan CV kandidat belum ada (API `GET /cv-parses/{id}` berscope dan teraudit sudah ada).
 - Unit systemd `ats-cvworker.service` dan paket Linux belum dijalankan di server sungguhan (tidak ada host Linux).
 - Korpus CV nyata belum diuji (lihat batasan validitas).

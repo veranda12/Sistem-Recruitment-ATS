@@ -23,9 +23,12 @@ type Transform struct {
 	ExifOrientation int     `json:"exifOrientation,omitempty"`
 	Rotate          int     `json:"rotate,omitempty"` // derajat searah jarum jam setelah EXIF
 	DeskewDeg       float64 `json:"deskewDeg,omitempty"`
-	BlurScore       float64 `json:"blurScore"`
-	Width           int     `json:"width"`
-	Height          int     `json:"height"`
+	// Perspective: sudut kertas (kiri atas, kanan atas, kanan bawah, kiri bawah; piksel setelah EXIF) yang
+	// diluruskan karena foto diambil dari sudut sempit.
+	Perspective [][2]float64 `json:"perspective,omitempty"`
+	BlurScore   float64      `json:"blurScore"`
+	Width       int          `json:"width"`
+	Height      int          `json:"height"`
 }
 
 // checkImageConfig menolak dimensi berlebihan sebelum decode penuh (mencegah bom dekompresi).
@@ -421,6 +424,17 @@ func (e *engine) ocrImage(ctx context.Context, src string, p *Page) (ocrResult, 
 	if e.format != "pdf" && tr.BlurScore < BlurThreshold {
 		return ocrResult{}, fail(ReasonBlurry, fmt.Sprintf("blur=%.1f", tr.BlurScore))
 	}
+	// Foto dari sudut sempit: luruskan kertas sebelum normalisasi dan OSD (latar meja ikut terbuang).
+	if e.format != "pdf" {
+		if q, ok := findPaper(g); ok {
+			long := math.Max(math.Max(dist(q[0], q[1]), dist(q[3], q[2])), math.Max(dist(q[0], q[3]), dist(q[1], q[2])))
+			g = warpQuad(g, q, math.Min(1.5, math.Max(1, 4000/long)))
+			for _, c := range q {
+				tr.Perspective = append(tr.Perspective, [2]float64{math.Round(c.X), math.Round(c.Y)})
+			}
+			p.Attempts = append(p.Attempts, "perspective")
+		}
+	}
 	// OSD pada gambar mentah dan hasil normalisasi; pakai keyakinan tertinggi.
 	raw := g
 	stamp("decode")
@@ -525,7 +539,7 @@ func (e *engine) ocrImage(ctx context.Context, src string, p *Page) (ocrResult, 
 	if best.Words == 0 {
 		return ocrResult{}, fail(ReasonNoText, "ocr tanpa kata")
 	}
-	if tr.Rotate != 0 || tr.DeskewDeg != 0 || p.Image == "" || e.format != "pdf" {
+	if tr.Rotate != 0 || tr.DeskewDeg != 0 || tr.Perspective != nil || p.Image == "" || e.format != "pdf" {
 		prev, f := downscale(g, 1400)
 		name := fmt.Sprintf("page-%d.jpg", p.No)
 		if err := saveJPEG(filepath.Join(e.outDir, name), prev); err == nil {

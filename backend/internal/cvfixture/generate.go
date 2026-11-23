@@ -105,6 +105,8 @@ func Generate(out string, t Tools, logf func(string, ...any)) ([]Fixture, error)
 	scanSet := []string{"sinta", "budi", "rahmat", "joko", "lina", "andi"}
 	mixedSet := []string{"sinta", "joko", "andi"}
 	dupSet := []string{"sinta", "budi", "dewi", "maya"}
+	// foto dari sudut sempit (keystone): dev dan holdout
+	keystoneSet := map[string]float64{"rahmat": 0.40, "nur": 0.25, "lina": 0.38}
 	photo := map[string]string{"sinta": "skew", "budi": "rot90", "dewi": "rot180", "kevin": "exif6", "ayu": "skewpng", "maya": "webp", "fajar": "skew", "sari": "skew"}
 
 	for i, p := range Personas() {
@@ -182,6 +184,9 @@ func Generate(out string, t Tools, logf func(string, ...any)) ([]Fixture, error)
 					logf("webp %s: %v", p.ID, err)
 				}
 			}
+		}
+		if k, ok := keystoneSet[p.ID]; ok {
+			g.write(fx("photo-perspective", "image", "jpg", "ok"), EncodeJPEG(PhotoKeystone(page1, seed, 2, 1, k), 80))
 		}
 		if p.ID == "sinta" {
 			// halaman 2 gagal dibaca (noise murni); pendidikan di halaman 1 tetap tersedia
