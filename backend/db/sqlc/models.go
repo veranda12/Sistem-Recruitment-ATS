@@ -791,6 +791,9 @@ type User struct {
 	CreatedAt         time.Time  `json:"createdAt"`
 	UpdatedAt         time.Time  `json:"updatedAt"`
 	MfaLastStep       *int64     `json:"mfaLastStep"`
+	AnonymizedAt      *time.Time `json:"anonymizedAt"`
+	LegalHoldAt       *time.Time `json:"legalHoldAt"`
+	LegalHoldReason   string     `json:"legalHoldReason"`
 }
 
 type Workflow struct {

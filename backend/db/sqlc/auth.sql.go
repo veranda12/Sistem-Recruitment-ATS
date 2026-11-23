@@ -110,7 +110,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (org_id, kind, email, display_name, password_hash, email_verified_at)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, org_id, kind, email, display_name, password_hash, email_verified_at, status, mfa_secret, mfa_enabled_at, password_changed_at, version, created_at, updated_at, mfa_last_step
+RETURNING id, org_id, kind, email, display_name, password_hash, email_verified_at, status, mfa_secret, mfa_enabled_at, password_changed_at, version, created_at, updated_at, mfa_last_step, anonymized_at, legal_hold_at, legal_hold_reason
 `
 
 type CreateUserParams struct {
@@ -148,6 +148,9 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.MfaLastStep,
+		&i.AnonymizedAt,
+		&i.LegalHoldAt,
+		&i.LegalHoldReason,
 	)
 	return i, err
 }
@@ -273,7 +276,7 @@ func (q *Queries) GetOrganizationBySlug(ctx context.Context, slug string) (Organ
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, org_id, kind, email, display_name, password_hash, email_verified_at, status, mfa_secret, mfa_enabled_at, password_changed_at, version, created_at, updated_at, mfa_last_step FROM users WHERE id = $1
+SELECT id, org_id, kind, email, display_name, password_hash, email_verified_at, status, mfa_secret, mfa_enabled_at, password_changed_at, version, created_at, updated_at, mfa_last_step, anonymized_at, legal_hold_at, legal_hold_reason FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -295,12 +298,15 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.MfaLastStep,
+		&i.AnonymizedAt,
+		&i.LegalHoldAt,
+		&i.LegalHoldReason,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, org_id, kind, email, display_name, password_hash, email_verified_at, status, mfa_secret, mfa_enabled_at, password_changed_at, version, created_at, updated_at, mfa_last_step FROM users WHERE org_id = $1 AND email = $2
+SELECT id, org_id, kind, email, display_name, password_hash, email_verified_at, status, mfa_secret, mfa_enabled_at, password_changed_at, version, created_at, updated_at, mfa_last_step, anonymized_at, legal_hold_at, legal_hold_reason FROM users WHERE org_id = $1 AND email = $2
 `
 
 type GetUserByEmailParams struct {
@@ -327,6 +333,9 @@ func (q *Queries) GetUserByEmail(ctx context.Context, arg GetUserByEmailParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.MfaLastStep,
+		&i.AnonymizedAt,
+		&i.LegalHoldAt,
+		&i.LegalHoldReason,
 	)
 	return i, err
 }
