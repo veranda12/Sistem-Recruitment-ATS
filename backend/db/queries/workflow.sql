@@ -74,3 +74,21 @@ WHERE a.application_id = $1 ORDER BY a.created_at;
 
 -- name: LastStageEntrySeq :one
 SELECT coalesce(max(id), 0)::bigint FROM transition_history WHERE application_id = $1 AND to_stage = $2;
+
+-- name: ActiveApplicationsByVersionStage :many
+-- Lamaran aktif per versi dan tahap untuk satu workflow (bahan pratinjau pemindahan versi).
+SELECT a.workflow_version_id, v.version_no, a.stage_key, count(*)::bigint AS n
+FROM job_applications a JOIN workflow_versions v ON v.id = a.workflow_version_id
+WHERE v.workflow_id = $1 AND a.status = 'active'
+GROUP BY a.workflow_version_id, v.version_no, a.stage_key
+ORDER BY v.version_no, a.stage_key;
+
+-- name: LockActiveApplicationsOnVersion :many
+SELECT id, org_id, stage_key, status FROM job_applications
+WHERE workflow_version_id = $1 AND status = 'active' ORDER BY id FOR UPDATE;
+
+-- name: MigrateApplicationVersion :exec
+UPDATE job_applications SET workflow_version_id = $2, stage_key = $3,
+       stage_entered_at = CASE WHEN stage_key <> $3 THEN now() ELSE stage_entered_at END,
+       version = version + 1, updated_at = now()
+WHERE id = $1;

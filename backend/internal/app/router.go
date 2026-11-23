@@ -186,6 +186,9 @@ func NewRouter(d Deps) *gin.Engine {
 	staff.POST("/workflows/:id/publish", auth.RequireAnyPerm(auth.PermWorkflowsPublish), wf.PublishDraft)
 	staff.GET("/workflows/:id/versions", auth.RequireAnyPerm(auth.PermWorkflowsRead), wf.Versions)
 	staff.POST("/workflows/:id/rollback", auth.RequireAnyPerm(auth.PermWorkflowsPublish), wf.RollbackTo)
+	staff.GET("/workflows/:id/migrations", auth.RequireAnyPerm(auth.PermWorkflowsRead), wf.MigrationOverview)
+	staff.POST("/workflows/:id/migrations/preview", auth.RequireAnyPerm(auth.PermWorkflowsRead), wf.MigrationPreview)
+	staff.POST("/workflows/:id/migrations", auth.RequireAnyPerm(auth.PermWorkflowsPublish), wf.MigrationRun)
 
 	staff.GET("/exam-banks", auth.RequireAnyPerm(auth.PermExamsManage), ex.ListBanks)
 	staff.POST("/exam-banks", auth.RequireAnyPerm(auth.PermExamsManage), ex.CreateBank)

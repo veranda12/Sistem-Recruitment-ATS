@@ -13,6 +13,47 @@ import (
 	"github.com/google/uuid"
 )
 
+const activeApplicationsByVersionStage = `-- name: ActiveApplicationsByVersionStage :many
+SELECT a.workflow_version_id, v.version_no, a.stage_key, count(*)::bigint AS n
+FROM job_applications a JOIN workflow_versions v ON v.id = a.workflow_version_id
+WHERE v.workflow_id = $1 AND a.status = 'active'
+GROUP BY a.workflow_version_id, v.version_no, a.stage_key
+ORDER BY v.version_no, a.stage_key
+`
+
+type ActiveApplicationsByVersionStageRow struct {
+	WorkflowVersionID uuid.UUID `json:"workflowVersionId"`
+	VersionNo         int32     `json:"versionNo"`
+	StageKey          string    `json:"stageKey"`
+	N                 int64     `json:"n"`
+}
+
+// Lamaran aktif per versi dan tahap untuk satu workflow (bahan pratinjau pemindahan versi).
+func (q *Queries) ActiveApplicationsByVersionStage(ctx context.Context, workflowID uuid.UUID) ([]ActiveApplicationsByVersionStageRow, error) {
+	rows, err := q.db.Query(ctx, activeApplicationsByVersionStage, workflowID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ActiveApplicationsByVersionStageRow{}
+	for rows.Next() {
+		var i ActiveApplicationsByVersionStageRow
+		if err := rows.Scan(
+			&i.WorkflowVersionID,
+			&i.VersionNo,
+			&i.StageKey,
+			&i.N,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countApprovals = `-- name: CountApprovals :one
 SELECT count(*) FILTER (WHERE decision = 'approve')::int AS approves,
        count(*) FILTER (WHERE decision = 'reject')::int AS rejects
@@ -486,6 +527,43 @@ func (q *Queries) ListWorkflows(ctx context.Context, orgID uuid.UUID) ([]ListWor
 	return items, nil
 }
 
+const lockActiveApplicationsOnVersion = `-- name: LockActiveApplicationsOnVersion :many
+SELECT id, org_id, stage_key, status FROM job_applications
+WHERE workflow_version_id = $1 AND status = 'active' ORDER BY id FOR UPDATE
+`
+
+type LockActiveApplicationsOnVersionRow struct {
+	ID       uuid.UUID `json:"id"`
+	OrgID    uuid.UUID `json:"orgId"`
+	StageKey string    `json:"stageKey"`
+	Status   string    `json:"status"`
+}
+
+func (q *Queries) LockActiveApplicationsOnVersion(ctx context.Context, workflowVersionID uuid.UUID) ([]LockActiveApplicationsOnVersionRow, error) {
+	rows, err := q.db.Query(ctx, lockActiveApplicationsOnVersion, workflowVersionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LockActiveApplicationsOnVersionRow{}
+	for rows.Next() {
+		var i LockActiveApplicationsOnVersionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrgID,
+			&i.StageKey,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockWorkflow = `-- name: LockWorkflow :one
 SELECT id, org_id, key, name, draft_definition, draft_revision, active_version_id, created_at, updated_at, updated_by FROM workflows WHERE id = $1 FOR UPDATE
 `
@@ -506,6 +584,24 @@ func (q *Queries) LockWorkflow(ctx context.Context, id uuid.UUID) (Workflow, err
 		&i.UpdatedBy,
 	)
 	return i, err
+}
+
+const migrateApplicationVersion = `-- name: MigrateApplicationVersion :exec
+UPDATE job_applications SET workflow_version_id = $2, stage_key = $3,
+       stage_entered_at = CASE WHEN stage_key <> $3 THEN now() ELSE stage_entered_at END,
+       version = version + 1, updated_at = now()
+WHERE id = $1
+`
+
+type MigrateApplicationVersionParams struct {
+	ID                uuid.UUID `json:"id"`
+	WorkflowVersionID uuid.UUID `json:"workflowVersionId"`
+	StageKey          string    `json:"stageKey"`
+}
+
+func (q *Queries) MigrateApplicationVersion(ctx context.Context, arg MigrateApplicationVersionParams) error {
+	_, err := q.db.Exec(ctx, migrateApplicationVersion, arg.ID, arg.WorkflowVersionID, arg.StageKey)
+	return err
 }
 
 const nextWorkflowVersionNo = `-- name: NextWorkflowVersionNo :one

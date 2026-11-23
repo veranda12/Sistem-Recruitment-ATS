@@ -408,7 +408,10 @@ export function WorkflowEditor() {
             </ul>
           </section>
 
-          <Dialog open={publishOpen} onOpenChange={setPublishOpen} title="Terbitkan versi baru?" description="Versi baru berlaku untuk lamaran baru. Lamaran berjalan tetap memakai versinya.">
+          {/* key: muat ulang ringkasan setelah versi baru terbit atau versi lama diaktifkan kembali. */}
+          <MigrationSection key={q.data.versions.find((v) => v.active)?.id ?? "none"} workflowId={id} canRun={can("workflows.publish")} />
+
+          <Dialog open={publishOpen} onOpenChange={setPublishOpen} title="Terbitkan versi baru?" description="Versi baru berlaku untuk lamaran baru. Lamaran berjalan tetap memakai versinya sampai dipindahkan lewat bagian Pindahkan lamaran berjalan.">
             {err?.code === "workflow_invalid" || err?.code === "stale_version" ? <Alert tone="danger">{err.message}</Alert> : null}
             <Field label="Catatan rilis">{({ id: fid }) => <Input id={fid} value={notes} onChange={(e) => setNotes(e.target.value)} />}</Field>
             <div className="mt-4 flex justify-end gap-2">
@@ -431,5 +434,134 @@ export function WorkflowEditor() {
         </div>
       ) : null}
     </PageState>
+  );
+}
+
+type Plan = {
+  from: { id: string; versionNo: number };
+  to: { id: string; versionNo: number };
+  stages: { fromKey: string; fromName: string; count: number; toKey: string; toName: string; problem?: string; warnings: string[] }[];
+  total: number;
+  ready: boolean;
+  targets: { key: string; name: string }[];
+};
+
+/** Memindahkan lamaran aktif dari versi lama ke versi aktif: pilih versi, petakan tahap, pratinjau, lalu jalankan. */
+function MigrationSection({ workflowId, canRun }: { workflowId: string; canRun: boolean }) {
+  const ov = useQuery<{ versions: { id: string; versionNo: number; activeApplications: number; current: boolean }[]; activeVersionId: string | null }>(`/workflows/${workflowId}/migrations`);
+  const toast = useToast();
+  const [from, setFrom] = useState("");
+  const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [plan, setPlan] = useState<Plan | null>(null);
+  const [reason, setReason] = useState("");
+  const [err, setErr] = useState<ApiError | null>(null);
+  const [busy, setBusy] = useState(false);
+  const older = (ov.data?.versions ?? []).filter((v) => !v.current && v.activeApplications > 0);
+
+  useEffect(() => {
+    if (!from) return setPlan(null);
+    let alive = true;
+    post<Plan>(`/workflows/${workflowId}/migrations/preview`, { fromVersionId: from, mapping })
+      .then((p) => {
+        if (!alive) return;
+        setPlan(p);
+        setErr(null);
+      })
+      .catch((e: ApiError) => {
+        if (alive) setErr(e);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [workflowId, from, mapping]);
+
+  const run = async () => {
+    if (!plan || !ov.data?.activeVersionId) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await post<{ moved: number }>(`/workflows/${workflowId}/migrations`, { fromVersionId: from, mapping, expectedActiveVersionId: ov.data.activeVersionId, reason });
+      toast("success", `${r.moved} lamaran dipindahkan ke versi ${plan.to.versionNo}.`);
+      setFrom("");
+      setMapping({});
+      setReason("");
+      ov.reload();
+    } catch (e) {
+      setErr(e as ApiError);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (ov.loading || older.length === 0) return null;
+  return (
+    <section className="mt-8" aria-label="Pindahkan lamaran berjalan">
+      <h2 className="mb-1 text-[20px]">Pindahkan lamaran berjalan</h2>
+      <p className="mb-3 text-sm text-ink-2">Lamaran aktif pada versi lama tetap memakai aturan versinya. Pindahkan ke versi aktif bila aturan baru perlu berlaku juga untuk mereka.</p>
+      <label className="mb-3 flex flex-col gap-1 text-sm font-semibold">
+        Versi asal
+        <Select value={from} onChange={(e) => { setMapping({}); setFrom(e.target.value); }}>
+          <option value="">Pilih versi</option>
+          {older.map((v) => (
+            <option key={v.id} value={v.id}>
+              Versi {v.versionNo} · {v.activeApplications} lamaran aktif
+            </option>
+          ))}
+        </Select>
+      </label>
+      {err ? <Alert tone="danger" title={Object.values(err.fieldErrors)[0] ?? err.message} /> : null}
+      {plan ? (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left text-[15px]">
+              <caption className="sr-only">Pemetaan tahap versi {plan.from.versionNo} ke versi {plan.to.versionNo}</caption>
+              <thead>
+                <tr className="border-b border-line text-sm text-ink-2">
+                  <th scope="col" className="py-2 pr-4 font-semibold">Tahap di versi {plan.from.versionNo}</th>
+                  <th scope="col" className="py-2 pr-4 font-semibold">Lamaran</th>
+                  <th scope="col" className="py-2 font-semibold">Pindah ke tahap di versi {plan.to.versionNo}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {plan.stages.map((st) => (
+                  <tr key={st.fromKey} className="border-b border-line align-top">
+                    <td className="py-3 pr-4">{st.fromName}</td>
+                    <td className="py-3 pr-4">{st.count}</td>
+                    <td className="py-3">
+                      <Select aria-label={`Tujuan untuk ${st.fromName}`} value={mapping[st.fromKey] ?? st.toKey} onChange={(e) => setMapping({ ...mapping, [st.fromKey]: e.target.value })}>
+                        {!st.toKey ? <option value="">Pilih tahap</option> : null}
+                        {plan.targets.map((t) => (
+                          <option key={t.key} value={t.key}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </Select>
+                      {st.problem ? <p className="mt-1 text-sm text-danger">{st.problem}</p> : null}
+                      {st.warnings.map((w) => (
+                        <p key={w} className="mt-1 text-sm text-warning">
+                          {w}
+                        </p>
+                      ))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {canRun ? (
+            <div className="mt-3 flex flex-col gap-3">
+              <Field label="Alasan" required hint="Dicatat di riwayat setiap lamaran dan di audit.">
+                {({ id, describedBy }) => <Input id={id} aria-describedby={describedBy} value={reason} onChange={(e) => setReason(e.target.value)} />}
+              </Field>
+              <div>
+                <Button variant="primary" busy={busy} disabled={!plan.ready} onClick={run}>
+                  Pindahkan {plan.total} lamaran
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </section>
   );
 }
