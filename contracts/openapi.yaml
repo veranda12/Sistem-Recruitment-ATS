@@ -1558,7 +1558,7 @@ components:
         invalidatedAt: { type: [string, "null"], format: date-time }
     ApplicationDetail:
       type: object
-      required: [id, jobId, jobTitle, unitName, status, stage, appliedAt, stageEnteredAt, version, shortlisted, candidate, snapshot, snapshotAt, history, approvals, otherApplications, hiddenOtherApplications, actions, stages, canRevealIdentity, documents, interviews, evaluations, canSchedule, decisionNotifiedAt]
+      required: [id, jobId, jobTitle, unitName, status, stage, appliedAt, stageEnteredAt, version, shortlisted, candidate, snapshot, snapshotAt, history, approvals, otherApplications, hiddenOtherApplications, actions, stages, canRevealIdentity, documents, interviews, evaluations, canSchedule, decisionNotifiedAt, cvParses]
       properties:
         id: { type: string, format: uuid }
         jobId: { type: string, format: uuid }
@@ -1621,6 +1621,18 @@ components:
         evaluations: { type: array, items: { $ref: "#/components/schemas/Evaluation" } }
         canSchedule: { type: boolean }
         decisionNotifiedAt: { type: [string, "null"], format: date-time }
+        cvParses:
+          description: Hasil pembacaan CV kandidat yang siap diperiksa, sebagian, atau sudah diterapkan (terbaru dulu). Detail lewat GET /cv-parses/{id}.
+          type: array
+          items:
+            type: object
+            required: [id, documentName, status, createdAt, finishedAt]
+            properties:
+              id: { type: string, format: uuid }
+              documentName: { type: string }
+              status: { type: string, enum: [ready_for_review, partial, applied] }
+              createdAt: { type: string, format: date-time }
+              finishedAt: { type: [string, "null"], format: date-time }
     TransitionResult:
       type: object
       required: [duplicate, changed, fromStage, toStage, status, version, note]

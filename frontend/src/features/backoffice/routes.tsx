@@ -3,6 +3,7 @@ import { Link, NavLink, Navigate, Route, Routes, useNavigate } from "react-route
 import { useSession } from "../../lib/session";
 import { Button, cx } from "../../ui";
 import { ApplicationDetail, ApplicationsPage } from "./applications";
+import { StaffCvResult } from "./cvresults";
 import { AuditPage, CommsPage, SettingsPage, UsersPage } from "./admin";
 import { BanksPage } from "./banks";
 import { EssayGrading, ScheduleMonitor, SchedulesPage } from "./exams";
@@ -97,6 +98,7 @@ export default function BackofficeRoutes() {
             <Route path="keamanan" element={<SecurityPage />} />
             <Route path="lamaran" element={<ApplicationsPage />} />
             <Route path="lamaran/:id" element={<ApplicationDetail />} />
+            <Route path="lamaran/:id/cv/:runId" element={<StaffCvResult />} />
             <Route path="lowongan" element={<JobsPage />} />
             <Route path="permintaan" element={<RequisitionsPage />} />
             <Route path="workflow" element={<WorkflowsPage />} />

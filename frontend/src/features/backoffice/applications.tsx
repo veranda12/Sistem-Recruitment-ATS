@@ -121,6 +121,8 @@ export function ApplicationsPage() {
 
 type Action = Schemas["ApplicationDetail"]["actions"][number];
 
+const cvStatusLabel: Record<string, string> = { ready_for_review: "belum disimpan kandidat", partial: "sebagian terbaca", applied: "diterapkan ke profil" };
+
 export function ApplicationDetail() {
   const { id = "" } = useParams();
   const q = useQuery<Schemas["ApplicationDetail"]>(`/applications/${id}`);
@@ -278,6 +280,21 @@ export function ApplicationDetail() {
                   </ul>
                 )}
               </div>
+              {d.cvParses.length > 0 ? (
+                <div className="mt-6">
+                  <h3 className="mb-2 font-semibold">Hasil pembacaan CV</h3>
+                  <ul className="text-[15px]">
+                    {d.cvParses.map((r) => (
+                      <li key={r.id} className="flex flex-wrap items-center gap-2 py-1">
+                        {r.documentName} · {cvStatusLabel[r.status] ?? r.status}
+                        <Link className="text-sm text-primary underline" to={`/staf/lamaran/${d.id}/cv/${r.id}`}>
+                          Lihat hasil dan sumbernya
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               <InterviewSection
                 applicationId={d.id}
                 interviews={d.interviews}

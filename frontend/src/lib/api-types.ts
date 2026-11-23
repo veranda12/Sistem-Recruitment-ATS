@@ -3697,6 +3697,18 @@ export interface components {
             canSchedule: boolean;
             /** Format: date-time */
             decisionNotifiedAt: string | null;
+            /** @description Hasil pembacaan CV kandidat yang siap diperiksa, sebagian, atau sudah diterapkan (terbaru dulu). Detail lewat GET /cv-parses/{id}. */
+            cvParses: {
+                /** Format: uuid */
+                id: string;
+                documentName: string;
+                /** @enum {string} */
+                status: "ready_for_review" | "partial" | "applied";
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                finishedAt: string | null;
+            }[];
         };
         TransitionResult: {
             duplicate: boolean;

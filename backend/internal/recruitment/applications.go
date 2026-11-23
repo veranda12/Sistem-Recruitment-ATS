@@ -369,6 +369,25 @@ func (h *Handler) GetApplication(c *gin.Context) {
 			return
 		}
 	}
+	// Hasil pembacaan CV yang layak dilihat staf: run yang dibatalkan, gagal, atau diabaikan kandidat tidak ditampilkan.
+	type cvParseDTO struct {
+		ID           uuid.UUID  `json:"id"`
+		DocumentName string     `json:"documentName"`
+		Status       string     `json:"status"`
+		CreatedAt    time.Time  `json:"createdAt"`
+		FinishedAt   *time.Time `json:"finishedAt"`
+	}
+	cvRuns, err := h.Q.ListCVParseRunsForCandidate(ctx, app.CandidateUserID)
+	if err != nil {
+		platform.Fail(c, err)
+		return
+	}
+	cvParses := []cvParseDTO{}
+	for _, r := range cvRuns {
+		if r.Status == "ready_for_review" || r.Status == "partial" || r.Status == "applied" {
+			cvParses = append(cvParses, cvParseDTO{ID: r.ID, DocumentName: r.DocumentName, Status: r.Status, CreatedAt: r.CreatedAt, FinishedAt: r.FinishedAt})
+		}
+	}
 	ivs, err := h.Q.ListInterviewsForApplication(ctx, app.ID)
 	if err != nil {
 		platform.Fail(c, err)
@@ -414,7 +433,7 @@ func (h *Handler) GetApplication(c *gin.Context) {
 		"history": ts, "approvals": approvals, "otherApplications": visible, "hiddenOtherApplications": hidden,
 		"actions": actions, "stages": stages, "canRevealIdentity": p.Can(auth.PermIdentityReveal, res), "documents": docs,
 		"interviews": ivs, "evaluations": evals, "canSchedule": app.Status == "active" && p.Can(auth.PermApplicationsMove, res),
-		"decisionNotifiedAt": app.DecisionNotifiedAt,
+		"decisionNotifiedAt": app.DecisionNotifiedAt, "cvParses": cvParses,
 	})
 }
 

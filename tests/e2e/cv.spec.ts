@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { resolve } from "node:path";
-import { verifiedCandidate } from "./api";
-import { login } from "./helpers";
+import { Api, verifiedCandidate } from "./api";
+import { login, logout } from "./helpers";
 
 const fixture = (split: string, name: string) => resolve(process.cwd(), "..", "tests", "cv-fixtures", "out", split, name);
 
@@ -53,4 +53,27 @@ test("isi profil dari CV: bukti, koreksi, refresh, simpan", async ({ page }) => 
   const companies = await page.getByLabel("Perusahaan").evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
   expect(companies).toEqual(expect.arrayContaining(["PT Nusantara Data Teknologi", "CV Kreasi Digital Mandiri"]));
   expect(companies).toHaveLength(2);
+
+  // Lengkapi tanggal lahir (tidak diusulkan dari CV), lalu melamar.
+  await page.getByLabel("Tanggal lahir").fill("1996-05-20");
+  await page.getByRole("button", { name: "Simpan profil" }).click();
+  await expect(page.getByText("Profil tersimpan.")).toBeVisible();
+  const cand = await Api.login(email);
+  const applied = await cand.call("POST", "/jobs/operator-produksi-karawang/apply", {}, { "Idempotency-Key": `cv-e2e-${Date.now()}` });
+  expect(applied.status).toBe(201);
+
+  // Recruiter unit melihat hasil pembacaan CV dari detail lamaran, termasuk keputusan kandidat dan sumbernya.
+  await logout(page);
+  await login(page, "rekruter.ops@arunika.example");
+  await page.goto(`/staf/lamaran/${applied.body.applicationId}`);
+  await page.getByRole("link", { name: "Lihat hasil dan sumbernya" }).click();
+  await expect(page.getByRole("heading", { name: "Hasil pembacaan CV" })).toBeVisible();
+  await expect(page.getByText("Sudah diterapkan kandidat ke profil")).toBeVisible();
+  const staffContact = page.getByRole("region", { name: "Kontak" });
+  await expect(staffContact.getByText("Diubah kandidat")).toBeVisible(); // telepon dikoreksi
+  await expect(staffContact.getByText("Ditolak kandidat")).toBeVisible(); // email ditolak
+  const staffExp = page.getByRole("region", { name: /Junior Developer di CV Kreasi Digital Mandiri/ });
+  await staffExp.getByRole("button", { name: "Lihat sumber Periode" }).click();
+  await expect(page.locator("aside blockquote").first()).toContainText("Jan 2020");
+  await expect(page.getByRole("img", { name: /Potongan halaman 1 CV/ })).toBeVisible();
 });
