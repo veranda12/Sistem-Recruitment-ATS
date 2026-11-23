@@ -50,3 +50,12 @@ func TestValidateTemplate(t *testing.T) {
 		t.Errorf("template tanpa placeholder wajib harus valid: %v", f)
 	}
 }
+
+func TestNormalizeWhatsApp(t *testing.T) {
+	for in, want := range map[string]string{"081234567890": "6281234567890", "+6281234567890": "6281234567890", "6281234567890": "6281234567890",
+		"0812-3456": "", "": "", "08abc": ""} {
+		if got := NormalizeWhatsApp(in); got != want {
+			t.Errorf("NormalizeWhatsApp(%q) = %q, ingin %q", in, got, want)
+		}
+	}
+}

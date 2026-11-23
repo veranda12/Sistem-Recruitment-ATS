@@ -379,7 +379,7 @@ export function AuditPage() {
   );
 }
 
-type Delivery = { id: string; templateKey: string; toName: string | null; status: string; attempts: number; lastError: string | null; createdAt: string; sentAt: string | null };
+type Delivery = { id: string; channel: string; templateKey: string; toName: string | null; status: string; attempts: number; lastError: string | null; createdAt: string; sentAt: string | null };
 type Dead = { id: string; topic: string; attempts: number; lastError: string | null; createdAt: string };
 
 export function CommsPage() {
@@ -446,7 +446,10 @@ export function CommsPage() {
                       <tr key={d.id} className="border-b border-line">
                         <td className="py-2 pr-3 whitespace-nowrap">{fmtDateTime(d.createdAt)}</td>
                         <td className="py-2 pr-3">{d.toName ?? "-"}</td>
-                        <td className="py-2 pr-3">{d.templateKey}</td>
+                        <td className="py-2 pr-3">
+                          {d.templateKey}
+                          {d.channel === "whatsapp" ? <span className="ml-1 text-[13px] text-ink-2">(WhatsApp)</span> : null}
+                        </td>
                         <td className="py-2 pr-3">{status[d.status] ?? d.status}</td>
                         <td className="py-2">
                           {d.attempts} percobaan{d.lastError ? ` · ${d.lastError}` : ""}

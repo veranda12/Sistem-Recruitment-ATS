@@ -49,6 +49,41 @@ func (q *Queries) BeginDelivery(ctx context.Context, arg BeginDeliveryParams) (B
 	return i, err
 }
 
+const beginWhatsAppDelivery = `-- name: BeginWhatsAppDelivery :one
+INSERT INTO email_deliveries (org_id, event_id, template_key, to_user_id, to_address, attempts, channel)
+VALUES ($1, $2, $3, $4, $5, 1, 'whatsapp')
+ON CONFLICT (event_id, template_key, to_address)
+DO UPDATE SET attempts = email_deliveries.attempts + 1
+RETURNING id, status, attempts
+`
+
+type BeginWhatsAppDeliveryParams struct {
+	OrgID       uuid.UUID  `json:"orgId"`
+	EventID     uuid.UUID  `json:"eventId"`
+	TemplateKey string     `json:"templateKey"`
+	ToUserID    *uuid.UUID `json:"toUserId"`
+	ToAddress   string     `json:"toAddress"`
+}
+
+type BeginWhatsAppDeliveryRow struct {
+	ID       uuid.UUID `json:"id"`
+	Status   string    `json:"status"`
+	Attempts int32     `json:"attempts"`
+}
+
+func (q *Queries) BeginWhatsAppDelivery(ctx context.Context, arg BeginWhatsAppDeliveryParams) (BeginWhatsAppDeliveryRow, error) {
+	row := q.db.QueryRow(ctx, beginWhatsAppDelivery,
+		arg.OrgID,
+		arg.EventID,
+		arg.TemplateKey,
+		arg.ToUserID,
+		arg.ToAddress,
+	)
+	var i BeginWhatsAppDeliveryRow
+	err := row.Scan(&i.ID, &i.Status, &i.Attempts)
+	return i, err
+}
+
 const finishDelivery = `-- name: FinishDelivery :exec
 UPDATE email_deliveries SET status = $2, last_error = $3, provider_id = $4,
        sent_at = CASE WHEN $2 = 'sent' THEN now() ELSE sent_at END
@@ -70,6 +105,22 @@ func (q *Queries) FinishDelivery(ctx context.Context, arg FinishDeliveryParams) 
 		arg.ProviderID,
 	)
 	return err
+}
+
+const getWhatsAppPreference = `-- name: GetWhatsAppPreference :one
+SELECT phone, whatsapp_opt_in_at FROM candidate_profiles WHERE user_id = $1
+`
+
+type GetWhatsAppPreferenceRow struct {
+	Phone           string     `json:"phone"`
+	WhatsappOptInAt *time.Time `json:"whatsappOptInAt"`
+}
+
+func (q *Queries) GetWhatsAppPreference(ctx context.Context, userID uuid.UUID) (GetWhatsAppPreferenceRow, error) {
+	row := q.db.QueryRow(ctx, getWhatsAppPreference, userID)
+	var i GetWhatsAppPreferenceRow
+	err := row.Scan(&i.Phone, &i.WhatsappOptInAt)
+	return i, err
 }
 
 const insertNotification = `-- name: InsertNotification :execrows
@@ -103,7 +154,7 @@ func (q *Queries) InsertNotification(ctx context.Context, arg InsertNotification
 }
 
 const listDeliveries = `-- name: ListDeliveries :many
-SELECT d.id, d.org_id, d.event_id, d.template_key, d.to_user_id, d.to_address, d.status, d.attempts, d.last_error, d.provider_id, d.created_at, d.sent_at, u.display_name AS to_name FROM email_deliveries d LEFT JOIN users u ON u.id = d.to_user_id
+SELECT d.id, d.org_id, d.event_id, d.template_key, d.to_user_id, d.to_address, d.status, d.attempts, d.last_error, d.provider_id, d.created_at, d.sent_at, d.channel, u.display_name AS to_name FROM email_deliveries d LEFT JOIN users u ON u.id = d.to_user_id
 ORDER BY d.created_at DESC LIMIT 200
 `
 
@@ -120,6 +171,7 @@ type ListDeliveriesRow struct {
 	ProviderID  *string    `json:"providerId"`
 	CreatedAt   time.Time  `json:"createdAt"`
 	SentAt      *time.Time `json:"sentAt"`
+	Channel     string     `json:"channel"`
 	ToName      *string    `json:"toName"`
 }
 
@@ -145,6 +197,7 @@ func (q *Queries) ListDeliveries(ctx context.Context) ([]ListDeliveriesRow, erro
 			&i.ProviderID,
 			&i.CreatedAt,
 			&i.SentAt,
+			&i.Channel,
 			&i.ToName,
 		); err != nil {
 			return nil, err
@@ -206,4 +259,26 @@ func (q *Queries) MarkNotificationRead(ctx context.Context, arg MarkNotification
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const setWhatsAppOptIn = `-- name: SetWhatsAppOptIn :one
+UPDATE candidate_profiles SET whatsapp_opt_in_at = $2 WHERE user_id = $1
+RETURNING phone, whatsapp_opt_in_at
+`
+
+type SetWhatsAppOptInParams struct {
+	UserID          uuid.UUID  `json:"userId"`
+	WhatsappOptInAt *time.Time `json:"whatsappOptInAt"`
+}
+
+type SetWhatsAppOptInRow struct {
+	Phone           string     `json:"phone"`
+	WhatsappOptInAt *time.Time `json:"whatsappOptInAt"`
+}
+
+func (q *Queries) SetWhatsAppOptIn(ctx context.Context, arg SetWhatsAppOptInParams) (SetWhatsAppOptInRow, error) {
+	row := q.db.QueryRow(ctx, setWhatsAppOptIn, arg.UserID, arg.WhatsappOptInAt)
+	var i SetWhatsAppOptInRow
+	err := row.Scan(&i.Phone, &i.WhatsappOptInAt)
+	return i, err
 }

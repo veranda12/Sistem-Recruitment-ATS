@@ -237,6 +237,22 @@ paths:
       responses:
         "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/TransitionResult" } } } }
         "409": { $ref: "#/components/responses/Error" }
+  /me/notification-preferences:
+    get:
+      tags: [akun]
+      summary: Pilihan pemberitahuan kandidat (persetujuan WhatsApp)
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object, required: [whatsapp, whatsappSince, phone, whatsappAvailable], properties: { whatsapp: { type: boolean }, whatsappSince: { type: [string, "null"], format: date-time }, phone: { type: string }, whatsappAvailable: { type: boolean, description: "false bila WHATSAPP_MODE=off" } } } } } }
+    put:
+      tags: [akun]
+      summary: Setujui atau cabut pemberitahuan WhatsApp ke nomor profil (dicatat di audit)
+      parameters: [{ $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [whatsapp], properties: { whatsapp: { type: boolean } } } } }
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { type: object, required: [whatsapp, whatsappSince, phone, whatsappAvailable], properties: { whatsapp: { type: boolean }, whatsappSince: { type: [string, "null"], format: date-time }, phone: { type: string }, whatsappAvailable: { type: boolean, description: "false bila WHATSAPP_MODE=off" } } } } } }
+        "422": { $ref: "#/components/responses/Error" }
   /me/notifications:
     get:
       tags: [kandidat]

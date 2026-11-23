@@ -88,17 +88,18 @@ type CandidateLink struct {
 }
 
 type CandidateProfile struct {
-	UserID       uuid.UUID  `json:"userId"`
-	OrgID        uuid.UUID  `json:"orgId"`
-	FullName     string     `json:"fullName"`
-	Phone        string     `json:"phone"`
-	BirthDate    *time.Time `json:"birthDate"`
-	City         string     `json:"city"`
-	Address      string     `json:"address"`
-	Summary      string     `json:"summary"`
-	Version      int32      `json:"version"`
-	UpdatedAt    time.Time  `json:"updatedAt"`
-	ContactEmail string     `json:"contactEmail"`
+	UserID          uuid.UUID  `json:"userId"`
+	OrgID           uuid.UUID  `json:"orgId"`
+	FullName        string     `json:"fullName"`
+	Phone           string     `json:"phone"`
+	BirthDate       *time.Time `json:"birthDate"`
+	City            string     `json:"city"`
+	Address         string     `json:"address"`
+	Summary         string     `json:"summary"`
+	Version         int32      `json:"version"`
+	UpdatedAt       time.Time  `json:"updatedAt"`
+	ContactEmail    string     `json:"contactEmail"`
+	WhatsappOptInAt *time.Time `json:"whatsappOptInAt"`
 }
 
 type CandidateProject struct {
@@ -264,6 +265,7 @@ type EmailDelivery struct {
 	ProviderID  *string    `json:"providerId"`
 	CreatedAt   time.Time  `json:"createdAt"`
 	SentAt      *time.Time `json:"sentAt"`
+	Channel     string     `json:"channel"`
 }
 
 type EmailToken struct {

@@ -86,10 +86,11 @@ func Render(t Template, vars map[string]string) (subject, body string, err error
 }
 
 type Handlers struct {
-	Pool   *pgxpool.Pool
-	Q      *sqlc.Queries
-	Mailer Mailer
-	Origin string
+	Pool     *pgxpool.Pool
+	Q        *sqlc.Queries
+	Mailer   Mailer
+	WhatsApp WhatsAppSender // nil = kanal WhatsApp nonaktif
+	Origin   string
 }
 
 // Handle memproses satu event outbox. Mengembalikan error untuk retry; efek bisnis dideduplikasi per consumer + event ID.
@@ -216,7 +217,56 @@ func (h *Handlers) applicationEvent(ctx context.Context, ev sqlc.Outbox, tpl, st
 		TemplateKey: tpl, Subject: subject, Body: body}); err != nil {
 		return err
 	}
-	return h.send(ctx, ev, u, tpl, vars)
+	if err := h.send(ctx, ev, u, tpl, vars); err != nil {
+		return err
+	}
+	return h.sendWhatsApp(ctx, ev, u, tpl, vars)
+}
+
+// sendWhatsApp: hanya untuk kandidat yang menyetujui, bernomor valid, dan template yang punya versi WhatsApp.
+// Deduplikasi dan penanganan hasil ambigu sama dengan email (catatan pengiriman per event, template, alamat).
+func (h *Handlers) sendWhatsApp(ctx context.Context, ev sqlc.Outbox, u sqlc.User, tpl string, vars map[string]string) error {
+	if h.WhatsApp == nil {
+		return nil
+	}
+	if _, ok := WhatsAppTemplates[tpl]; !ok {
+		return nil
+	}
+	pref, err := h.Q.GetWhatsAppPreference(ctx, u.ID)
+	if platform.IsNoRows(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	to := NormalizeWhatsApp(pref.Phone)
+	if pref.WhatsappOptInAt == nil || to == "" {
+		return nil
+	}
+	t, err := Resolve(ctx, h.Q, u.OrgID, tpl, "whatsapp")
+	if err != nil {
+		return err
+	}
+	_, body, err := Render(t, vars)
+	if err != nil {
+		return err
+	}
+	d, err := h.Q.BeginWhatsAppDelivery(ctx, sqlc.BeginWhatsAppDeliveryParams{OrgID: u.OrgID, EventID: ev.ID, TemplateKey: tpl, ToUserID: &u.ID, ToAddress: "+" + to})
+	if err != nil {
+		return err
+	}
+	switch {
+	case d.Status == "sent" || d.Status == "ambiguous":
+		return nil
+	case d.Status == "pending" && d.Attempts > 1:
+		return h.Q.FinishDelivery(ctx, sqlc.FinishDeliveryParams{ID: d.ID, Status: "ambiguous", LastError: strp("percobaan sebelumnya terhenti sebelum hasil tercatat")})
+	}
+	pid, err := h.WhatsApp.Send(ctx, to, body, ev.ID.String()+"-wa-"+tpl)
+	if err != nil {
+		_ = h.Q.FinishDelivery(ctx, sqlc.FinishDeliveryParams{ID: d.ID, Status: "failed", LastError: strp(truncate(err.Error(), 500))})
+		return fmt.Errorf("kirim WhatsApp %s: %w", tpl, err)
+	}
+	return h.Q.FinishDelivery(ctx, sqlc.FinishDeliveryParams{ID: d.ID, Status: "sent", ProviderID: &pid})
 }
 
 // send: catat delivery sebelum kirim, kirim di luar transaksi, lalu catat hasil.

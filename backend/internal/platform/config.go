@@ -39,6 +39,8 @@ type Config struct {
 	SMTPPassword          string
 	SMTPImplicitTLS       bool // SMTP_TLS=implicit (port 465); default STARTTLS bila server mendukung
 	MailFrom              string
+	WhatsAppMode          string // off | file (dev). Penyedia produksi belum disambungkan.
+	WhatsAppDir           string
 	ObjectDir             string
 	StrictSensitiveLimits bool
 
@@ -127,6 +129,8 @@ func LoadConfig() (Config, error) {
 		SMTPUsername:          os.Getenv("SMTP_USERNAME"),
 		SMTPPassword:          os.Getenv("SMTP_PASSWORD"),
 		SMTPImplicitTLS:       get("SMTP_TLS", "starttls") == "implicit",
+		WhatsAppMode:          get("WHATSAPP_MODE", "off"),
+		WhatsAppDir:           get("WHATSAPP_DIR", ".data/whatsapp"),
 		MailFrom:              get("MAIL_FROM", "Rekrutmen <no-reply@arunika.example>"),
 		ObjectDir:             get("OBJECT_DIR", ".data/objects"),
 		StrictSensitiveLimits: get("STRICT_SENSITIVE_LIMITS", "true") == "true",
@@ -159,6 +163,16 @@ func LoadConfig() (Config, error) {
 	}
 	if t := get("SMTP_TLS", "starttls"); t != "starttls" && t != "implicit" {
 		errs = append(errs, "SMTP_TLS harus starttls atau implicit")
+	}
+	switch c.WhatsAppMode {
+	case "off", "file":
+	case "meta":
+		errs = append(errs, "WHATSAPP_MODE=meta belum tersedia: adaptor WhatsApp Business Platform belum disambungkan (gunakan off atau file)")
+	default:
+		errs = append(errs, "WHATSAPP_MODE harus off atau file")
+	}
+	if c.WhatsAppMode == "file" && c.IsProduction() {
+		errs = append(errs, "WHATSAPP_MODE=file hanya untuk pengembangan")
 	}
 	if (c.SMTPUsername == "") != (c.SMTPPassword == "") {
 		errs = append(errs, "SMTP_USERNAME dan SMTP_PASSWORD harus diisi berpasangan")

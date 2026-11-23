@@ -79,7 +79,7 @@ func (q *Queries) GetCandidateIdentity(ctx context.Context, userID uuid.UUID) (C
 }
 
 const getCandidateProfile = `-- name: GetCandidateProfile :one
-SELECT user_id, org_id, full_name, phone, birth_date, city, address, summary, version, updated_at, contact_email FROM candidate_profiles WHERE user_id = $1
+SELECT user_id, org_id, full_name, phone, birth_date, city, address, summary, version, updated_at, contact_email, whatsapp_opt_in_at FROM candidate_profiles WHERE user_id = $1
 `
 
 func (q *Queries) GetCandidateProfile(ctx context.Context, userID uuid.UUID) (CandidateProfile, error) {
@@ -97,6 +97,7 @@ func (q *Queries) GetCandidateProfile(ctx context.Context, userID uuid.UUID) (Ca
 		&i.Version,
 		&i.UpdatedAt,
 		&i.ContactEmail,
+		&i.WhatsappOptInAt,
 	)
 	return i, err
 }
@@ -341,7 +342,7 @@ const updateCandidateProfile = `-- name: UpdateCandidateProfile :one
 UPDATE candidate_profiles SET full_name = $3, phone = $4, birth_date = $5, city = $6, address = $7, summary = $8,
        version = version + 1, updated_at = now()
 WHERE user_id = $1 AND version = $2
-RETURNING user_id, org_id, full_name, phone, birth_date, city, address, summary, version, updated_at, contact_email
+RETURNING user_id, org_id, full_name, phone, birth_date, city, address, summary, version, updated_at, contact_email, whatsapp_opt_in_at
 `
 
 type UpdateCandidateProfileParams struct {
@@ -379,6 +380,7 @@ func (q *Queries) UpdateCandidateProfile(ctx context.Context, arg UpdateCandidat
 		&i.Version,
 		&i.UpdatedAt,
 		&i.ContactEmail,
+		&i.WhatsappOptInAt,
 	)
 	return i, err
 }

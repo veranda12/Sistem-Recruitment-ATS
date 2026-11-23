@@ -53,6 +53,7 @@ func NewRouter(d Deps) *gin.Engine {
 		Cache: recruitment.NewPublicCache(d.Cfg.RedisURL, d.Limiter.Global)}
 	wf := &workflow.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID}
 	inbox := &notify.InboxHandler{Q: q}
+	prefs := &notify.PreferencesHandler{Q: q, OrgID: d.OrgID, WhatsAppEnabled: d.Cfg.WhatsAppMode != "off"}
 	ex := &exam.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID}
 	docs := &documents.Handler{Pool: d.Pool, Q: q, OrgID: d.OrgID, ObjectDir: d.Cfg.ObjectDir, SigningKey: d.Cfg.SessionKey}
 	rec.Docs = docs.ListForCandidate
@@ -118,6 +119,8 @@ func NewRouter(d Deps) *gin.Engine {
 	me.POST("/applications/:id/withdraw", rec.Withdraw)
 	me.GET("/notifications", inbox.List)
 	me.POST("/notifications/:id/read", inbox.MarkRead)
+	me.GET("/notification-preferences", prefs.Get)
+	me.PUT("/notification-preferences", prefs.Put)
 	me.GET("/documents", docs.Mine)
 	me.POST("/documents", d.Limiter.RateLimit("upload", 20*max(d.Cfg.RateLimitScale, 1), time.Minute, ip), docs.Upload)
 	me.DELETE("/documents/:id", docs.Delete)

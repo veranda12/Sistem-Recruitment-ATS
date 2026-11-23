@@ -44,6 +44,9 @@ func main() {
 		mailer = notify.SMTPMailer{Addr: cfg.SMTPAddr, From: cfg.MailFrom, Username: cfg.SMTPUsername, Password: cfg.SMTPPassword, ImplicitTLS: cfg.SMTPImplicitTLS}
 	}
 	h := &notify.Handlers{Pool: pool, Q: q, Mailer: mailer, Origin: cfg.PublicOrigin}
+	if cfg.WhatsAppMode == "file" {
+		h.WhatsApp = notify.FileWhatsApp{Dir: cfg.WhatsAppDir}
+	}
 
 	// Health worker terpisah dari readiness API: melaporkan lag outbox dan dead-letter.
 	addr := os.Getenv("WORKER_HEALTH_ADDR")

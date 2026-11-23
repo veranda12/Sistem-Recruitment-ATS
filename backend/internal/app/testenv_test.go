@@ -40,6 +40,7 @@ type env struct {
 	cfg     platform.Config
 	orgID   uuid.UUID
 	mailDir string
+	waDir   string
 	worker  *platform.OutboxWorker
 	keys    identity.Keys
 	limiter *platform.Limiter
@@ -80,9 +81,11 @@ func newEnv(t *testing.T) *env {
 	srv := httptest.NewServer(NewRouter(Deps{Cfg: cfg, Pool: pool, OrgID: orgID, Limiter: limiter}))
 	t.Cleanup(func() { e := srv; e.Close() })
 	mailDir := t.TempDir()
-	h := &notify.Handlers{Pool: pool, Q: sqlc.New(pool), Mailer: notify.FileMailer{Dir: mailDir, From: "uji@arunika.example"}, Origin: testOrigin}
+	waDir := t.TempDir()
+	h := &notify.Handlers{Pool: pool, Q: sqlc.New(pool), Mailer: notify.FileMailer{Dir: mailDir, From: "uji@arunika.example"},
+		WhatsApp: notify.FileWhatsApp{Dir: waDir}, Origin: testOrigin}
 	w := &platform.OutboxWorker{Pool: pool, Consumer: "worker", Handle: WorkerHandler(pool, h, cfg.ObjectDir, testScanner), Interval: time.Second, Concurrency: 2, Lease: 30 * time.Second}
-	return &env{t: t, pool: pool, srv: srv, cfg: cfg, orgID: orgID, mailDir: mailDir, worker: w, keys: keys, limiter: limiter}
+	return &env{t: t, pool: pool, srv: srv, cfg: cfg, orgID: orgID, mailDir: mailDir, waDir: waDir, worker: w, keys: keys, limiter: limiter}
 }
 
 func resetSchema(t *testing.T, dsn string) {

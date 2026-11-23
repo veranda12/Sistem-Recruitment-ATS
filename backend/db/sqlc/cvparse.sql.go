@@ -1327,7 +1327,7 @@ const touchCandidateProfile = `-- name: TouchCandidateProfile :one
 UPDATE candidate_profiles SET full_name = $3, phone = $4, city = $5, summary = $6, contact_email = $7,
        version = version + 1, updated_at = now()
 WHERE user_id = $1 AND version = $2
-RETURNING user_id, org_id, full_name, phone, birth_date, city, address, summary, version, updated_at, contact_email
+RETURNING user_id, org_id, full_name, phone, birth_date, city, address, summary, version, updated_at, contact_email, whatsapp_opt_in_at
 `
 
 type TouchCandidateProfileParams struct {
@@ -1365,6 +1365,7 @@ func (q *Queries) TouchCandidateProfile(ctx context.Context, arg TouchCandidateP
 		&i.Version,
 		&i.UpdatedAt,
 		&i.ContactEmail,
+		&i.WhatsappOptInAt,
 	)
 	return i, err
 }

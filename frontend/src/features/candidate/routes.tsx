@@ -525,6 +525,7 @@ function Inbox() {
   return (
     <div className="max-w-3xl">
       <PageHeader title="Kotak masuk" />
+      <WhatsAppPreference />
       <PageState loading={q.loading} error={q.error} onRetry={q.reload} empty={q.data?.items.length === 0} emptyText="Belum ada pemberitahuan.">
         <ul className="divide-y divide-line border-y border-line">
           {q.data?.items.map((n) => (
@@ -537,6 +538,47 @@ function Inbox() {
         </ul>
       </PageState>
     </div>
+  );
+}
+
+type Prefs = { whatsapp: boolean; whatsappSince: string | null; phone: string; whatsappAvailable: boolean };
+
+/** Persetujuan pemberitahuan WhatsApp. Pesan ke nomor profil; tautan sekali pakai tetap hanya lewat email. */
+function WhatsAppPreference() {
+  const q = useQuery<Prefs>("/me/notification-preferences");
+  const toast = useToast();
+  const [err, setErr] = useState<ApiError | null>(null);
+  const [busy, setBusy] = useState(false);
+  if (!q.data?.whatsappAvailable) return null;
+  const p = q.data;
+  const change = async (whatsapp: boolean) => {
+    setBusy(true);
+    setErr(null);
+    try {
+      await put("/me/notification-preferences", { whatsapp });
+      toast("success", whatsapp ? "Pemberitahuan WhatsApp aktif." : "Pemberitahuan WhatsApp dimatikan.");
+      q.reload();
+    } catch (e) {
+      setErr(e as ApiError);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section aria-label="Pemberitahuan WhatsApp" className="mb-6 rounded-md border border-line bg-surface p-4">
+      <label className="flex min-h-11 items-start gap-3">
+        <input type="checkbox" className="mt-1 h-5 w-5" checked={p.whatsapp} disabled={busy} onChange={(e) => change(e.target.checked)} />
+        <span>
+          <span className="font-semibold">Kirim juga pemberitahuan lamaran ke WhatsApp</span>
+          <span className="block text-sm text-ink-2">
+            {p.phone ? `Ke nomor ${p.phone} dari profil Anda.` : "Isi nomor telepon di profil terlebih dahulu."} Berisi pembaruan tahap, undangan ujian,
+            jadwal interview, dan hasil seleksi. Anda bisa mematikannya kapan saja.
+            {p.whatsapp && p.whatsappSince ? ` Aktif sejak ${fmtDateTime(p.whatsappSince)}.` : ""}
+          </span>
+        </span>
+      </label>
+      {err ? <Alert tone="danger">{err.fieldErrors.whatsapp ?? err.message}</Alert> : null}
+    </section>
   );
 }
 

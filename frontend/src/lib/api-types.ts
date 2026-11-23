@@ -694,6 +694,85 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/notification-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pilihan pemberitahuan kandidat (persetujuan WhatsApp) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            whatsapp: boolean;
+                            /** Format: date-time */
+                            whatsappSince: string | null;
+                            phone: string;
+                            /** @description false bila WHATSAPP_MODE=off */
+                            whatsappAvailable: boolean;
+                        };
+                    };
+                };
+            };
+        };
+        /** Setujui atau cabut pemberitahuan WhatsApp ke nomor profil (dicatat di audit) */
+        put: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        whatsapp: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            whatsapp: boolean;
+                            /** Format: date-time */
+                            whatsappSince: string | null;
+                            phone: string;
+                            /** @description false bila WHATSAPP_MODE=off */
+                            whatsappAvailable: boolean;
+                        };
+                    };
+                };
+                422: components["responses"]["Error"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/notifications": {
         parameters: {
             query?: never;

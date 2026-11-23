@@ -26,3 +26,17 @@ WHERE id = $1;
 -- name: ListDeliveries :many
 SELECT d.*, u.display_name AS to_name FROM email_deliveries d LEFT JOIN users u ON u.id = d.to_user_id
 ORDER BY d.created_at DESC LIMIT 200;
+
+-- name: BeginWhatsAppDelivery :one
+INSERT INTO email_deliveries (org_id, event_id, template_key, to_user_id, to_address, attempts, channel)
+VALUES ($1, $2, $3, $4, $5, 1, 'whatsapp')
+ON CONFLICT (event_id, template_key, to_address)
+DO UPDATE SET attempts = email_deliveries.attempts + 1
+RETURNING id, status, attempts;
+
+-- name: GetWhatsAppPreference :one
+SELECT phone, whatsapp_opt_in_at FROM candidate_profiles WHERE user_id = $1;
+
+-- name: SetWhatsAppOptIn :one
+UPDATE candidate_profiles SET whatsapp_opt_in_at = $2 WHERE user_id = $1
+RETURNING phone, whatsapp_opt_in_at;
