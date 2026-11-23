@@ -14,11 +14,13 @@ type List = { items: Schemas["StaffApplication"][]; nextCursor: string | null };
 export function ApplicationsPage() {
   const [params] = useSearchParams();
   const { can } = useSession();
-  const board = params.get("tampilan") === "papan" && can("jobs.read");
+  // Papan butuh daftar lowongan (jobs.read) dan isi lamarannya (applications.read).
+  const canBoard = can("jobs.read") && can("applications.read");
+  const board = params.get("tampilan") === "papan" && canBoard;
   return (
     <div>
       <PageHeader title="Lamaran" subtitle="Hanya lamaran dalam unit atau lowongan yang ditugaskan kepada Anda." />
-      {can("jobs.read") ? (
+      {canBoard ? (
         <nav aria-label="Tampilan lamaran" className="mb-4 flex gap-2">
           <Link to="/staf/lamaran" aria-current={!board ? "page" : undefined} className={viewTab(!board)}>
             Daftar

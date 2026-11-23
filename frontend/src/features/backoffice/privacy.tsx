@@ -77,7 +77,7 @@ export function PrivacyPage() {
         <h2 className="mb-1 text-[20px]">Permintaan subjek data</h2>
         <p className="mb-3 text-sm text-ink-2">Cari kandidat dengan email persis yang tercantum pada permintaan. Pastikan identitas pemohon sudah diverifikasi sesuai prosedur.</p>
         <form onSubmit={search} className="flex flex-wrap items-end gap-2">
-          <Field label="Email kandidat">{({ id }) => <Input id={id} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
+          <Field label="Email kandidat" required>{({ id }) => <Input id={id} type="email" className="w-72 max-w-full" value={email} onChange={(e) => setEmail(e.target.value)} />}</Field>
           <Button type="submit" variant="primary">
             Cari
           </Button>
