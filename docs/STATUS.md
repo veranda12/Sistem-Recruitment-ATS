@@ -1,6 +1,6 @@
 # Status Implementasi
 
-Terakhir diperbarui: 2026-11-21. Dokumen ini mencatat hasil **aktual** yang dijalankan, bukan rencana.
+Terakhir diperbarui: 2026-11-23. Dokumen ini mencatat hasil **aktual** yang dijalankan, bukan rencana.
 
 ## Lingkungan yang ditemukan (inventaris fase 1)
 
@@ -16,6 +16,8 @@ Terakhir diperbarui: 2026-11-21. Dokumen ini mencatat hasil **aktual** yang dija
 | Poppler | 24.08.0 (`C:\poppler-24.08.0`) |
 | Tesseract | 5.5.0.20241111 + tessdata_fast ind/eng/osd commit 87416418 (`tools\tessdata`, SHA-256 terverifikasi) |
 | LibreOffice | 26.2.5.2 (winget; 26.8.3.1 gagal diunduh 404) |
+| ClamAV | 2026-11-23: 1.5.5 (zip resmi Cisco-Talos, SHA-256 cocok dengan digest rilis) di `D:\Tools\ClamAV`; signature `daily` + `bytecode`, `main.cvd` belum (rate limit CDN) |
+| GCC | 2026-11-23: WinLibs 16.2.0 (MinGW-w64 UCRT) di `D:\Tools\WinLibs`, untuk `go test -race` |
 | Git | Repo belum ada; diinisialisasi lokal (`main`), tanpa remote |
 
 ## Fase
@@ -34,10 +36,11 @@ Terakhir diperbarui: 2026-11-21. Dokumen ini mencatat hasil **aktual** yang dija
 | Tambahan: MFA staf | Selesai + test integrasi | 8f416cd |
 | Tambahan: uji beban 500 VU | Selesai, 0 selisih rekonsiliasi | `docs/operations/load-test-report.md` |
 | Tambahan: pembacaan CV | Selesai: parser semua format, antrean + worker khusus, API review/apply, UI, fixture + evaluasi, benchmark | d64360d, 1a21dff, a218118; `docs/cv-parsing.md` |
+| Putaran 2026-11-22/23 (semua kecuali SSO) | Selesai: hasil CV untuk staf, shortlist + penugasan recruiter, peran per lowongan, papan kanban + kalender interview, editor template email/WhatsApp, kanal WhatsApp (penyedia dev), log perilaku ujian, peran kustom, migrasi lamaran antarversi workflow, privasi (ekspor, anonimisasi, legal hold, retensi otomatis bawaan mati), koreksi perspektif foto CV, SMTP dengan login/TLS | ca1cb09 sampai af3d35d |
 
 ## Migrasi terakhir
 
-`0009_cv_parse_timing` (versi skema 9). `ats_dev` dimigrasi ke 9 pada 2026-11-21.
+`0014_privacy` (versi skema 14). Database `ats_dev` dan `ats_demo_dev` masih di versi 9 (stack dev/demo yang sedang berjalan memakai binary lama); jalankan `backendin\migrate.exe up` lalu restart.
 
 ## Hasil uji aktual
 
@@ -90,19 +93,29 @@ DATABASE_URL_TEST="postgres://pos:pos@localhost:5432/ats_test?sslmode=disable" g
 | Uji beban ujian 500 VU (r1121130857) | 91.446 request, 0 gagal, 0 selisih rekonsiliasi | 2026-11-21 |
 | Bug ditemukan saat uji di Chrome | layar kosong: `useEffect` mengembalikan Promise dari `scrollTo` (Chrome baru); Vite dev mati karena EBUSY saat Playwright menulis report. Keduanya diperbaiki | 2026-11-21 |
 
+| **2026-11-23** | | |
+| `check-all.ps1` (gofmt, vet, sqlc diff, go test DB riil, build, gen:api, typecheck, lint, Vitest 36, build, Playwright) | Run pertama: 2 gagal (drift sqlc setelah migrasi 0014; ekspektasi menu HM belum memuat Kalender interview). Keduanya diperbaiki (5004046); `sqlc diff` bersih, `slice.spec.ts` 6/6 lulus. Playwright 27/28 + 1 diperbaiki | 2026-11-23 |
+| `go test -race ./...` (WinLibs GCC, DB riil) | lulus, tanpa data race (`cvparse/eval` dilewati karena variabel fixture tidak dimuat; lulus tanpa `-race`) | 2026-11-23 |
+| `TestPrivacyExportAnonymizeAndRetention` + `privacy.spec.ts` | lulus | 2026-11-23 |
+| `TestFixtureQuality` + `cveval` (90 fixture, termasuk 3 foto perspektif) | 90/90 sesuai harapan; fixture lama identik dengan evaluasi sebelumnya; email holdout/OCR 5/6 (di bawah target per strata, lihat `docs/cv-parsing.md`) | 2026-11-23 |
+| ClamAV lewat `documents.CommandScanner` + clamd | bersih -> `clean`; signature lokal sementara -> `infected`; berkas tidak terbaca -> galat (tertahan). EICAR diblokir Windows Defender (galat 225) sebelum dibaca ClamAV | 2026-11-23 |
+| Tinjauan screenshot halaman baru (1440 dan 390 px) | Temuan: toggle Papan tampil untuk Super Admin tanpa izin lamaran; label email Privasi data "opsional". Keduanya diperbaiki (af3d35d) | 2026-11-23 |
+
 ## Blocker / keterbatasan saat ini
 
 
-- Race detector Go (`go test -race`) tidak dapat dijalankan: butuh cgo + gcc, tidak terpasang di mesin Windows ini.
+- Login SSO (OIDC/SAML) tidak dikerjakan.
+- WhatsApp: hanya penyedia dev (berkas); penyedia produksi belum disambungkan.
+- ClamAV: `main.cvd` belum terunduh (rate limit CDN sampai 2026-11-23 20:38); jalankan `clamav-start.ps1 -Update` setelahnya.
 - Redis kini tersedia (manual). Antrean CV via Asynq diuji di dev (backlog); jalur tanpa Redis diuji di Playwright. Cache publik + limiter global lintas instance belum diuji dengan dua instance API.
-- Pembacaan CV: koreksi perspektif foto, OCR per wilayah, batas memori per proses di Windows, UI staf untuk hasil CV, dan korpus CV nyata belum ada/diuji (detail `docs/cv-parsing.md`).
+- Pembacaan CV: OCR per wilayah, batas memori per proses di Windows, dan korpus CV nyata belum ada/diuji; koreksi perspektif hanya untuk kertas datar (detail `docs/cv-parsing.md`).
 - Unit systemd (termasuk `ats-cvworker.service`) belum dijalankan di server Linux.
 
 ## Langkah konkret berikutnya
 
 1. Uji pembacaan CV dengan sampel CV nyata yang disetujui pemiliknya (tidak di-commit); kalibrasi heading/penanda dari kegagalan nyata.
-2. UI staf untuk melihat hasil pembacaan CV dari detail lamaran (API sudah ada).
-3. Jalankan unit systemd + preflight CV di server Linux staging; ulangi `cveval` dan backlog di host produksi.
-4. Koreksi perspektif foto bila kegagalan nyata menunjukkan kebutuhan.
+2. Jalankan unit systemd + preflight CV dan ClamAV (`clamdscan --fdpass`) di server Linux staging; ulangi `cveval` dan backlog di host produksi.
+3. Keputusan legal untuk nilai retensi sebelum `retention.auto_enabled` diaktifkan.
+4. Penyedia WhatsApp produksi dan SSO bila dibutuhkan.
 
 Reproduksi pembacaan CV: `powershell -File ops\windows\cv-tools.ps1`, isi `CV_*` di `.env`, `powershell -File ops\windows\cv-check.ps1 -Mode all`, `start.ps1`, buka `/akun/profil` -> "Isi profil dari CV".
