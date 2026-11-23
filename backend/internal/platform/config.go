@@ -35,6 +35,9 @@ type Config struct {
 
 	MailDir               string // sink email dev (file .eml)
 	SMTPAddr              string
+	SMTPUsername          string // kosong = relay tanpa login
+	SMTPPassword          string
+	SMTPImplicitTLS       bool // SMTP_TLS=implicit (port 465); default STARTTLS bila server mendukung
 	MailFrom              string
 	ObjectDir             string
 	StrictSensitiveLimits bool
@@ -121,6 +124,9 @@ func LoadConfig() (Config, error) {
 
 		MailDir:               get("MAIL_DIR", ".data/mail"),
 		SMTPAddr:              os.Getenv("SMTP_ADDR"),
+		SMTPUsername:          os.Getenv("SMTP_USERNAME"),
+		SMTPPassword:          os.Getenv("SMTP_PASSWORD"),
+		SMTPImplicitTLS:       get("SMTP_TLS", "starttls") == "implicit",
 		MailFrom:              get("MAIL_FROM", "Rekrutmen <no-reply@arunika.example>"),
 		ObjectDir:             get("OBJECT_DIR", ".data/objects"),
 		StrictSensitiveLimits: get("STRICT_SENSITIVE_LIMITS", "true") == "true",
@@ -150,6 +156,12 @@ func LoadConfig() (Config, error) {
 	case "development", "test", "staging", "production":
 	default:
 		errs = append(errs, "APP_ENV harus development|test|staging|production")
+	}
+	if t := get("SMTP_TLS", "starttls"); t != "starttls" && t != "implicit" {
+		errs = append(errs, "SMTP_TLS harus starttls atau implicit")
+	}
+	if (c.SMTPUsername == "") != (c.SMTPPassword == "") {
+		errs = append(errs, "SMTP_USERNAME dan SMTP_PASSWORD harus diisi berpasangan")
 	}
 	if c.DatabaseURL == "" {
 		errs = append(errs, "DATABASE_URL wajib diisi")

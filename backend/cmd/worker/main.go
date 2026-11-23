@@ -41,7 +41,7 @@ func main() {
 
 	var mailer notify.Mailer = notify.FileMailer{Dir: cfg.MailDir, From: cfg.MailFrom}
 	if cfg.SMTPAddr != "" {
-		mailer = notify.SMTPMailer{Addr: cfg.SMTPAddr, From: cfg.MailFrom}
+		mailer = notify.SMTPMailer{Addr: cfg.SMTPAddr, From: cfg.MailFrom, Username: cfg.SMTPUsername, Password: cfg.SMTPPassword, ImplicitTLS: cfg.SMTPImplicitTLS}
 	}
 	h := &notify.Handlers{Pool: pool, Q: q, Mailer: mailer, Origin: cfg.PublicOrigin}
 

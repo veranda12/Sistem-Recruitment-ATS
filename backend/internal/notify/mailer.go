@@ -5,9 +5,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"mime"
+	"net"
 	"net/smtp"
 	"os"
 	"path/filepath"
@@ -58,30 +60,87 @@ func safe(s string) string {
 
 func render(from string, m Message, id string) []byte {
 	var b bytes.Buffer
-	fmt.Fprintf(&b, "From: %s\r\nTo: %s\r\nSubject: %s\r\nMessage-ID: <%s@ats.local>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n%s\r\n",
-		from, m.To, mime.QEncoding.Encode("utf-8", m.Subject), id, m.Body)
+	if id == "" {
+		r := make([]byte, 8)
+		_, _ = rand.Read(r)
+		id = hex.EncodeToString(r)
+	}
+	// Date wajib menurut RFC 5322; tanpanya penyedia seperti Gmail cenderung menandai pesan sebagai spam.
+	fmt.Fprintf(&b, "From: %s\r\nTo: %s\r\nSubject: %s\r\nDate: %s\r\nMessage-ID: <%s@ats.local>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n%s\r\n",
+		from, m.To, mime.QEncoding.Encode("utf-8", m.Subject), time.Now().Format(time.RFC1123Z), id, m.Body)
 	return b.Bytes()
 }
 
-// SMTPMailer: pengiriman melalui relay SMTP pelanggan (tanpa autentikasi untuk relay internal; tambahkan bila diperlukan).
+// SMTPMailer: pengiriman melalui server SMTP. Tanpa Username dipakai sebagai relay internal tanpa login; dengan
+// Username/Password memakai AUTH PLAIN (mis. Gmail dengan App Password, Brevo, Mailgun). AUTH hanya dikirim lewat TLS:
+// STARTTLS (port 587) bila server mendukung, atau TLS langsung bila ImplicitTLS (port 465).
 type SMTPMailer struct {
-	Addr string
-	From string
+	Addr        string
+	From        string
+	Username    string
+	Password    string
+	ImplicitTLS bool
 }
 
 func (s SMTPMailer) Send(ctx context.Context, m Message) (string, error) {
 	done := make(chan error, 1)
-	go func() {
-		addr := s.From
-		if i := strings.Index(addr, "<"); i >= 0 {
-			addr = strings.Trim(addr[i:], "<>")
-		}
-		done <- smtp.SendMail(s.Addr, nil, addr, []string{m.To}, render(s.From, m, m.IdempotencyKey))
-	}()
+	go func() { done <- s.send(m) }()
 	select {
 	case err := <-done:
 		return m.IdempotencyKey, err
 	case <-ctx.Done():
 		return "", ctx.Err()
 	}
+}
+
+func (s SMTPMailer) send(m Message) error {
+	from := s.From
+	if i := strings.Index(from, "<"); i >= 0 {
+		from = strings.Trim(from[i:], "<>")
+	}
+	host, _, err := net.SplitHostPort(s.Addr)
+	if err != nil {
+		return fmt.Errorf("SMTP_ADDR harus host:port: %w", err)
+	}
+	var auth smtp.Auth
+	if s.Username != "" {
+		// PlainAuth menolak mengirim kredensial lewat koneksi tanpa TLS (kecuali localhost).
+		auth = smtp.PlainAuth("", s.Username, s.Password, host)
+	}
+	msg := render(s.From, m, m.IdempotencyKey)
+	if !s.ImplicitTLS {
+		return smtp.SendMail(s.Addr, auth, from, []string{m.To}, msg)
+	}
+	conn, err := tls.DialWithDialer(&net.Dialer{Timeout: 15 * time.Second}, "tcp", s.Addr, &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12})
+	if err != nil {
+		return err
+	}
+	c, err := smtp.NewClient(conn, host)
+	if err != nil {
+		conn.Close()
+		return err
+	}
+	defer c.Close()
+	if auth != nil {
+		if err := c.Auth(auth); err != nil {
+			return err
+		}
+	}
+	if err := c.Mail(from); err != nil {
+		return err
+	}
+	if err := c.Rcpt(m.To); err != nil {
+		return err
+	}
+	w, err := c.Data()
+	if err != nil {
+		return err
+	}
+	if _, err := w.Write(msg); err != nil {
+		return err
+	}
+	if err := w.Close(); err != nil {
+		return err
+	}
+	return c.Quit()
 }

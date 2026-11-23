@@ -56,18 +56,33 @@ Skrip ini membuat tiga kunci acak (`SESSION_KEY`, `NIK_ENC_KEY`, `NIK_INDEX_KEY`
 `NIK_INDEX_KEY` di tempat aman: tanpa kunci itu, NIK yang sudah tersimpan tidak bisa dibuka lagi. Karena itu,
 `new-env.ps1` menolak menimpa `.env` yang sudah ada kecuali dengan `-Force`.
 
-### 2a. Wajib: pemindai berkas untuk pengembangan
+### 2a. Pemindai berkas
 
-Dokumen dan CV yang diunggah harus dipindai dulu sebelum diproses. `new-env.ps1` **belum** mengisi pengaturan ini.
-Tanpanya, CV yang diunggah akan berhenti di status "Menunggu pemeriksaan file". Tambahkan baris berikut ke `.env`,
-dan sesuaikan path-nya dengan lokasi repository Anda (path tidak boleh mengandung spasi):
+Dokumen dan CV yang diunggah dipindai dulu sebelum diproses. `new-env.ps1` mengisi `SCAN_COMMAND` dengan pemindai
+khusus pengembangan (`ops\windows\dev-scan.ps1`, hanya mengenali berkas uji EICAR). Bila `.env` Anda dibuat sebelum
+pembaruan ini dan `SCAN_COMMAND` masih kosong, CV akan tertahan di "Menunggu pemeriksaan file". Tambahkan barisnya
+secara manual, dengan path yang sesuai lokasi repository Anda (tanpa spasi):
 
 ```
-SCAN_COMMAND="powershell -NoProfile -ExecutionPolicy Bypass -File D:\Portfolio\ats\ops\windows\dev-scan.ps1"
+SCAN_COMMAND="powershell -NoProfile -ExecutionPolicy Bypass -File D:\Portfoliots\ops\windows\dev-scan.ps1"
 ```
 
-`dev-scan.ps1` hanya untuk pengembangan: skrip ini hanya mengenali berkas uji EICAR. Di server produksi, isi
-dengan pemindai sungguhan, misalnya `clamdscan --no-summary`.
+Di server produksi, isi dengan pemindai sungguhan, misalnya `clamdscan --no-summary`.
+
+### 2c. Opsional: mengirim email sungguhan
+
+Tanpa `SMTP_ADDR`, email ditulis ke `.data\mail` (lihat bagian 6). Untuk mengirim ke kotak masuk sungguhan, misalnya
+lewat Gmail dengan App Password (Akun Google, Keamanan, Sandi aplikasi):
+
+```
+SMTP_ADDR=smtp.gmail.com:587
+SMTP_USERNAME=akun-anda@gmail.com
+SMTP_PASSWORD=sandi-aplikasi-16-karakter
+SMTP_TLS=starttls
+MAIL_FROM="Rekrutmen <akun-anda@gmail.com>"
+```
+
+Gunakan `SMTP_TLS=implicit` untuk server yang memakai port 465. Restart dengan `stop.ps1` lalu `start.ps1`.
 
 ### 2b. Opsional: alat pembaca CV
 
@@ -327,6 +342,7 @@ cd frontend; npm ci --no-audit --no-fund; cd ..
 | `API tidak siap dalam 30 detik` | Error konfigurasi atau migrasi | Baca `.data\logs\api.log` dan `api.err.log` |
 | `Worker CV berhenti` saat `start.ps1` | Alat CV belum dipasang atau path di `.env` salah | Ikuti bagian 2b, lalu periksa dengan `ops\windows\cv-check.ps1 -Mode preflight` |
 | CV tertahan di "Menunggu pemeriksaan file" | `SCAN_COMMAND` kosong | Ikuti bagian 2a, lalu `stop.ps1` dan `start.ps1` |
+| Email tidak terkirim setelah SMTP diisi | Login atau TLS ditolak server | Baca `.data\logs\worker.log`; untuk Gmail pakai App Password, bukan sandi akun |
 | Kandidat tidak menerima email verifikasi | Mode dev menulis email ke berkas | Buka `.data\mail\*.eml` |
 | `migrate` menampilkan `dirty=true` | Migrasi terakhir gagal di tengah | Baca pesan error, perbaiki penyebabnya; untuk database dev, `seed.exe --reset` |
 

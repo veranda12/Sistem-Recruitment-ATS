@@ -31,6 +31,8 @@ $out = foreach ($l in $lines) {
         '^REDIS_URL=' { "REDIS_URL=$RedisUrl"; break }
         '^MAIL_DIR=' { "MAIL_DIR=$(Join-Path $DataDir 'mail')"; break }
         '^OBJECT_DIR=' { "OBJECT_DIR=$(Join-Path $DataDir 'objects')"; break }
+        # Pemindai khusus dev (hanya mengenali berkas uji EICAR); tanpa ini CV tertahan "Menunggu pemeriksaan file".
+        '^SCAN_COMMAND=' { "SCAN_COMMAND=`"powershell -NoProfile -ExecutionPolicy Bypass -File $(Join-Path $PSScriptRoot 'dev-scan.ps1')`""; break }
         default { $l }
     }
 }
