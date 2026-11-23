@@ -334,6 +334,8 @@ cd frontend; npm ci --no-audit --no-fund; cd ..
 
 ## 11. Langkah lanjutan
 
+- Demo untuk calon pengguna dengan data contoh lengkap dan akun siap pakai, termasuk akses lewat ngrok:
+  [`docs/DEMO.md`](DEMO.md)
 - Pemeriksaan lengkap (format, lint, test Go dengan PostgreSQL, Vitest, build, dan Playwright) memakai database uji
   terpisah:
   ```powershell
