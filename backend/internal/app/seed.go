@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 
 	"ats/db/sqlc"
@@ -34,8 +35,7 @@ var SeedUsers = []seedUser{
 }
 
 var rolePerms = map[string][]string{
-	"super_admin": {auth.PermUsersManage, auth.PermRolesManage, auth.PermSettingsManage, auth.PermAuditRead, auth.PermCredentialsManage,
-		auth.PermWorkflowsRead, auth.PermWorkflowsManage, auth.PermWorkflowsPublish, auth.PermJobsRead, auth.PermReportsRead, auth.PermCVReplay, auth.PermPrivacyManage},
+	"super_admin": nil, // semua izin di katalog (lihat allPermissions)
 	"hr_admin": {auth.PermJobsRead, auth.PermJobsManage, auth.PermJobsPublish, auth.PermRequisitionsRead, auth.PermRequisitionsApprove,
 		auth.PermApplicationsRead, auth.PermApplicationsMove, auth.PermApplicationsAssign, auth.PermIdentityReveal, auth.PermPIIExport,
 		auth.PermWorkflowsRead, auth.PermWorkflowsManage, auth.PermWorkflowsPublish, auth.PermReportsRead, auth.PermReportsExport,
@@ -43,6 +43,16 @@ var rolePerms = map[string][]string{
 	"recruiter":      {auth.PermJobsRead, auth.PermApplicationsRead, auth.PermApplicationsMove, auth.PermRequisitionsRead},
 	"hiring_manager": {auth.PermApplicationsRead, auth.PermApprovalsDecide, auth.PermRequisitionsRead, auth.PermRequisitionsManage},
 	"examiner":       {auth.PermExamsManage, auth.PermExamsGrade},
+}
+
+// allPermissions: Super Admin memegang semua izin (migrasi 0015 menjaga hal yang sama untuk izin baru).
+func allPermissions() []string {
+	out := make([]string, 0, len(auth.PermissionCatalog))
+	for k := range auth.PermissionCatalog {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 var roleNames = map[string]string{"super_admin": "Super Admin", "hr_admin": "HR Admin", "recruiter": "Recruiter",
@@ -83,6 +93,9 @@ func Seed(ctx context.Context, tx pgx.Tx, slug, pwHash string, keys identity.Key
 	}
 	roles := map[string]uuid.UUID{}
 	for key, perms := range rolePerms {
+		if key == "super_admin" {
+			perms = allPermissions()
+		}
 		var id uuid.UUID
 		if err := tx.QueryRow(ctx, `INSERT INTO roles (org_id, key, name, system) VALUES ($1, $2, $3, true) RETURNING id`, orgID, key, roleNames[key]).Scan(&id); err != nil {
 			return err

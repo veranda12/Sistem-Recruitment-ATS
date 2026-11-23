@@ -6,22 +6,22 @@ Deny-by-default di service dan di query. Hak akses = gabungan *grant* (permissio
 
 | Permission | Super Admin | HR Admin | Recruiter | Hiring Manager | Examiner | Kandidat |
 |---|---|---|---|---|---|---|
-| jobs.read / jobs.manage / jobs.publish | read | ya / ya / ya | read | - | - | - |
-| requisitions.read / manage / approve | - | read, approve | read | read, manage | - | - |
-| applications.read / transition / assign | - | ya | read, transition | read | - | milik sendiri lewat `/me` |
-| approvals.decide | - | - | - | ya | - | - |
-| identity.reveal (khusus) | - | ya | - | - | - | - |
-| pii.export (khusus) | - | ya | - | - | - | - |
+| jobs.read / jobs.manage / jobs.publish | ya | ya / ya / ya | read | - | - | - |
+| requisitions.read / manage / approve | ya | read, approve | read | read, manage | - | - |
+| applications.read / transition / assign | ya | ya | read, transition | read | - | milik sendiri lewat `/me` |
+| approvals.decide | ya | - | - | ya | - | - |
+| identity.reveal (khusus) | ya | ya | - | - | - | - |
+| pii.export (khusus) | ya | ya | - | - | - | - |
 | workflows.read / manage / publish (khusus) | ya | ya | - | - | - | - |
-| exams.manage / exams.grade | - | manage | - | - | ya / ya | - |
-| results.release (khusus) | - | ya | - | - | - | - |
+| exams.manage / exams.grade | ya | manage | - | - | ya / ya | - |
+| results.release (khusus) | ya | ya | - | - | - | - |
 | users.manage / roles.manage / settings.manage / credentials.manage (khusus) | ya | - | - | - | - | - |
 | audit.read | ya | ya (unit) | - | - | - | - |
-| reports.read / reports.export | read | ya | - | - | - | - |
+| reports.read / reports.export | ya | ya | - | - | - | - |
 
 Scope seed: HR Admin per unit (OPS, TI); Recruiter OPS per unit, Recruiter TI per lowongan; Hiring Manager per lowongan; Super Admin dan Examiner seluruh organisasi.
 
-**Super Admin tidak otomatis membuka identitas**: tidak memiliki `applications.read` maupun `identity.reveal`.
+**Super Admin memegang semua izin** (sejak migrasi 0015), termasuk `applications.read`, `identity.reveal`, dan `pii.export`. Izin baru yang ditambahkan migrasi berikutnya otomatis diberikan lewat trigger `permissions_grant_super_admin`. Konsekuensinya, akun Super Admin dapat membuka data pribadi kandidat. Batasi jumlah pemegangnya, wajibkan MFA (`MFA_REQUIRED_ROLES`), dan pantau audit. Untuk admin sistem tanpa akses data kandidat, buat peran kustom berisi izin administrasi saja.
 
 ## Aturan khusus
 
