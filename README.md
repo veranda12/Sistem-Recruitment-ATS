@@ -19,6 +19,8 @@ Status implementasi, hasil uji aktual, dan keterbatasan: [`docs/STATUS.md`](docs
 
 ## Mulai cepat (Windows, tanpa Docker)
 
+Panduan langkah demi langkah dari awal, termasuk migrasi database: [`docs/MENJALANKAN-APLIKASI.md`](docs/MENJALANKAN-APLIKASI.md).
+
 Prasyarat: Go 1.24+, Node.js 20.19+ (diuji 24), PostgreSQL 17 (psql di PATH). Redis opsional.
 
 ```powershell
