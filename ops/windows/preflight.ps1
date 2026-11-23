@@ -7,8 +7,12 @@
 . "$PSScriptRoot\common.ps1"
 $failed = 0
 
-function Check-Version([string]$name, [string]$cmd, [string[]]$argsList, [string]$pattern, [version]$min, [string]$hint) {
-    if (-not (Test-Command $cmd)) { Write-Fail "$name tidak ditemukan di PATH. $hint"; $script:failed++; return }
+# -Optional: tool yang tidak dibutuhkan untuk menjalankan aplikasi; ketiadaannya hanya peringatan.
+function Check-Version([string]$name, [string]$cmd, [string[]]$argsList, [string]$pattern, [version]$min, [string]$hint, [switch]$Optional) {
+    if (-not (Test-Command $cmd)) {
+        if ($Optional) { Write-Warn2 "$name tidak ditemukan di PATH (opsional). $hint"; return }
+        Write-Fail "$name tidak ditemukan di PATH. $hint"; $script:failed++; return
+    }
     $out = (& $cmd @argsList 2>&1 | Out-String)
     $m = [regex]::Match($out, $pattern)
     if (-not $m.Success) { Write-Warn2 "$name terpasang, versi tidak terbaca: $($out.Trim())"; return }
@@ -17,11 +21,11 @@ function Check-Version([string]$name, [string]$cmd, [string[]]$argsList, [string
 }
 
 Write-Step 'Tool'
-Check-Version 'Go' 'go' @('version') 'go(\d+\.\d+(?:\.\d+)?)' ([version]'1.24') 'Pasang dari https://go.dev/dl/'
+Check-Version 'Go' 'go' @('version') 'go(\d+\.\d+(?:\.\d+)?)' ([version]'1.24') 'Pasang versi terbaru dari https://go.dev/dl/ (go.mod meminta 1.26; Go 1.24/1.25 mengunduh toolchain itu otomatis saat build).'
 Check-Version 'Node.js' 'node' @('--version') 'v(\d+\.\d+\.\d+)' ([version]'20.19') 'Pasang Node LTS dari https://nodejs.org/'
 Check-Version 'npm' 'npm.cmd' @('--version') '(\d+\.\d+\.\d+)' ([version]'10.0') 'Terpasang bersama Node.js.'
 Check-Version 'psql' 'psql' @('--version') '(\d+\.\d+)' ([version]'17.0') 'Tambahkan "C:\Program Files\PostgreSQL\17\bin" ke PATH.'
-Check-Version 'sqlc (hanya untuk mengubah query)' 'sqlc' @('version') 'v(\d+\.\d+\.\d+)' ([version]'1.29.0') 'Unduh sqlc_1.29.0_windows_amd64.zip dari GitHub sqlc-dev/sqlc, taruh di PATH.'
+Check-Version 'sqlc (hanya untuk mengubah query)' 'sqlc' @('version') 'v(\d+\.\d+\.\d+)' ([version]'1.29.0') 'Hanya untuk mengubah query: unduh sqlc_1.29.0_windows_amd64.zip dari GitHub sqlc-dev/sqlc, taruh di PATH.' -Optional
 
 Write-Step 'Konfigurasi'
 if (-not (Test-Path $EnvFile)) {
@@ -61,7 +65,7 @@ if ($env:REDIS_URL) {
     if (Test-TcpPort $m.Groups['h'].Value $rp) { Write-Ok "Redis terjangkau di $($m.Groups['h'].Value):$rp" }
     else { Write-Warn2 "Redis di $($m.Groups['h'].Value):$rp tidak terjangkau. API tetap jalan dalam mode degraded (cache mati, limiter lokal, ekspor data pribadi ditolak)." }
 } else {
-    Write-Warn2 'REDIS_URL kosong: mode degraded (cache publik mati, limiter lokal, ekspor data pribadi ditolak). Lihat docs\operations\windows-dev.md untuk Redis di WSL2.'
+    Write-Warn2 'REDIS_URL kosong: mode degraded (cache publik mati, limiter lokal, ekspor data pribadi ditolak). Opsional: ops\windows\cv-tools.ps1 lalu redis-start.ps1 (docs\operations\windows-dev.md).'
 }
 
 Write-Step 'Port lokal'
