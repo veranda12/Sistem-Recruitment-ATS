@@ -143,6 +143,7 @@ func NewRouter(d Deps) *gin.Engine {
 	cand.PUT("/exam-attempts/:id/answers", platform.BodyLimit(256<<10), critical, ex.Save)
 	cand.POST("/exam-attempts/:id/submit", platform.BodyLimit(256<<10), critical, ex.Submit)
 	cand.POST("/exam-attempts/:id/heartbeat", rl("heartbeat", 10, func(c *gin.Context) string { return c.Param("id") }), ex.Heartbeat)
+	cand.POST("/exam-attempts/:id/activity", platform.BodyLimit(32<<10), rl("exam_activity", 20, func(c *gin.Context) string { return c.Param("id") }), ex.RecordActivity)
 
 	staff := api.Group("", auth.RequireKind("staff"), sessions.RequireMFAEnrollment(), interactive)
 	staff.GET("/staff/jobs", auth.RequireAnyPerm(auth.PermJobsRead), rec.ListStaffJobs)
@@ -199,6 +200,7 @@ func NewRouter(d Deps) *gin.Engine {
 	staff.GET("/exam-schedules/:id/monitor", auth.RequireAnyPerm(auth.PermExamsManage), ex.Monitor)
 	staff.POST("/exam-schedules/:id/release", auth.RequireAnyPerm(auth.PermResultsRelease), ex.Release)
 	staff.GET("/exam-attempts/:id/review", auth.RequireAnyPerm(auth.PermExamsGrade), ex.Review)
+	staff.GET("/exam-attempts/:id/activity", auth.RequireAnyPerm(auth.PermExamsManage), ex.AttemptActivity)
 	staff.POST("/exam-attempts/:id/essay-grades", auth.RequireAnyPerm(auth.PermExamsGrade), ex.Grade)
 
 	// Pelaporan: deadline lebih panjang (background-read).

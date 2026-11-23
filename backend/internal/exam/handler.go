@@ -373,7 +373,24 @@ func (h *Handler) Monitor(c *gin.Context) {
 		platform.Fail(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"schedule": s, "participants": rows, "serverTime": time.Now().UTC()})
+	activity, err := h.activityByAttempt(c, sid)
+	if err != nil {
+		platform.Fail(c, err)
+		return
+	}
+	type participant struct {
+		sqlc.MonitorScheduleRow
+		Activity activitySummary `json:"activity"`
+	}
+	out := make([]participant, 0, len(rows))
+	for _, r := range rows {
+		act := activitySummary{}
+		if r.AttemptID != nil && activity[*r.AttemptID] != nil {
+			act = activity[*r.AttemptID]
+		}
+		out = append(out, participant{r, act})
+	}
+	c.JSON(http.StatusOK, gin.H{"schedule": s, "participants": out, "serverTime": time.Now().UTC()})
 }
 
 // GET /exam-attempts/:id/review: tampilan penilai tanpa identitas kandidat (penilaian buta).

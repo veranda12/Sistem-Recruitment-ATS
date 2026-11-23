@@ -24,7 +24,56 @@ type Participant = {
   essayPending: number | null;
   resultStatus: string | null;
   passed: boolean | null;
+  activity: Record<string, { count: number; totalMs: number }>;
 };
+
+// Log perilaku (tanpa kamera): catatan untuk panitia, bukan bukti kecurangan dengan sendirinya.
+const activityLabel: Record<string, string> = {
+  tab_hidden: "Pindah tab",
+  window_blur: "Keluar jendela",
+  copy: "Salin",
+  paste: "Tempel",
+  offline: "Koneksi putus",
+  tab_visible: "Kembali ke tab",
+  online: "Tersambung lagi",
+};
+const summaryKinds = ["tab_hidden", "window_blur", "paste", "copy", "offline"];
+
+function activitySummary(a: Participant["activity"]): string {
+  const parts = summaryKinds
+    .filter((k) => a[k]?.count)
+    .map((k) => {
+      const away = k === "tab_hidden" && a.tab_visible?.totalMs ? ` (${Math.round(a.tab_visible.totalMs / 60000)} mnt)` : "";
+      return `${activityLabel[k]} ${a[k]!.count}x${away}`;
+    });
+  return parts.join(", ") || "Tidak ada catatan";
+}
+
+type ActivityEvent = { clientSeq: number; kind: string; occurredAt: string; durationMs: number | null; receivedAt: string };
+
+function ActivityDialog({ attemptId, name, onClose }: { attemptId: string; name: string; onClose: () => void }) {
+  const q = useQuery<{ items: ActivityEvent[]; startedAt: string }>(`/exam-attempts/${attemptId}/activity`);
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()} title={`Catatan perilaku: ${name}`} description="Waktu dari perangkat peserta (perkiraan). Catatan ini bukan bukti kecurangan dengan sendirinya.">
+      <PageState loading={q.loading} error={q.error} onRetry={q.reload} empty={q.data?.items.length === 0} emptyText="Tidak ada catatan.">
+        <ol className="max-h-80 overflow-y-auto text-[15px]">
+          {q.data?.items.map((e) => (
+            <li key={e.clientSeq} className="flex justify-between gap-3 border-b border-line py-1.5">
+              <span>
+                {activityLabel[e.kind] ?? e.kind}
+                {e.durationMs ? <span className="text-ink-2"> · setelah {Math.max(1, Math.round(e.durationMs / 1000))} detik</span> : null}
+              </span>
+              <span className="tabular-nums text-ink-2">{fmtDateTime(e.occurredAt)}</span>
+            </li>
+          ))}
+        </ol>
+      </PageState>
+      <div className="mt-4 flex justify-end">
+        <Button onClick={onClose}>Tutup</Button>
+      </div>
+    </Dialog>
+  );
+}
 
 const pStatus: Record<string, string> = { invited: "Belum mulai", started: "Mengerjakan", submitted: "Sudah kirim", expired: "Waktu habis", cancelled: "Dibatalkan" };
 const rStatus: Record<string, string> = { pending: "Menunggu penilaian esai", graded: "Siap dirilis", released: "Dirilis" };
@@ -68,6 +117,7 @@ export function ScheduleMonitor() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<ApiError | null>(null);
   const [releaseOpen, setReleaseOpen] = useState(false);
+  const [activityFor, setActivityFor] = useState<Participant | null>(null);
 
   const invited = new Set(q.data?.participants.map((p) => p.candidateName) ?? []);
   const invite = async () => {
@@ -145,6 +195,7 @@ export function ScheduleMonitor() {
                     <th scope="col" className="py-2 pr-4 font-semibold">Status</th>
                     <th scope="col" className="py-2 pr-4 font-semibold">Jawaban diterima</th>
                     <th scope="col" className="py-2 pr-4 font-semibold">Terakhir aktif</th>
+                    <th scope="col" className="py-2 pr-4 font-semibold">Catatan perilaku</th>
                     <th scope="col" className="py-2 pr-4 font-semibold">Nilai</th>
                     <th scope="col" className="py-2 font-semibold">Hasil</th>
                   </tr>
@@ -162,6 +213,20 @@ export function ScheduleMonitor() {
                         {p.lastSeenAt ? fmtDateTime(p.lastSeenAt) : "-"}
                         {p.participantStatus === "started" ? <span className="block text-[13px] text-ink-2">{onlineRecently(p) ? "Terhubung" : "Tidak ada sinyal"}</span> : null}
                       </td>
+                      <td className="py-3 pr-4 text-sm">
+                        {p.attemptId ? (
+                          <>
+                            {activitySummary(p.activity)}
+                            {Object.keys(p.activity).length ? (
+                              <Button size="sm" variant="ghost" className="ml-1" aria-label={`Detail catatan perilaku ${p.candidateName}`} onClick={() => setActivityFor(p)}>
+                                Detail
+                              </Button>
+                            ) : null}
+                          </>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
                       <td className="py-3 pr-4">{p.score ?? (p.essayPending ? `${p.essayPending} esai belum dinilai` : "-")}</td>
                       <td className="py-3">
                         {p.resultStatus ? rStatus[p.resultStatus] : "-"}
@@ -177,6 +242,8 @@ export function ScheduleMonitor() {
               </table>
             </div>
           )}
+
+          {activityFor?.attemptId ? <ActivityDialog attemptId={activityFor.attemptId} name={activityFor.candidateName} onClose={() => setActivityFor(null)} /> : null}
 
           <Dialog open={inviteOpen} onOpenChange={setInviteOpen} title="Undang peserta" description="Hanya lamaran aktif di tahap Ujian dalam akses Anda yang dapat diundang.">
             {err ? <Alert tone="danger">{err.fieldErrors.extraMinutes ?? err.message}</Alert> : null}

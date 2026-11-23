@@ -664,6 +664,59 @@ paths:
       responses:
         "200": { description: Receipt, content: { application/json: { schema: { $ref: "#/components/schemas/Receipt" } } } }
         "409": { description: stale_revision | deadline_passed | attempt_finalized, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+  /exam-attempts/{id}/activity:
+    post:
+      tags: [ujian]
+      summary: Catatan perilaku peserta (pindah tab, keluar jendela, salin, tempel, koneksi); maks 50 per kiriman, 1000 per percobaan
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [events]
+              properties:
+                events:
+                  type: array
+                  maxItems: 50
+                  items:
+                    type: object
+                    required: [seq, kind, at]
+                    properties:
+                      seq: { type: integer, minimum: 1 }
+                      kind: { type: string, enum: [tab_hidden, tab_visible, window_blur, copy, paste, offline, online] }
+                      at: { type: string, format: date-time }
+                      durationMs: { type: [integer, "null"] }
+      responses:
+        "200": { description: Jumlah catatan baru yang diterima (0 bila percobaan sudah selesai), content: { application/json: { schema: { type: object, required: [accepted], properties: { accepted: { type: integer } } } } } }
+        "404": { $ref: "#/components/responses/Error" }
+    get:
+      tags: [staf]
+      summary: Catatan perilaku satu percobaan (exams.manage)
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, startedAt, deadlineAt]
+                properties:
+                  startedAt: { type: string, format: date-time }
+                  deadlineAt: { type: string, format: date-time }
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [clientSeq, kind, occurredAt, durationMs, receivedAt]
+                      properties:
+                        clientSeq: { type: integer }
+                        kind: { type: string }
+                        occurredAt: { type: string, format: date-time }
+                        durationMs: { type: [integer, "null"] }
+                        receivedAt: { type: string, format: date-time }
   /exam-attempts/{id}/heartbeat:
     post:
       tags: [ujian]

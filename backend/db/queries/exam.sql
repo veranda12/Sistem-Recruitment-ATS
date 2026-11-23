@@ -200,3 +200,24 @@ WHERE ep.schedule_id = $1;
 
 -- name: GetParticipant :one
 SELECT * FROM exam_participants WHERE id = $1;
+
+-- name: InsertAttemptEvent :execrows
+INSERT INTO exam_attempt_events (attempt_id, client_seq, kind, occurred_at, duration_ms)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (attempt_id, client_seq) DO NOTHING;
+
+-- name: CountAttemptEvents :one
+SELECT count(*) FROM exam_attempt_events WHERE attempt_id = $1;
+
+-- name: ListAttemptEvents :many
+SELECT client_seq, kind, occurred_at, duration_ms, received_at FROM exam_attempt_events
+WHERE attempt_id = $1 ORDER BY occurred_at, client_seq LIMIT 1000;
+
+-- name: ScheduleActivitySummary :many
+-- Ringkasan per percobaan untuk monitor: jumlah per jenis dan total waktu tab tersembunyi.
+SELECT e.attempt_id, e.kind, count(*)::bigint AS n, coalesce(sum(e.duration_ms), 0)::bigint AS total_ms
+FROM exam_attempt_events e
+JOIN exam_attempts a ON a.id = e.attempt_id
+JOIN exam_participants ep ON ep.id = a.participant_id
+WHERE ep.schedule_id = $1
+GROUP BY e.attempt_id, e.kind;

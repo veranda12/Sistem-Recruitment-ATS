@@ -24,6 +24,17 @@ func (q *Queries) BumpAttemptRevision(ctx context.Context, id uuid.UUID) (int64,
 	return revision, err
 }
 
+const countAttemptEvents = `-- name: CountAttemptEvents :one
+SELECT count(*) FROM exam_attempt_events WHERE attempt_id = $1
+`
+
+func (q *Queries) CountAttemptEvents(ctx context.Context, attemptID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countAttemptEvents, attemptID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countAttempts = `-- name: CountAttempts :one
 SELECT count(*)::int FROM exam_attempts WHERE participant_id = $1
 `
@@ -481,6 +492,34 @@ func (q *Queries) InsertAttempt(ctx context.Context, arg InsertAttemptParams) (E
 	return i, err
 }
 
+const insertAttemptEvent = `-- name: InsertAttemptEvent :execrows
+INSERT INTO exam_attempt_events (attempt_id, client_seq, kind, occurred_at, duration_ms)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (attempt_id, client_seq) DO NOTHING
+`
+
+type InsertAttemptEventParams struct {
+	AttemptID  uuid.UUID `json:"attemptId"`
+	ClientSeq  int32     `json:"clientSeq"`
+	Kind       string    `json:"kind"`
+	OccurredAt time.Time `json:"occurredAt"`
+	DurationMs *int32    `json:"durationMs"`
+}
+
+func (q *Queries) InsertAttemptEvent(ctx context.Context, arg InsertAttemptEventParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertAttemptEvent,
+		arg.AttemptID,
+		arg.ClientSeq,
+		arg.Kind,
+		arg.OccurredAt,
+		arg.DurationMs,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const insertAttemptItem = `-- name: InsertAttemptItem :exec
 INSERT INTO attempt_items (attempt_id, item_id, position, question_version_id, option_order, option_map)
 VALUES ($1, $2, $3, $4, $5, $6)
@@ -877,6 +916,45 @@ func (q *Queries) ListAnswers(ctx context.Context, attemptID uuid.UUID) ([]ListA
 			&i.Value,
 			&i.Revision,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAttemptEvents = `-- name: ListAttemptEvents :many
+SELECT client_seq, kind, occurred_at, duration_ms, received_at FROM exam_attempt_events
+WHERE attempt_id = $1 ORDER BY occurred_at, client_seq LIMIT 1000
+`
+
+type ListAttemptEventsRow struct {
+	ClientSeq  int32     `json:"clientSeq"`
+	Kind       string    `json:"kind"`
+	OccurredAt time.Time `json:"occurredAt"`
+	DurationMs *int32    `json:"durationMs"`
+	ReceivedAt time.Time `json:"receivedAt"`
+}
+
+func (q *Queries) ListAttemptEvents(ctx context.Context, attemptID uuid.UUID) ([]ListAttemptEventsRow, error) {
+	rows, err := q.db.Query(ctx, listAttemptEvents, attemptID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAttemptEventsRow{}
+	for rows.Next() {
+		var i ListAttemptEventsRow
+		if err := rows.Scan(
+			&i.ClientSeq,
+			&i.Kind,
+			&i.OccurredAt,
+			&i.DurationMs,
+			&i.ReceivedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1369,6 +1447,48 @@ func (q *Queries) ResultsForSchedule(ctx context.Context, scheduleID uuid.UUID) 
 			&i.Version,
 			&i.UpdatedAt,
 			&i.ParticipantID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const scheduleActivitySummary = `-- name: ScheduleActivitySummary :many
+SELECT e.attempt_id, e.kind, count(*)::bigint AS n, coalesce(sum(e.duration_ms), 0)::bigint AS total_ms
+FROM exam_attempt_events e
+JOIN exam_attempts a ON a.id = e.attempt_id
+JOIN exam_participants ep ON ep.id = a.participant_id
+WHERE ep.schedule_id = $1
+GROUP BY e.attempt_id, e.kind
+`
+
+type ScheduleActivitySummaryRow struct {
+	AttemptID uuid.UUID `json:"attemptId"`
+	Kind      string    `json:"kind"`
+	N         int64     `json:"n"`
+	TotalMs   int64     `json:"totalMs"`
+}
+
+// Ringkasan per percobaan untuk monitor: jumlah per jenis dan total waktu tab tersembunyi.
+func (q *Queries) ScheduleActivitySummary(ctx context.Context, scheduleID uuid.UUID) ([]ScheduleActivitySummaryRow, error) {
+	rows, err := q.db.Query(ctx, scheduleActivitySummary, scheduleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ScheduleActivitySummaryRow{}
+	for rows.Next() {
+		var i ScheduleActivitySummaryRow
+		if err := rows.Scan(
+			&i.AttemptID,
+			&i.Kind,
+			&i.N,
+			&i.TotalMs,
 		); err != nil {
 			return nil, err
 		}

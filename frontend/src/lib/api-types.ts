@@ -1910,6 +1910,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/exam-attempts/{id}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catatan perilaku satu percobaan (exams.manage) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: date-time */
+                            startedAt: string;
+                            /** Format: date-time */
+                            deadlineAt: string;
+                            items: {
+                                clientSeq: number;
+                                kind: string;
+                                /** Format: date-time */
+                                occurredAt: string;
+                                durationMs: number | null;
+                                /** Format: date-time */
+                                receivedAt: string;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Catatan perilaku peserta (pindah tab, keluar jendela, salin, tempel, koneksi); maks 50 per kiriman, 1000 per percobaan */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        events: {
+                            seq: number;
+                            /** @enum {string} */
+                            kind: "tab_hidden" | "tab_visible" | "window_blur" | "copy" | "paste" | "offline" | "online";
+                            /** Format: date-time */
+                            at: string;
+                            durationMs?: number | null;
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Jumlah catatan baru yang diterima (0 bila percobaan sudah selesai) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            accepted: number;
+                        };
+                    };
+                };
+                404: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/exam-attempts/{id}/heartbeat": {
         parameters: {
             query?: never;

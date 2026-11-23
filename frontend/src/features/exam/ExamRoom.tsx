@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useActivityLog } from "./activity";
 import { Link, useParams } from "react-router";
 import { ApiError, api, get, newIdempotencyKey } from "../../lib/api";
 import { fmtDateTime, fmtTime } from "../../lib/format";
@@ -54,6 +55,7 @@ export function ExamRoom() {
   const submitKey = useRef<string>("");
   const queueRef = useRef<AutosaveQueue | null>(null);
   const announced = useRef(new Set<number>());
+  useActivityLog(id, dto?.status === "in_progress" && !receipt);
 
   const resume = useCallback(async () => {
     const sent = Date.now();
@@ -326,6 +328,9 @@ export function ExamRoom() {
 
       <div className="mx-auto flex w-full max-w-5xl flex-1 gap-8 px-4 py-6">
         <main className="min-w-0 flex-1 pb-28">
+          <p className="mb-4 text-[13px] text-ink-2">
+            Aktivitas berpindah tab, keluar dari jendela ujian, serta menyalin dan menempel teks dicatat untuk panitia. Kamera dan isi layar tidak direkam.
+          </p>
           {status.kind === "offline" ? (
             <div className="mb-4">
               <Alert tone="warning" title="Koneksi terputus">

@@ -325,6 +325,16 @@ type ExamAttempt struct {
 	FinalizedAt      *time.Time `json:"finalizedAt"`
 }
 
+type ExamAttemptEvent struct {
+	ID         int64     `json:"id"`
+	AttemptID  uuid.UUID `json:"attemptId"`
+	ClientSeq  int32     `json:"clientSeq"`
+	Kind       string    `json:"kind"`
+	OccurredAt time.Time `json:"occurredAt"`
+	DurationMs *int32    `json:"durationMs"`
+	ReceivedAt time.Time `json:"receivedAt"`
+}
+
 type ExamPackage struct {
 	ID        uuid.UUID `json:"id"`
 	OrgID     uuid.UUID `json:"orgId"`
