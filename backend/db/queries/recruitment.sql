@@ -101,12 +101,14 @@ ORDER BY a.applied_at DESC, a.id DESC;
 -- name: GetApplication :one
 SELECT a.*, j.title AS job_title, j.slug AS job_slug, u.name AS unit_name,
        s.name AS stage_name, s.type AS stage_type,
-       c.email AS candidate_email, c.display_name AS candidate_name
+       c.email AS candidate_email, c.display_name AS candidate_name,
+       r.display_name AS recruiter_name
 FROM job_applications a
 JOIN job_openings j ON j.id = a.job_id
 JOIN units u ON u.id = a.unit_id
 JOIN users c ON c.id = a.candidate_user_id
 JOIN workflow_stages s ON s.workflow_version_id = a.workflow_version_id AND s.key = a.stage_key
+LEFT JOIN users r ON r.id = a.recruiter_user_id
 WHERE a.id = $1;
 
 -- name: LockApplication :one
@@ -116,16 +118,19 @@ SELECT * FROM job_applications WHERE id = $1 FOR UPDATE;
 -- Scope diterapkan di query: deny-by-default bila org_wide=false dan daftar unit/job kosong.
 SELECT a.id, a.job_id, a.status, a.stage_key, a.applied_at, a.stage_entered_at, a.unit_id, a.version, a.shortlisted,
        j.title AS job_title, c.display_name AS candidate_name, s.name AS stage_name, s.type AS stage_type,
-       a.recruiter_user_id
+       a.recruiter_user_id, r.display_name AS recruiter_name
 FROM job_applications a
 JOIN job_openings j ON j.id = a.job_id
 JOIN users c ON c.id = a.candidate_user_id
 JOIN workflow_stages s ON s.workflow_version_id = a.workflow_version_id AND s.key = a.stage_key
+LEFT JOIN users r ON r.id = a.recruiter_user_id
 WHERE a.org_id = @org_id
   AND (@org_wide::bool OR a.unit_id = ANY(@unit_ids::uuid[]) OR a.job_id = ANY(@job_ids::uuid[]))
   AND (sqlc.narg(job_id)::uuid IS NULL OR a.job_id = sqlc.narg(job_id))
   AND (sqlc.narg(status)::text IS NULL OR a.status = sqlc.narg(status))
   AND (sqlc.narg(stage_key)::text IS NULL OR a.stage_key = sqlc.narg(stage_key))
+  AND (sqlc.narg(shortlisted)::bool IS NULL OR a.shortlisted = sqlc.narg(shortlisted))
+  AND (sqlc.narg(recruiter_user_id)::uuid IS NULL OR a.recruiter_user_id = sqlc.narg(recruiter_user_id))
   AND (sqlc.narg(cursor_applied_at)::timestamptz IS NULL
        OR (a.applied_at, a.id) < (sqlc.narg(cursor_applied_at)::timestamptz, sqlc.narg(cursor_id)::uuid))
 ORDER BY a.applied_at DESC, a.id DESC
@@ -149,6 +154,16 @@ RETURNING *;
 UPDATE job_applications SET shortlisted = $2, version = version + 1, updated_at = now()
 WHERE id = $1 AND version = $3
 RETURNING *;
+
+-- name: ListAssignableRecruiters :many
+-- Staf aktif yang boleh memindahkan lamaran pada unit atau lowongan ini (peran berizin applications.transition).
+SELECT DISTINCT u.id, u.display_name
+FROM users u
+JOIN scoped_role_assignments sra ON sra.user_id = u.id AND sra.org_id = u.org_id AND sra.revoked_at IS NULL
+JOIN role_permissions rp ON rp.role_id = sra.role_id AND rp.permission_key = 'applications.transition'
+WHERE u.org_id = @org_id AND u.kind = 'staff' AND u.status = 'active'
+  AND ((sra.unit_id IS NULL AND sra.job_id IS NULL) OR sra.unit_id = @unit_id::uuid OR sra.job_id = @job_id::uuid)
+ORDER BY u.display_name;
 
 -- name: AssignRecruiter :one
 UPDATE job_applications SET recruiter_user_id = $2, version = version + 1, updated_at = now()

@@ -13,7 +13,18 @@ type List = { items: Schemas["StaffApplication"][]; nextCursor: string | null };
 export function ApplicationsPage() {
   const [params, setParams] = useSearchParams();
   const status = params.get("status") ?? "";
-  const qs = new URLSearchParams(status ? { status } : {}).toString();
+  // Penanganan: semua, shortlist, atau lamaran yang ditugaskan ke pengguna ini.
+  const handling = params.get("shortlisted") === "true" ? "shortlisted" : params.get("recruiter") === "me" ? "mine" : "";
+  const filters: Record<string, string> = {};
+  if (status) filters.status = status;
+  if (handling === "shortlisted") filters.shortlisted = "true";
+  if (handling === "mine") filters.recruiter = "me";
+  const qs = new URLSearchParams(filters).toString();
+  const setFilter = (next: Record<string, string>) => {
+    setExtra([]);
+    setCursor(undefined);
+    setParams(Object.fromEntries(Object.entries(next).filter(([, v]) => v)));
+  };
   const q = useQuery<List>(`/applications?${qs}`);
   const [extra, setExtra] = useState<Schemas["StaffApplication"][]>([]);
   const [cursor, setCursor] = useState<string | null | undefined>(undefined);
@@ -27,14 +38,7 @@ export function ApplicationsPage() {
       <div className="mb-4 flex flex-wrap items-end gap-3 rounded-md border border-line bg-surface p-3">
         <label className="flex flex-col gap-1 text-sm font-semibold">
           Status
-          <Select
-            value={status}
-            onChange={(e) => {
-              setExtra([]);
-              setCursor(undefined);
-              setParams(e.target.value ? { status: e.target.value } : {});
-            }}
-          >
+          <Select value={status} onChange={(e) => setFilter({ ...filters, status: e.target.value })}>
             <option value="">Semua status</option>
             {["active", "withdrawn", "rejected", "hired"].map((s) => (
               <option key={s} value={s}>
@@ -43,13 +47,26 @@ export function ApplicationsPage() {
             ))}
           </Select>
         </label>
+        <label className="flex flex-col gap-1 text-sm font-semibold">
+          Penanganan
+          <Select
+            value={handling}
+            onChange={(e) =>
+              setFilter({ status, ...(e.target.value === "shortlisted" ? { shortlisted: "true" } : e.target.value === "mine" ? { recruiter: "me" } : {}) })
+            }
+          >
+            <option value="">Semua lamaran</option>
+            <option value="shortlisted">Shortlist</option>
+            <option value="mine">Ditugaskan ke saya</option>
+          </Select>
+        </label>
       </div>
       <PageState
         loading={q.loading}
         error={q.error}
         onRetry={q.reload}
         empty={rows.length === 0}
-        emptyText={status ? "Tidak ada lamaran dengan status ini." : "Belum ada lamaran pada lowongan Anda."}
+        emptyText={status || handling ? "Tidak ada lamaran yang cocok dengan filter ini." : "Belum ada lamaran pada lowongan Anda."}
       >
         {/* Desktop: tabel padat. Mobile: susunan label/nilai. */}
         <div className="hidden overflow-x-auto md:block">
@@ -61,6 +78,7 @@ export function ApplicationsPage() {
                 <th scope="col" className="py-2 pr-4 font-semibold">Lowongan</th>
                 <th scope="col" className="py-2 pr-4 font-semibold">Tahap</th>
                 <th scope="col" className="py-2 pr-4 font-semibold">Status</th>
+                <th scope="col" className="py-2 pr-4 font-semibold">Recruiter</th>
                 <th scope="col" className="py-2 font-semibold">Dikirim</th>
               </tr>
             </thead>
@@ -71,12 +89,14 @@ export function ApplicationsPage() {
                     <Link className="font-semibold text-primary hover:underline" to={`/staf/lamaran/${a.id}`}>
                       {a.candidateName}
                     </Link>
+                    {a.shortlisted ? <span className="ml-2 rounded-sm bg-primary-soft px-1.5 py-0.5 text-[13px] font-semibold text-primary">Shortlist</span> : null}
                   </td>
                   <td className="py-3 pr-4">{a.jobTitle}</td>
                   <td className="py-3 pr-4">{a.stageName}</td>
                   <td className="py-3 pr-4">
                     <Badge status={a.status}>{statusLabel[a.status]}</Badge>
                   </td>
+                  <td className="py-3 pr-4">{a.recruiterName ?? "-"}</td>
                   <td className="py-3">{fmtDate(a.appliedAt)}</td>
                 </tr>
               ))}
@@ -90,7 +110,16 @@ export function ApplicationsPage() {
                 {a.candidateName}
               </Link>
               <div className="mt-2">
-                <DL items={[["Lowongan", a.jobTitle], ["Tahap", a.stageName], ["Status", statusLabel[a.status] ?? a.status], ["Dikirim", fmtDate(a.appliedAt)]]} />
+                <DL
+                  items={[
+                    ["Lowongan", a.jobTitle],
+                    ["Tahap", a.stageName],
+                    ["Status", statusLabel[a.status] ?? a.status],
+                    ["Recruiter", a.recruiterName ?? "-"],
+                    ["Shortlist", a.shortlisted ? "Ya" : "Tidak"],
+                    ["Dikirim", fmtDate(a.appliedAt)],
+                  ]}
+                />
               </div>
             </li>
           ))}
@@ -135,6 +164,36 @@ export function ApplicationDetail() {
   const [revealOpen, setRevealOpen] = useState(false);
   const [nik, setNik] = useState<string | null>(null);
   const d = q.data;
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignee, setAssignee] = useState("");
+  const recruiters = useQuery<{ items: { id: string; displayName: string }[] }>(assignOpen ? `/applications/${id}/assignable-recruiters` : null);
+
+  const toggleShortlist = async () => {
+    if (!d) return;
+    setErr(null);
+    try {
+      await post(`/applications/${id}/shortlist`, { shortlisted: !d.shortlisted, expectedVersion: d.version });
+      toast("success", d.shortlisted ? "Dilepas dari shortlist." : "Ditambahkan ke shortlist.");
+      q.reload();
+    } catch (e) {
+      setErr(e as ApiError);
+    }
+  };
+  const assign = async () => {
+    if (!d) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await post(`/applications/${id}/recruiter`, { recruiterUserId: assignee || null, expectedVersion: d.version });
+      toast("success", assignee ? "Recruiter ditugaskan." : "Penugasan recruiter dilepas.");
+      setAssignOpen(false);
+      q.reload();
+    } catch (e) {
+      setErr(e as ApiError);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const run = async () => {
     if (!d || !action) return;
@@ -234,6 +293,36 @@ export function ApplicationDetail() {
               ) : null}
             </div>
           )}
+
+          <section aria-label="Penanganan" className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-line bg-surface px-4 py-3 text-[15px]">
+            <span>
+              Recruiter: <span className="font-semibold">{d.recruiter?.name ?? "Belum ditugaskan"}</span>
+            </span>
+            {d.canAssign ? (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setErr(null);
+                  setAssignee(d.recruiter?.id ?? "");
+                  setAssignOpen(true);
+                }}
+              >
+                Ubah recruiter
+              </Button>
+            ) : null}
+            <span className="text-ink-2">·</span>
+            <span>{d.shortlisted ? "Masuk shortlist" : "Belum di-shortlist"}</span>
+            {d.canShortlist ? (
+              <Button size="sm" onClick={toggleShortlist}>
+                {d.shortlisted ? "Lepas dari shortlist" : "Tambahkan ke shortlist"}
+              </Button>
+            ) : null}
+          </section>
+          {err && !action && !revealOpen && !assignOpen ? (
+            <div className="mb-4">
+              <Alert tone="danger" title={err.message} />
+            </div>
+          ) : null}
 
           <div className="grid gap-8 lg:grid-cols-[3fr_2fr]">
             <section>
@@ -369,6 +458,30 @@ export function ApplicationDetail() {
               <Button onClick={() => setAction(null)}>Batal</Button>
               <Button variant={action?.kind === "reject" ? "danger" : "primary"} busy={busy} onClick={run}>
                 Konfirmasi
+              </Button>
+            </div>
+          </Dialog>
+
+          <Dialog open={assignOpen} onOpenChange={setAssignOpen} title="Ubah recruiter" description="Recruiter penanggung jawab lamaran ini. Perubahan dicatat di audit.">
+            {err && assignOpen ? <Alert tone="danger">{err.fieldErrors.recruiterUserId ?? err.message}</Alert> : null}
+            <PageState loading={recruiters.loading} error={recruiters.error} onRetry={recruiters.reload}>
+              <Field label="Recruiter">
+                {({ id: fid }) => (
+                  <Select id={fid} value={assignee} onChange={(e) => setAssignee(e.target.value)}>
+                    <option value="">Tanpa recruiter</option>
+                    {recruiters.data?.items.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.displayName}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
+            </PageState>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button onClick={() => setAssignOpen(false)}>Batal</Button>
+              <Button variant="primary" busy={busy} onClick={assign}>
+                Simpan
               </Button>
             </div>
           </Dialog>

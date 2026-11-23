@@ -69,7 +69,7 @@ SCAN_COMMAND="powershell -NoProfile -ExecutionPolicy Bypass -File D:\Portfoliot
 
 Di server produksi, isi dengan pemindai sungguhan, misalnya `clamdscan --no-summary`.
 
-### 2c. Opsional: mengirim email sungguhan
+### 2b. Opsional: mengirim email sungguhan
 
 Tanpa `SMTP_ADDR`, email ditulis ke `.data\mail` (lihat bagian 6). Untuk mengirim ke kotak masuk sungguhan, misalnya
 lewat Gmail dengan App Password (Akun Google, Keamanan, Sandi aplikasi):
@@ -84,7 +84,7 @@ MAIL_FROM="Rekrutmen <akun-anda@gmail.com>"
 
 Gunakan `SMTP_TLS=implicit` untuk server yang memakai port 465. Restart dengan `stop.ps1` lalu `start.ps1`.
 
-### 2b. Opsional: alat pembaca CV
+### 2c. Opsional: alat pembaca CV
 
 Lewati bagian ini bila belum memerlukan fitur "Isi profil dari CV". Aplikasi lain tetap berjalan, dan
 `start.ps1` hanya akan memberi peringatan bahwa worker CV berhenti.
@@ -340,7 +340,7 @@ cd frontend; npm ci --no-audit --no-fund; cd ..
 | `Proses sebelumnya mungkin masih berjalan` | `.data\pids.json` masih ada | Jalankan `stop.ps1`, lalu `start.ps1` |
 | `Port 8080/8081/5173 sudah dipakai` | Instance lama atau aplikasi lain | `stop.ps1`; bila masih terpakai, cari prosesnya dengan `netstat -ano \| findstr :8080` |
 | `API tidak siap dalam 30 detik` | Error konfigurasi atau migrasi | Baca `.data\logs\api.log` dan `api.err.log` |
-| `Worker CV berhenti` saat `start.ps1` | Alat CV belum dipasang atau path di `.env` salah | Ikuti bagian 2b, lalu periksa dengan `ops\windows\cv-check.ps1 -Mode preflight` |
+| `Worker CV berhenti` saat `start.ps1` | Alat CV belum dipasang atau path di `.env` salah | Ikuti bagian 2c, lalu periksa dengan `ops\windows\cv-check.ps1 -Mode preflight` |
 | CV tertahan di "Menunggu pemeriksaan file" | `SCAN_COMMAND` kosong | Ikuti bagian 2a, lalu `stop.ps1` dan `start.ps1` |
 | Email tidak terkirim setelah SMTP diisi | Login atau TLS ditolak server | Baca `.data\logs\worker.log`; untuk Gmail pakai App Password, bukan sandi akun |
 | Kandidat tidak menerima email verifikasi | Mode dev menulis email ke berkas | Buka `.data\mail\*.eml` |

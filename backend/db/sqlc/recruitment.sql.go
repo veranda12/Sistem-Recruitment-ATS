@@ -113,12 +113,14 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (JobOpenin
 const getApplication = `-- name: GetApplication :one
 SELECT a.id, a.org_id, a.job_id, a.candidate_user_id, a.unit_id, a.workflow_version_id, a.stage_key, a.status, a.applied_at, a.stage_entered_at, a.recruiter_user_id, a.shortlisted, a.version, a.updated_at, a.decision_notified_at, a.decision_notified_by, j.title AS job_title, j.slug AS job_slug, u.name AS unit_name,
        s.name AS stage_name, s.type AS stage_type,
-       c.email AS candidate_email, c.display_name AS candidate_name
+       c.email AS candidate_email, c.display_name AS candidate_name,
+       r.display_name AS recruiter_name
 FROM job_applications a
 JOIN job_openings j ON j.id = a.job_id
 JOIN units u ON u.id = a.unit_id
 JOIN users c ON c.id = a.candidate_user_id
 JOIN workflow_stages s ON s.workflow_version_id = a.workflow_version_id AND s.key = a.stage_key
+LEFT JOIN users r ON r.id = a.recruiter_user_id
 WHERE a.id = $1
 `
 
@@ -146,6 +148,7 @@ type GetApplicationRow struct {
 	StageType          string     `json:"stageType"`
 	CandidateEmail     string     `json:"candidateEmail"`
 	CandidateName      string     `json:"candidateName"`
+	RecruiterName      *string    `json:"recruiterName"`
 }
 
 func (q *Queries) GetApplication(ctx context.Context, id uuid.UUID) (GetApplicationRow, error) {
@@ -175,6 +178,7 @@ func (q *Queries) GetApplication(ctx context.Context, id uuid.UUID) (GetApplicat
 		&i.StageType,
 		&i.CandidateEmail,
 		&i.CandidateName,
+		&i.RecruiterName,
 	)
 	return i, err
 }
@@ -501,6 +505,48 @@ func (q *Queries) InsertTransition(ctx context.Context, arg InsertTransitionPara
 	return id, err
 }
 
+const listAssignableRecruiters = `-- name: ListAssignableRecruiters :many
+SELECT DISTINCT u.id, u.display_name
+FROM users u
+JOIN scoped_role_assignments sra ON sra.user_id = u.id AND sra.org_id = u.org_id AND sra.revoked_at IS NULL
+JOIN role_permissions rp ON rp.role_id = sra.role_id AND rp.permission_key = 'applications.transition'
+WHERE u.org_id = $1 AND u.kind = 'staff' AND u.status = 'active'
+  AND ((sra.unit_id IS NULL AND sra.job_id IS NULL) OR sra.unit_id = $2::uuid OR sra.job_id = $3::uuid)
+ORDER BY u.display_name
+`
+
+type ListAssignableRecruitersParams struct {
+	OrgID  uuid.UUID `json:"orgId"`
+	UnitID uuid.UUID `json:"unitId"`
+	JobID  uuid.UUID `json:"jobId"`
+}
+
+type ListAssignableRecruitersRow struct {
+	ID          uuid.UUID `json:"id"`
+	DisplayName string    `json:"displayName"`
+}
+
+// Staf aktif yang boleh memindahkan lamaran pada unit atau lowongan ini (peran berizin applications.transition).
+func (q *Queries) ListAssignableRecruiters(ctx context.Context, arg ListAssignableRecruitersParams) ([]ListAssignableRecruitersRow, error) {
+	rows, err := q.db.Query(ctx, listAssignableRecruiters, arg.OrgID, arg.UnitID, arg.JobID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAssignableRecruitersRow{}
+	for rows.Next() {
+		var i ListAssignableRecruitersRow
+		if err := rows.Scan(&i.ID, &i.DisplayName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCandidateApplications = `-- name: ListCandidateApplications :many
 SELECT a.id, a.status, a.stage_key, a.applied_at, a.stage_entered_at, a.version,
        j.title AS job_title, j.slug AS job_slug, j.status AS job_status,
@@ -728,20 +774,23 @@ func (q *Queries) ListPublicJobs(ctx context.Context, arg ListPublicJobsParams) 
 const listStaffApplications = `-- name: ListStaffApplications :many
 SELECT a.id, a.job_id, a.status, a.stage_key, a.applied_at, a.stage_entered_at, a.unit_id, a.version, a.shortlisted,
        j.title AS job_title, c.display_name AS candidate_name, s.name AS stage_name, s.type AS stage_type,
-       a.recruiter_user_id
+       a.recruiter_user_id, r.display_name AS recruiter_name
 FROM job_applications a
 JOIN job_openings j ON j.id = a.job_id
 JOIN users c ON c.id = a.candidate_user_id
 JOIN workflow_stages s ON s.workflow_version_id = a.workflow_version_id AND s.key = a.stage_key
+LEFT JOIN users r ON r.id = a.recruiter_user_id
 WHERE a.org_id = $1
   AND ($2::bool OR a.unit_id = ANY($3::uuid[]) OR a.job_id = ANY($4::uuid[]))
   AND ($5::uuid IS NULL OR a.job_id = $5)
   AND ($6::text IS NULL OR a.status = $6)
   AND ($7::text IS NULL OR a.stage_key = $7)
-  AND ($8::timestamptz IS NULL
-       OR (a.applied_at, a.id) < ($8::timestamptz, $9::uuid))
+  AND ($8::bool IS NULL OR a.shortlisted = $8)
+  AND ($9::uuid IS NULL OR a.recruiter_user_id = $9)
+  AND ($10::timestamptz IS NULL
+       OR (a.applied_at, a.id) < ($10::timestamptz, $11::uuid))
 ORDER BY a.applied_at DESC, a.id DESC
-LIMIT $10::int
+LIMIT $12::int
 `
 
 type ListStaffApplicationsParams struct {
@@ -752,6 +801,8 @@ type ListStaffApplicationsParams struct {
 	JobID           *uuid.UUID  `json:"jobId"`
 	Status          *string     `json:"status"`
 	StageKey        *string     `json:"stageKey"`
+	Shortlisted     *bool       `json:"shortlisted"`
+	RecruiterUserID *uuid.UUID  `json:"recruiterUserId"`
 	CursorAppliedAt *time.Time  `json:"cursorAppliedAt"`
 	CursorID        *uuid.UUID  `json:"cursorId"`
 	PageSize        int32       `json:"pageSize"`
@@ -772,6 +823,7 @@ type ListStaffApplicationsRow struct {
 	StageName       string     `json:"stageName"`
 	StageType       string     `json:"stageType"`
 	RecruiterUserID *uuid.UUID `json:"recruiterUserId"`
+	RecruiterName   *string    `json:"recruiterName"`
 }
 
 // Scope diterapkan di query: deny-by-default bila org_wide=false dan daftar unit/job kosong.
@@ -784,6 +836,8 @@ func (q *Queries) ListStaffApplications(ctx context.Context, arg ListStaffApplic
 		arg.JobID,
 		arg.Status,
 		arg.StageKey,
+		arg.Shortlisted,
+		arg.RecruiterUserID,
 		arg.CursorAppliedAt,
 		arg.CursorID,
 		arg.PageSize,
@@ -810,6 +864,7 @@ func (q *Queries) ListStaffApplications(ctx context.Context, arg ListStaffApplic
 			&i.StageName,
 			&i.StageType,
 			&i.RecruiterUserID,
+			&i.RecruiterName,
 		); err != nil {
 			return nil, err
 		}

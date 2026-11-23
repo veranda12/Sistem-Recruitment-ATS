@@ -304,6 +304,8 @@ paths:
         - { name: status, in: query, schema: { $ref: "#/components/schemas/ApplicationStatus" } }
         - { name: stage, in: query, schema: { type: string } }
         - { name: job, in: query, schema: { type: string, format: uuid } }
+        - { name: shortlisted, in: query, description: Hanya lamaran yang di-shortlist, schema: { type: string, enum: ["true"] } }
+        - { name: recruiter, in: query, description: '"me" atau ID staf penanggung jawab', schema: { type: string } }
         - { name: cursor, in: query, schema: { type: string } }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
       responses:
@@ -1004,6 +1006,67 @@ paths:
       responses:
         "200": { description: OK }
         "409": { description: decision_notice_unavailable, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+  /applications/{id}/shortlist:
+    post:
+      tags: [staf]
+      summary: Tandai atau lepas shortlist (applications.transition dalam scope; dicatat di audit)
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [shortlisted, expectedVersion]
+              properties: { shortlisted: { type: boolean }, expectedVersion: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, required: [shortlisted, version], properties: { shortlisted: { type: boolean }, version: { type: integer } } }
+        "409": { description: stale_version, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+  /applications/{id}/assignable-recruiters:
+    get:
+      tags: [staf]
+      summary: Staf yang boleh ditugaskan menangani lamaran ini (applications.assign dalam scope)
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { type: object, required: [id, displayName], properties: { id: { type: string, format: uuid }, displayName: { type: string } } }
+  /applications/{id}/recruiter:
+    post:
+      tags: [staf]
+      summary: Tugaskan atau lepas recruiter penanggung jawab (applications.assign dalam scope; dicatat di audit)
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recruiterUserId, expectedVersion]
+              properties: { recruiterUserId: { type: [string, "null"], format: uuid }, expectedVersion: { type: integer } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [recruiterUserId, version]
+                properties: { recruiterUserId: { type: [string, "null"], format: uuid }, version: { type: integer } }
+        "409": { description: stale_version, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+        "422": { $ref: "#/components/responses/Error" }
   /requisitions:
     get:
       tags: [staf]
@@ -1512,7 +1575,7 @@ components:
         closesAt: { type: [string, "null"], format: date-time }
     StaffApplication:
       type: object
-      required: [id, jobId, status, stageKey, appliedAt, stageEnteredAt, unitId, version, shortlisted, jobTitle, candidateName, stageName, stageType, recruiterUserId]
+      required: [id, jobId, status, stageKey, appliedAt, stageEnteredAt, unitId, version, shortlisted, jobTitle, candidateName, stageName, stageType, recruiterUserId, recruiterName]
       properties:
         id: { type: string, format: uuid }
         jobId: { type: string, format: uuid }
@@ -1528,6 +1591,7 @@ components:
         stageName: { type: string }
         stageType: { type: string }
         recruiterUserId: { type: [string, "null"], format: uuid }
+        recruiterName: { type: [string, "null"] }
     TransitionHistory:
       type: object
       required: [id, executionId, fromStage, toStage, fromStatus, toStatus, trigger, actorKind, actorName, reason, createdAt]
@@ -1558,7 +1622,7 @@ components:
         invalidatedAt: { type: [string, "null"], format: date-time }
     ApplicationDetail:
       type: object
-      required: [id, jobId, jobTitle, unitName, status, stage, appliedAt, stageEnteredAt, version, shortlisted, candidate, snapshot, snapshotAt, history, approvals, otherApplications, hiddenOtherApplications, actions, stages, canRevealIdentity, documents, interviews, evaluations, canSchedule, decisionNotifiedAt, cvParses]
+      required: [id, jobId, jobTitle, unitName, status, stage, appliedAt, stageEnteredAt, version, shortlisted, candidate, snapshot, snapshotAt, history, approvals, otherApplications, hiddenOtherApplications, actions, stages, canRevealIdentity, documents, interviews, evaluations, canSchedule, decisionNotifiedAt, cvParses, recruiter, canShortlist, canAssign]
       properties:
         id: { type: string, format: uuid }
         jobId: { type: string, format: uuid }
@@ -1633,6 +1697,15 @@ components:
               status: { type: string, enum: [ready_for_review, partial, applied] }
               createdAt: { type: string, format: date-time }
               finishedAt: { type: [string, "null"], format: date-time }
+        recruiter:
+          description: Recruiter penanggung jawab lamaran, null bila belum ditugaskan.
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [id, name]
+              properties: { id: { type: string, format: uuid }, name: { type: string } }
+        canShortlist: { type: boolean }
+        canAssign: { type: boolean }
     TransitionResult:
       type: object
       required: [duplicate, changed, fromStage, toStage, status, version, note]

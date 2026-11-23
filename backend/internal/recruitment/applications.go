@@ -260,6 +260,27 @@ func (h *Handler) ListApplications(c *gin.Context) {
 	}
 	params := sqlc.ListStaffApplicationsParams{OrgID: h.OrgID, OrgWide: s.OrgWide, UnitIds: s.Units, JobIds: s.Jobs,
 		Status: optStr(c, "status"), StageKey: optStr(c, "stage"), PageSize: size + 1}
+	switch c.Query("shortlisted") {
+	case "":
+	case "true":
+		t := true
+		params.Shortlisted = &t
+	default:
+		platform.Fail(c, platform.ErrValidation(map[string]string{"shortlisted": "Gunakan shortlisted=true."}))
+		return
+	}
+	switch r := c.Query("recruiter"); r {
+	case "":
+	case "me":
+		params.RecruiterUserID = &p.UserID
+	default:
+		rid, err := uuid.Parse(r)
+		if err != nil {
+			platform.Fail(c, platform.ErrValidation(map[string]string{"recruiter": "Gunakan recruiter=me atau ID staf."}))
+			return
+		}
+		params.RecruiterUserID = &rid
+	}
 	if st := params.Status; st != nil && !slices.Contains([]string{"active", "withdrawn", "rejected", "hired"}, *st) {
 		platform.Fail(c, platform.ErrValidation(map[string]string{"status": "Status tidak dikenal."}))
 		return
@@ -434,6 +455,7 @@ func (h *Handler) GetApplication(c *gin.Context) {
 		"actions": actions, "stages": stages, "canRevealIdentity": p.Can(auth.PermIdentityReveal, res), "documents": docs,
 		"interviews": ivs, "evaluations": evals, "canSchedule": app.Status == "active" && p.Can(auth.PermApplicationsMove, res),
 		"decisionNotifiedAt": app.DecisionNotifiedAt, "cvParses": cvParses,
+		"recruiter": recruiterOf(app), "canShortlist": p.Can(auth.PermApplicationsMove, res), "canAssign": p.Can(auth.PermApplicationsAssign, res),
 	})
 }
 
@@ -579,4 +601,15 @@ func strp(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+func recruiterOf(app sqlc.GetApplicationRow) any {
+	if app.RecruiterUserID == nil {
+		return nil
+	}
+	name := ""
+	if app.RecruiterName != nil {
+		name = *app.RecruiterName
+	}
+	return gin.H{"id": *app.RecruiterUserID, "name": name}
 }

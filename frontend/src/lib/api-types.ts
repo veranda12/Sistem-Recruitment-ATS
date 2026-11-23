@@ -921,6 +921,10 @@ export interface paths {
                     status?: components["schemas"]["ApplicationStatus"];
                     stage?: string;
                     job?: string;
+                    /** @description Hanya lamaran yang di-shortlist */
+                    shortlisted?: "true";
+                    /** @description "me" atau ID staf penanggung jawab */
+                    recruiter?: string;
                     cursor?: string;
                     limit?: number;
                 };
@@ -3009,6 +3013,171 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/applications/{id}/shortlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tandai atau lepas shortlist (applications.transition dalam scope; dicatat di audit) */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        shortlisted: boolean;
+                        expectedVersion: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            shortlisted: boolean;
+                            version: number;
+                        };
+                    };
+                };
+                /** @description stale_version */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorBody"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/applications/{id}/assignable-recruiters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Staf yang boleh ditugaskan menangani lamaran ini (applications.assign dalam scope) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: {
+                                /** Format: uuid */
+                                id: string;
+                                displayName: string;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/applications/{id}/recruiter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Tugaskan atau lepas recruiter penanggung jawab (applications.assign dalam scope; dicatat di audit) */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        recruiterUserId: string | null;
+                        expectedVersion: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            recruiterUserId: string | null;
+                            version: number;
+                        };
+                    };
+                };
+                /** @description stale_version */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorBody"];
+                    };
+                };
+                422: components["responses"]["Error"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/requisitions": {
         parameters: {
             query?: never;
@@ -3603,6 +3772,7 @@ export interface components {
             stageType: string;
             /** Format: uuid */
             recruiterUserId: string | null;
+            recruiterName: string | null;
         };
         TransitionHistory: {
             id: number;
@@ -3709,6 +3879,14 @@ export interface components {
                 /** Format: date-time */
                 finishedAt: string | null;
             }[];
+            /** @description Recruiter penanggung jawab lamaran, null bila belum ditugaskan. */
+            recruiter: null | {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            };
+            canShortlist: boolean;
+            canAssign: boolean;
         };
         TransitionResult: {
             duplicate: boolean;
