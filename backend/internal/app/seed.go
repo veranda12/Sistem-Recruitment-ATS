@@ -127,6 +127,20 @@ func Seed(ctx context.Context, tx pgx.Tx, slug, pwHash string, keys identity.Key
 		return err
 	}
 
+	// Tiga template track (BRD Lampiran B), diterbitkan seperti workflow standar.
+	trackWF := map[string]uuid.UUID{"standar": wf.ID}
+	for _, t := range trackTemplates() {
+		b, _ := json.Marshal(t.def)
+		tw, err := q.CreateWorkflow(ctx, sqlc.CreateWorkflowParams{OrgID: orgID, Key: t.key, Name: t.name, DraftDefinition: b, UpdatedBy: ptr(users["admin@arunika.example"])})
+		if err != nil {
+			return err
+		}
+		if _, err := workflow.Publish(ctx, q, tw.ID, 0, ptr(users["admin@arunika.example"]), "Versi awal dari seed", "seed"); err != nil {
+			return err
+		}
+		trackWF[t.key] = tw.ID
+	}
+
 	type job struct {
 		slug, title, unit, loc, etype, status, desc, req string
 		closesInDays                                     int
@@ -145,6 +159,26 @@ func Seed(ctx context.Context, tx pgx.Tx, slug, pwHash string, keys identity.Key
 			"Mencatat keluar-masuk barang dan menyusun laporan stok mingguan.", "Minimal SMA. Teliti dan terbiasa dengan spreadsheet.", 0},
 		{"data-analyst", "Data Analyst", "TI", "JKT", "full_time", "draft",
 			"Menyusun dasbor produksi dan analisis efisiensi.", "Minimal S1. Menguasai SQL.", 30},
+		{"operator-forklift-karawang", "Operator Forklift Gudang", "OPS", "KRW", "contract", "published",
+			"Mengoperasikan forklift untuk memindahkan barang di gudang bahan baku sesuai prosedur keselamatan.",
+			"Memiliki SIM yang berlaku. Bersedia bekerja shift. Teliti dan tertib.", 30},
+		{"staf-perencanaan-produksi", "Staf Perencanaan Produksi", "OPS", "KRW", "full_time", "published",
+			"Menyusun rencana produksi bulanan, memantau kapasitas lini, dan melaporkan deviasi ke manajemen.",
+			"Minimal S1 Teknik Industri atau setara. Menguasai spreadsheet.", 30},
+		{"management-trainee-teknologi", "Management Trainee Teknologi", "TI", "JKT", "full_time", "published",
+			"Mengikuti rotasi di unit teknologi informasi dan operasional, lalu ditempatkan sesuai hasil evaluasi.",
+			"Lulusan S1 atau D4 dari perguruan tinggi terakreditasi.", 30},
+	}
+	// Track dan workflow tiap lowongan contoh. Lowongan lama tetap di workflow standar: E2E dan test lama bergantung pada alurnya.
+	trackOf := map[string][2]string{
+		"operator-produksi-karawang":   {"OPERATOR", "standar"},
+		"supervisor-quality-control":   {"STAFF", "standar"},
+		"backend-engineer":             {"STAFF", "standar"},
+		"admin-gudang-surabaya":        {"OPERATOR", "standar"},
+		"data-analyst":                 {"STAFF", "standar"},
+		"operator-forklift-karawang":   {"OPERATOR", "track-operator"},
+		"staf-perencanaan-produksi":    {"STAFF", "track-staff"},
+		"management-trainee-teknologi": {"MT_S1_D4", "track-mt-s1-d4"},
 	}
 	jobIDs := map[string]uuid.UUID{}
 	for i, j := range jobs {
@@ -153,9 +187,9 @@ func Seed(ctx context.Context, tx pgx.Tx, slug, pwHash string, keys identity.Key
 			t := now.AddDate(0, 0, j.closesInDays)
 			closes = &t
 		}
-		created, err := q.CreateJob(ctx, sqlc.CreateJobParams{OrgID: orgID, UnitID: units[j.unit], LocationID: locs[j.loc], WorkflowID: wf.ID,
+		created, err := q.CreateJob(ctx, sqlc.CreateJobParams{OrgID: orgID, UnitID: units[j.unit], LocationID: locs[j.loc], WorkflowID: trackWF[trackOf[j.slug][1]],
 			Slug: j.slug, Title: j.title, EmploymentType: j.etype, Description: j.desc, Requirements: j.req, ClosesAt: closes,
-			CreatedBy: users["hr.ops@arunika.example"]})
+			CreatedBy: users["hr.ops@arunika.example"], Track: trackOf[j.slug][0], Quota: 1})
 		if err != nil {
 			return err
 		}

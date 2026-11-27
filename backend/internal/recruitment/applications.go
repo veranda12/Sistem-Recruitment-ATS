@@ -285,6 +285,13 @@ func (h *Handler) ListApplications(c *gin.Context) {
 		platform.Fail(c, platform.ErrValidation(map[string]string{"status": "Status tidak dikenal."}))
 		return
 	}
+	if t := optStr(c, "track"); t != nil {
+		if !slices.Contains(tracks, *t) {
+			platform.Fail(c, platform.ErrValidation(map[string]string{"track": "Track tidak dikenal."}))
+			return
+		}
+		params.Track = t
+	}
 	if j := c.Query("job"); j != "" {
 		jid, err := uuid.Parse(j)
 		if err != nil {

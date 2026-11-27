@@ -38,6 +38,18 @@ export const employmentLabel: Record<string, string> = {
   part_time: "Paruh waktu",
 };
 
+export const trackLabel: Record<string, string> = {
+  OPERATOR: "Operator",
+  STAFF: "Staff",
+  MT_S1_D4: "Management Trainee S1/D4",
+};
+
+export const reasonLabel: Record<string, string> = {
+  penambahan: "Penambahan",
+  penggantian: "Penggantian",
+  proyek_baru: "Proyek baru",
+};
+
 export const statusLabel: Record<string, string> = {
   active: "Aktif",
   withdrawn: "Ditarik",

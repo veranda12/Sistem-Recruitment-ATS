@@ -115,7 +115,7 @@ func TestRequisitionApprovalAndJob(t *testing.T) {
 	e := newEnv(t)
 	hm := e.client().mustLogin("hm.ops@arunika.example")
 	r := hm.do("POST", "/requisitions", map[string]any{"unitCode": "OPS", "locationCode": "KRW", "title": "Teknisi Perawatan Mesin", "headcount": 2,
-		"employmentType": "contract", "justification": "Penambahan lini produksi"})
+		"employmentType": "contract", "justification": "Penambahan lini produksi", "track": "STAFF", "reasonCategory": "penambahan"})
 	expect(t, r, 201, "buat requisition")
 	id := r.Body["id"].(string)
 	expect(t, hm.do("POST", "/requisitions/"+id+"/approve", map[string]any{"version": 1}), 403, "HM tidak bisa menyetujui")
@@ -131,15 +131,15 @@ func TestRequisitionApprovalAndJob(t *testing.T) {
 	}
 	// Lowongan dibuat dari requisition yang disetujui (publikasi terpisah dari requisition internal).
 	job := hr.do("POST", "/staff/jobs", map[string]any{"unitCode": "OPS", "locationCode": "KRW", "workflowKey": "standar", "title": "Teknisi Perawatan Mesin",
-		"slug": "teknisi-perawatan-mesin", "employmentType": "contract", "description": "Perawatan mesin produksi.", "requirements": "SMK Mesin", "requisitionId": id})
+		"slug": "teknisi-perawatan-mesin", "employmentType": "contract", "description": "Perawatan mesin produksi.", "requirements": "SMK Mesin", "requisitionId": id, "quota": 2})
 	expect(t, job, 201, "lowongan dari requisition")
 	if job.Body["requisitionId"] != id || job.Body["status"] != "draft" {
 		t.Fatalf("lowongan harus draft dan tertaut requisition: %s", job.Raw)
 	}
 	// Requisition yang belum disetujui tidak bisa dipakai.
-	r2 := hm.do("POST", "/requisitions", map[string]any{"unitCode": "OPS", "locationCode": "KRW", "title": "Operator Forklift", "headcount": 1, "employmentType": "contract"})
+	r2 := hm.do("POST", "/requisitions", map[string]any{"unitCode": "OPS", "locationCode": "KRW", "title": "Operator Forklift", "headcount": 1, "employmentType": "contract", "track": "STAFF", "reasonCategory": "penambahan"})
 	expect(t, hr.do("POST", "/staff/jobs", map[string]any{"unitCode": "OPS", "locationCode": "KRW", "workflowKey": "standar", "title": "Operator Forklift",
-		"slug": "operator-forklift", "employmentType": "contract", "requisitionId": r2.Body["id"]}), 422, "requisition draft")
+		"slug": "operator-forklift", "employmentType": "contract", "requisitionId": r2.Body["id"], "quota": 1}), 422, "requisition draft")
 	if e.count(`SELECT count(*) FROM audit_logs WHERE action LIKE 'requisition.%'`) < 4 {
 		t.Fatal("aksi requisition harus teraudit")
 	}

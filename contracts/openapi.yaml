@@ -44,6 +44,7 @@ paths:
         - { name: unit, in: query, schema: { type: string }, description: Kode unit }
         - { name: location, in: query, schema: { type: string }, description: Kode lokasi }
         - { name: type, in: query, schema: { $ref: "#/components/schemas/EmploymentType" } }
+        - { name: track, in: query, description: Track lowongan (nilai lain 422), schema: { $ref: "#/components/schemas/Track" } }
         - { name: q, in: query, schema: { type: string, maxLength: 100 } }
         - { name: cursor, in: query, schema: { type: string } }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
@@ -312,6 +313,26 @@ paths:
       responses:
         "200": { description: Ditutup }
         "409": { $ref: "#/components/responses/Error" }
+  /staff/jobs/{id}:
+    patch:
+      tags: [staf]
+      summary: Ubah kuota lowongan (jobs.manage; hanya kuota). Di luar scope 404; lowongan closed 422; expectedVersion basi 409. Dicatat di audit (job.quota_update). Kuota yang sama dengan nilai saat ini mengembalikan 200 tanpa menaikkan versi dan tanpa audit.
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expectedVersion, quota]
+              properties:
+                expectedVersion: { type: integer }
+                quota: { type: integer, minimum: 1 }
+      responses:
+        "200": { description: Kuota diubah }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { description: stale_version, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+        "422": { $ref: "#/components/responses/Error" }
   /applications:
     get:
       tags: [staf]
@@ -320,6 +341,7 @@ paths:
         - { name: status, in: query, schema: { $ref: "#/components/schemas/ApplicationStatus" } }
         - { name: stage, in: query, schema: { type: string } }
         - { name: job, in: query, schema: { type: string, format: uuid } }
+        - { name: track, in: query, description: Track lowongan (nilai lain 422), schema: { $ref: "#/components/schemas/Track" } }
         - { name: shortlisted, in: query, description: Hanya lamaran yang di-shortlist, schema: { type: string, enum: ["true"] } }
         - { name: recruiter, in: query, description: '"me" atau ID staf penanggung jawab', schema: { type: string } }
         - { name: cursor, in: query, schema: { type: string } }
@@ -1462,8 +1484,12 @@ paths:
   /requisitions:
     get:
       tags: [staf]
-      summary: Requisition dalam scope unit atau milik sendiri
-      responses: { "200": { description: OK } }
+      summary: Requisition dalam scope unit atau milik sendiri. Filter unitCode hanya mempersempit hasil; scope tetap berlaku.
+      parameters:
+        - { name: unitCode, in: query, description: "Kode unit (contoh OPS). Dicocokkan lewat ID unit di server. Format salah atau kode tidak dikenal menghasilkan 422.", schema: { type: string, pattern: "^[A-Z0-9-]{2,20}$" } }
+      responses:
+        "200": { description: OK }
+        "422": { $ref: "#/components/responses/Error" }
     post:
       tags: [staf]
       summary: Requisition baru (draft)
@@ -1474,7 +1500,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [unitCode, locationCode, title, headcount, employmentType]
+              required: [unitCode, locationCode, title, headcount, employmentType, track, reasonCategory]
               properties:
                 unitCode: { type: string }
                 locationCode: { type: string }
@@ -1482,6 +1508,10 @@ paths:
                 headcount: { type: integer, minimum: 1, maximum: 1000 }
                 employmentType: { $ref: "#/components/schemas/EmploymentType" }
                 justification: { type: string }
+                track: { $ref: "#/components/schemas/Track" }
+                line: { type: string, maxLength: 100 }
+                targetJoinDate: { type: string, format: date, description: Tidak boleh di masa lalu saat diajukan (submit) }
+                reasonCategory: { $ref: "#/components/schemas/ReasonCategory" }
       responses: { "201": { description: Dibuat }, "422": { $ref: "#/components/responses/Error" } }
   /requisitions/{id}/{action}:
     post:
@@ -1497,6 +1527,7 @@ paths:
       responses:
         "200": { description: OK }
         "409": { description: invalid_status | self_approval | stale_version, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
+        "422": { description: targetJoinDate sudah lewat saat submit, content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
 components:
   parameters:
     Slug: { name: slug, in: path, required: true, schema: { type: string, pattern: "^[a-z0-9-]{3,120}$" } }
@@ -1633,6 +1664,8 @@ components:
             details: {}
     EmploymentType: { type: string, enum: [full_time, contract, internship, part_time] }
     ApplicationStatus: { type: string, enum: [active, withdrawn, rejected, hired] }
+    Track: { type: string, enum: [OPERATOR, STAFF, MT_S1_D4] }
+    ReasonCategory: { type: string, enum: [penambahan, penggantian, proyek_baru] }
     CodeName:
       type: object
       required: [code, name]
@@ -1653,8 +1686,9 @@ components:
         locations: { type: array, items: { $ref: "#/components/schemas/Location" } }
     PublicJob:
       type: object
-      required: [id, slug, title, employmentType, publishedAt, closesAt, unit, location]
+      required: [id, slug, title, employmentType, track, publishedAt, closesAt, unit, location]
       properties:
+        track: { $ref: "#/components/schemas/Track" }
         id: { type: string, format: uuid }
         slug: { type: string }
         title: { type: string }
@@ -1938,7 +1972,7 @@ components:
         createdAt: { type: string, format: date-time }
     StaffJob:
       type: object
-      required: [id, slug, title, employmentType, status, publishedAt, closesAt, unitId, version, unitName, locationName, applicationCount]
+      required: [id, slug, title, employmentType, track, quota, status, publishedAt, closesAt, unitId, version, unitName, locationName, applicationCount]
       properties:
         id: { type: string, format: uuid }
         slug: { type: string }
@@ -1952,9 +1986,11 @@ components:
         unitName: { type: string }
         locationName: { type: string }
         applicationCount: { type: integer }
+        track: { $ref: "#/components/schemas/Track" }
+        quota: { type: integer }
     JobInput:
       type: object
-      required: [unitCode, locationCode, workflowKey, title, slug, employmentType, description, requirements]
+      required: [unitCode, locationCode, workflowKey, title, slug, employmentType, description, requirements, quota]
       properties:
         unitCode: { type: string }
         locationCode: { type: string }
@@ -1965,6 +2001,9 @@ components:
         description: { type: string }
         requirements: { type: string }
         closesAt: { type: [string, "null"], format: date-time }
+        requisitionId: { type: [string, "null"], format: uuid, description: Permintaan tenaga kerja yang sudah disetujui di unit yang sama }
+        track: { type: string, enum: [OPERATOR, STAFF, MT_S1_D4], description: Wajib bila requisitionId kosong. Bila requisitionId diisi, kosong berarti diwarisi dan nilai lain harus sama }
+        quota: { type: integer, minimum: 1, description: Total kuota lowongan draft dan published dalam satu requisition tidak boleh melebihi headcount }
     WorkflowMigrationRequest:
       type: object
       required: [fromVersionId, expectedActiveVersionId]

@@ -155,6 +155,7 @@ func NewRouter(d Deps) *gin.Engine {
 	staff.POST("/staff/jobs", auth.RequireAnyPerm(auth.PermJobsManage), rec.CreateJob)
 	staff.POST("/staff/jobs/:id/publish", auth.RequireAnyPerm(auth.PermJobsPublish), rec.SetJobStatus("published"))
 	staff.POST("/staff/jobs/:id/close", auth.RequireAnyPerm(auth.PermJobsPublish), rec.SetJobStatus("closed"))
+	staff.PATCH("/staff/jobs/:id", auth.RequireAnyPerm(auth.PermJobsManage), rec.UpdateJobQuota)
 	staff.GET("/applications", auth.RequireAnyPerm(auth.PermApplicationsRead), rec.ListApplications)
 	staff.GET("/applications/:id", auth.RequireAnyPerm(auth.PermApplicationsRead), rec.GetApplication)
 	staff.POST("/applications/:id/transitions", auth.RequireAnyPerm(auth.PermApplicationsMove), rec.Transition)

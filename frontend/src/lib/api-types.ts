@@ -56,6 +56,8 @@ export interface paths {
                     /** @description Kode lokasi */
                     location?: string;
                     type?: components["schemas"]["EmploymentType"];
+                    /** @description Track lowongan (nilai lain 422) */
+                    track?: components["schemas"]["Track"];
                     q?: string;
                     cursor?: string;
                     limit?: number;
@@ -986,6 +988,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/staff/jobs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Ubah kuota lowongan (jobs.manage; hanya kuota). Di luar scope 404; lowongan closed 422; expectedVersion basi 409. Dicatat di audit (job.quota_update). Kuota yang sama dengan nilai saat ini mengembalikan 200 tanpa menaikkan versi dan tanpa audit. */
+        patch: {
+            parameters: {
+                query?: never;
+                header: {
+                    "X-CSRF-Token": components["parameters"]["CSRF"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        expectedVersion: number;
+                        quota: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Kuota diubah */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                404: components["responses"]["Error"];
+                /** @description stale_version */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorBody"];
+                    };
+                };
+                422: components["responses"]["Error"];
+            };
+        };
+        trace?: never;
+    };
     "/applications": {
         parameters: {
             query?: never;
@@ -1000,6 +1058,8 @@ export interface paths {
                     status?: components["schemas"]["ApplicationStatus"];
                     stage?: string;
                     job?: string;
+                    /** @description Track lowongan (nilai lain 422) */
+                    track?: components["schemas"]["Track"];
                     /** @description Hanya lamaran yang di-shortlist */
                     shortlisted?: "true";
                     /** @description "me" atau ID staf penanggung jawab */
@@ -4244,10 +4304,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Requisition dalam scope unit atau milik sendiri */
+        /** Requisition dalam scope unit atau milik sendiri. Filter unitCode hanya mempersempit hasil; scope tetap berlaku. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Kode unit (contoh OPS). Dicocokkan lewat ID unit di server. Format salah atau kode tidak dikenal menghasilkan 422. */
+                    unitCode?: string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -4261,6 +4324,7 @@ export interface paths {
                     };
                     content?: never;
                 };
+                422: components["responses"]["Error"];
             };
         };
         put?: never;
@@ -4283,6 +4347,14 @@ export interface paths {
                         headcount: number;
                         employmentType: components["schemas"]["EmploymentType"];
                         justification?: string;
+                        track: components["schemas"]["Track"];
+                        line?: string;
+                        /**
+                         * Format: date
+                         * @description Tidak boleh di masa lalu saat diajukan (submit)
+                         */
+                        targetJoinDate?: string;
+                        reasonCategory: components["schemas"]["ReasonCategory"];
                     };
                 };
             };
@@ -4343,6 +4415,15 @@ export interface paths {
                 };
                 /** @description invalid_status | self_approval | stale_version */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ErrorBody"];
+                    };
+                };
+                /** @description targetJoinDate sudah lewat saat submit */
+                422: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -4478,6 +4559,10 @@ export interface components {
         EmploymentType: "full_time" | "contract" | "internship" | "part_time";
         /** @enum {string} */
         ApplicationStatus: "active" | "withdrawn" | "rejected" | "hired";
+        /** @enum {string} */
+        Track: "OPERATOR" | "STAFF" | "MT_S1_D4";
+        /** @enum {string} */
+        ReasonCategory: "penambahan" | "penggantian" | "proyek_baru";
         CodeName: {
             code: string;
             name: string;
@@ -4502,6 +4587,7 @@ export interface components {
             locations: components["schemas"]["Location"][];
         };
         PublicJob: {
+            track: components["schemas"]["Track"];
             /** Format: uuid */
             id: string;
             slug: string;
@@ -4797,6 +4883,8 @@ export interface components {
             unitName: string;
             locationName: string;
             applicationCount: number;
+            track: components["schemas"]["Track"];
+            quota: number;
         };
         JobInput: {
             unitCode: string;
@@ -4809,6 +4897,18 @@ export interface components {
             requirements: string;
             /** Format: date-time */
             closesAt?: string | null;
+            /**
+             * Format: uuid
+             * @description Permintaan tenaga kerja yang sudah disetujui di unit yang sama
+             */
+            requisitionId?: string | null;
+            /**
+             * @description Wajib bila requisitionId kosong. Bila requisitionId diisi
+             * @enum {string}
+             */
+            track?: "OPERATOR" | "STAFF" | "MT_S1_D4";
+            /** @description Total kuota lowongan draft dan published dalam satu requisition tidak boleh melebihi headcount */
+            quota: number;
         };
         WorkflowMigrationRequest: {
             /** Format: uuid */

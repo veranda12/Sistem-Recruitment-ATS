@@ -1,6 +1,6 @@
 # Status Implementasi
 
-Terakhir diperbarui: 2026-11-23. Dokumen ini mencatat hasil **aktual** yang dijalankan, bukan rencana.
+Terakhir diperbarui: 2026-11-28. Dokumen ini mencatat hasil **aktual** yang dijalankan, bukan rencana.
 
 ## Lingkungan yang ditemukan (inventaris fase 1)
 
@@ -40,7 +40,7 @@ Terakhir diperbarui: 2026-11-23. Dokumen ini mencatat hasil **aktual** yang dija
 
 ## Migrasi terakhir
 
-`0014_privacy` (versi skema 14). Database `ats_dev` dan `ats_demo_dev` masih di versi 9 (stack dev/demo yang sedang berjalan memakai binary lama); jalankan `backendin\migrate.exe up` lalu restart.
+`0016_track_ptk` (versi skema 16). Database `ats_dev` dan `ats_demo_dev` masih di versi 9 (stack dev/demo yang sedang berjalan memakai binary lama); jalankan `backendin\migrate.exe up` lalu restart.
 
 ## Hasil uji aktual
 
@@ -100,6 +100,23 @@ DATABASE_URL_TEST="postgres://pos:pos@localhost:5432/ats_test?sslmode=disable" g
 | `TestFixtureQuality` + `cveval` (90 fixture, termasuk 3 foto perspektif) | 90/90 sesuai harapan; fixture lama identik dengan evaluasi sebelumnya; email holdout/OCR 5/6 (di bawah target per strata, lihat `docs/cv-parsing.md`) | 2026-11-23 |
 | ClamAV lewat `documents.CommandScanner` + clamd | bersih -> `clean`; signature lokal sementara -> `infected`; berkas tidak terbaca -> galat (tertahan). EICAR diblokir Windows Defender (galat 225) sebelum dibaca ClamAV | 2026-11-23 |
 | Tinjauan screenshot halaman baru (1440 dan 390 px) | Temuan: toggle Papan tampil untuk Super Admin tanpa izin lamaran; label email Privasi data "opsional". Keduanya diperbaiki (af3d35d) | 2026-11-23 |
+
+| **2026-11-27** | | |
+| `gofmt -l .` (kosong), `go vet ./...`, `sqlc diff` (bersih setelah `sqlc generate`), `go build ./...` | lulus | 2026-11-27 |
+| `go test ./... -count=1 -p 1` dengan `DATABASE_URL_TEST` ke `ats_test` | lulus: `internal/app` 69,7 s, auth, cvparse, cvparse/eval, exam, identity, notify, platform, workflow | 2026-11-27 |
+| Uji track paket 1 (`track_test.go`): `TestTrackRequisitionCreateRead`, `TestTrackValidation`, `TestJobInheritsRequisitionTrack`, `TestPublicJobsTrackFilter`, `TestDraftJobTrackHiddenFromPublic`, `TestRequisitionTargetJoinDate`, `TestReasonCategoryEnum`, `TestJobQuotaWithinHeadcount`, `TestJobQuotaRace` (2 paralel: tepat satu 201), `TestClosedJobExcludedFromQuota`, `TestTrackScopeNotFound`, `TestTrackQuotaAudit`, `TestSeedWorkflowTemplates`, `TestCandidateAppliesTwoTracks` | **14 lulus** | 2026-11-27 |
+| Test lama `TestRequisitionApprovalAndJob`, `TestWorkflowApplicationMigration`, `TestWorkflowPublishVersioningAndPin` (di `interviews_test.go` hanya field baru yang ditambahkan) | lulus | 2026-11-27 |
+| Upgrade data lama: skema HEAD (0001–0015) + seed + requisition dan lowongan dengan berbagai status, lalu migrasi `0016` | lulus; backfill: headcount bila satu-satunya lowongan draft/published dari requisition, selain itu 1; track `STAFF` | 2026-11-27 |
+| `npm run gen:api`, `typecheck`, `lint`, Vitest (36), `build` | lulus | 2026-11-27 |
+| Playwright `track.spec.ts`: filter track di URL (desktop; ponsel 390 px tanpa scroll horizontal); HM membuat permintaan MT, HR menyetujui, lowongan dari permintaan itu, kuota melebihi kebutuhan ditolak di form | **3 lulus** | 2026-11-27 |
+| Playwright penuh `npx playwright test` dengan `E2E_DATABASE_URL` ke `ats_test` | **33 lulus** (desktop 30, mobile 3) | 2026-11-27 |
+| **2026-11-28** (setelah code review) | | |
+| `gofmt -l .` kosong; `go vet ./...`, `sqlc diff`, dan `go build ./...` exit 0 | lulus | 2026-11-28 |
+| `go test ./... -count=1 -p 1` dengan `DATABASE_URL_TEST` ke `ats_test` | exit 0: `internal/app` 64,9 s, auth, cvparse, cvparse/eval, exam, identity, notify, platform, workflow | 2026-11-28 |
+| Uji review di `track_test.go`: `TestPatchKuotaSamaTanpaPerubahan`, `TestRequisitionLineTrimSebelumBatas`, dan empat `TestFilterUnitCode*` (hanya unit terpilih, kode tidak valid 422, tidak membuka scope, nama sama kode beda). Total fungsi di file ini: 20 | **6 lulus** | 2026-11-28 |
+| `npm run gen:api`, `typecheck`, `lint`, Vitest (36), `build` | lulus | 2026-11-28 |
+| Playwright `track.spec.ts` (5 test, termasuk reset form dan ganti unit) | **5 lulus** | 2026-11-28 |
+| Playwright penuh `npx playwright test` dengan `E2E_DATABASE_URL` ke `ats_test` | **35 lulus** (desktop 32, mobile 3) | 2026-11-28 |
 
 ## Blocker / keterbatasan saat ini
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ApiError, post, type Schemas } from "../../lib/api";
-import { fmtDateTime, getOrgTimeZone } from "../../lib/format";
+import { fmtDate, fmtDateTime, getOrgTimeZone, reasonLabel, trackLabel } from "../../lib/format";
 import { useSession } from "../../lib/session";
 import { useQuery } from "../../lib/useQuery";
 import { Alert, Button, Dialog, Field, Input, PageHeader, PageState, Select, Textarea, useToast } from "../../ui";
@@ -246,6 +246,10 @@ type Req = {
   hiringManagerName: string | null;
   version: number;
   decisionNote: string;
+  track: string;
+  line: string | null;
+  targetJoinDate: string | null;
+  reasonCategory: string | null;
   createdAt: string;
 };
 const reqStatus: Record<string, string> = { draft: "Draft", submitted: "Menunggu persetujuan", approved: "Disetujui", rejected: "Ditolak", cancelled: "Dibatalkan" };
@@ -256,7 +260,18 @@ export function RequisitionsPage() {
   const { session, can } = useSession();
   const toast = useToast();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ unitCode: "", locationCode: "", title: "", headcount: "1", employmentType: "full_time", justification: "" });
+  const [form, setForm] = useState({
+    unitCode: "",
+    locationCode: "",
+    title: "",
+    headcount: "1",
+    employmentType: "full_time",
+    justification: "",
+    track: "",
+    reasonCategory: "",
+    line: "",
+    targetJoinDate: "",
+  });
   const [note, setNote] = useState("");
   const [err, setErr] = useState<ApiError | null>(null);
 
@@ -302,7 +317,10 @@ export function RequisitionsPage() {
                 {r.title} · {r.headcount} orang
               </p>
               <p className="text-sm text-ink-2">
-                {r.unitName} · {r.locationName} · diajukan {r.requestedByName} · {reqStatus[r.status]}
+                {r.unitName} · {r.locationName} · Track {trackLabel[r.track]}
+                {r.reasonCategory ? ` · ${reasonLabel[r.reasonCategory]}` : ""}
+                {r.line ? ` · ${r.line}` : ""}
+                {r.targetJoinDate ? ` · target masuk ${fmtDate(r.targetJoinDate)}` : ""} · diajukan {r.requestedByName} · {reqStatus[r.status]}
                 {r.decisionNote ? ` · catatan: ${r.decisionNote}` : ""}
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -356,6 +374,36 @@ export function RequisitionsPage() {
             )}
           </Field>
           <Field label="Jumlah kebutuhan" required>{({ id }) => <Input id={id} inputMode="numeric" value={form.headcount} onChange={(e) => setForm({ ...form, headcount: e.target.value })} />}</Field>
+          <Field label="Track" required error={err?.fieldErrors?.track}>
+            {({ id, invalid }) => (
+              <Select id={id} invalid={invalid} value={form.track} onChange={(e) => setForm({ ...form, track: e.target.value })}>
+                <option value="">Pilih track</option>
+                {Object.entries(trackLabel).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <Field label="Alasan permintaan" required error={err?.fieldErrors?.reasonCategory}>
+            {({ id, invalid }) => (
+              <Select id={id} invalid={invalid} value={form.reasonCategory} onChange={(e) => setForm({ ...form, reasonCategory: e.target.value })}>
+                <option value="">Pilih alasan</option>
+                {Object.entries(reasonLabel).map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+          <Field label="Line (opsional)" hint="Maksimal 100 karakter, contoh: Lini produksi 3." error={err?.fieldErrors?.line}>
+            {({ id, invalid }) => <Input id={id} invalid={invalid} maxLength={100} value={form.line} onChange={(e) => setForm({ ...form, line: e.target.value })} />}
+          </Field>
+          <Field label="Target tanggal masuk (opsional)" hint="Tidak boleh sebelum hari ini saat diajukan." error={err?.fieldErrors?.targetJoinDate}>
+            {({ id, invalid }) => <Input id={id} type="date" invalid={invalid} value={form.targetJoinDate} onChange={(e) => setForm({ ...form, targetJoinDate: e.target.value })} />}
+          </Field>
           <Field label="Alasan kebutuhan">{({ id }) => <Textarea id={id} value={form.justification} onChange={(e) => setForm({ ...form, justification: e.target.value })} />}</Field>
         </div>
         <div className="mt-4 flex justify-end gap-2">

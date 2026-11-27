@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router";
 import { ApiError, get, newIdempotencyKey, post, type Schemas } from "../../lib/api";
-import { employmentLabel, fmtDate } from "../../lib/format";
+import { employmentLabel, fmtDate, trackLabel } from "../../lib/format";
 import { useSession } from "../../lib/session";
 import { useQuery } from "../../lib/useQuery";
 import { Alert, Badge, Button, Dialog, PageState, Select, Input } from "../../ui";
@@ -21,7 +21,7 @@ export default function CareerRoutes() {
 function Home() {
   const org = useQuery<Schemas["PublicOrg"]>("/org");
   const [params, setParams] = useSearchParams();
-  const filters = { unit: params.get("unit") ?? "", location: params.get("location") ?? "", type: params.get("type") ?? "", q: params.get("q") ?? "" };
+  const filters = { unit: params.get("unit") ?? "", location: params.get("location") ?? "", type: params.get("type") ?? "", track: params.get("track") ?? "", q: params.get("q") ?? "" };
   const qs = new URLSearchParams(Object.entries(filters).filter(([, v]) => v)).toString();
   const [items, setItems] = useState<Schemas["PublicJob"][]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -78,7 +78,7 @@ function Home() {
       <form
         role="search"
         aria-label="Saring lowongan"
-        className="mb-6 grid grid-cols-1 gap-3 rounded-lg border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_auto]"
+        className="mb-6 grid grid-cols-1 gap-3 rounded-lg border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto]"
         onSubmit={(e) => {
           e.preventDefault();
           setFilter("q", q.trim());
@@ -121,6 +121,17 @@ function Home() {
             ))}
           </Select>
         </label>
+        <label className="flex flex-col gap-1 text-sm font-semibold">
+          Track
+          <Select value={filters.track} onChange={(e) => setFilter("track", e.target.value)}>
+            <option value="">Semua track</option>
+            {Object.entries(trackLabel).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </Select>
+        </label>
         <div className="flex items-end gap-2">
           <Button type="submit" variant="primary">
             Cari
@@ -156,7 +167,7 @@ function Home() {
                 {j.title}
               </Link>
               <p className="mt-1 text-[15px] text-ink-2">
-                {j.unit.name} · {j.location.city} · {employmentLabel[j.employmentType]}
+                {j.unit.name} · {j.location.city} · {employmentLabel[j.employmentType]} · Track {trackLabel[j.track]}
               </p>
               <p className="mt-1 text-sm text-ink-2">Batas lamaran: {j.closesAt ? fmtDate(j.closesAt) : "Sampai posisi terisi"}</p>
             </li>
@@ -219,7 +230,7 @@ function JobDetail() {
           </Link>
           <h1 className="mt-2 text-[28px] md:text-[32px]">{job.data.title}</h1>
           <p className="mt-1 text-ink-2">
-            {job.data.unit.name} · {job.data.location.name}, {job.data.location.city} · {employmentLabel[job.data.employmentType]}
+            {job.data.unit.name} · {job.data.location.name}, {job.data.location.city} · {employmentLabel[job.data.employmentType]} · Track {trackLabel[job.data.track]}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge status={job.data.acceptingApplications ? "published" : "closed"}>{job.data.acceptingApplications ? "Menerima lamaran" : "Lowongan ditutup"}</Badge>

@@ -544,6 +544,8 @@ type JobOpening struct {
 	Version        int32      `json:"version"`
 	CreatedAt      time.Time  `json:"createdAt"`
 	UpdatedAt      time.Time  `json:"updatedAt"`
+	Track          string     `json:"track"`
+	Quota          int32      `json:"quota"`
 }
 
 type Location struct {
@@ -678,6 +680,10 @@ type Requisition struct {
 	Version         int32      `json:"version"`
 	CreatedAt       time.Time  `json:"createdAt"`
 	UpdatedAt       time.Time  `json:"updatedAt"`
+	Track           string     `json:"track"`
+	Line            *string    `json:"line"`
+	TargetJoinDate  *time.Time `json:"targetJoinDate"`
+	ReasonCategory  *string    `json:"reasonCategory"`
 }
 
 type Role struct {

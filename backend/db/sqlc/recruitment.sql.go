@@ -50,9 +50,9 @@ func (q *Queries) AssignRecruiter(ctx context.Context, arg AssignRecruiterParams
 }
 
 const createJob = `-- name: CreateJob :one
-INSERT INTO job_openings (org_id, requisition_id, unit_id, location_id, workflow_id, slug, title, employment_type, description, requirements, closes_at, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-RETURNING id, org_id, requisition_id, unit_id, location_id, workflow_id, slug, title, employment_type, description, requirements, status, published_at, closes_at, closed_at, created_by, version, created_at, updated_at
+INSERT INTO job_openings (org_id, requisition_id, unit_id, location_id, workflow_id, slug, title, employment_type, description, requirements, closes_at, created_by, track, quota)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+RETURNING id, org_id, requisition_id, unit_id, location_id, workflow_id, slug, title, employment_type, description, requirements, status, published_at, closes_at, closed_at, created_by, version, created_at, updated_at, track, quota
 `
 
 type CreateJobParams struct {
@@ -68,6 +68,8 @@ type CreateJobParams struct {
 	Requirements   string     `json:"requirements"`
 	ClosesAt       *time.Time `json:"closesAt"`
 	CreatedBy      uuid.UUID  `json:"createdBy"`
+	Track          string     `json:"track"`
+	Quota          int32      `json:"quota"`
 }
 
 func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (JobOpening, error) {
@@ -84,6 +86,8 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (JobOpenin
 		arg.Requirements,
 		arg.ClosesAt,
 		arg.CreatedBy,
+		arg.Track,
+		arg.Quota,
 	)
 	var i JobOpening
 	err := row.Scan(
@@ -106,6 +110,8 @@ func (q *Queries) CreateJob(ctx context.Context, arg CreateJobParams) (JobOpenin
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Track,
+		&i.Quota,
 	)
 	return i, err
 }
@@ -228,7 +234,7 @@ func (q *Queries) GetApplicationSnapshot(ctx context.Context, applicationID uuid
 }
 
 const getJob = `-- name: GetJob :one
-SELECT j.id, j.org_id, j.requisition_id, j.unit_id, j.location_id, j.workflow_id, j.slug, j.title, j.employment_type, j.description, j.requirements, j.status, j.published_at, j.closes_at, j.closed_at, j.created_by, j.version, j.created_at, j.updated_at, u.code AS unit_code, u.name AS unit_name, l.code AS location_code, l.name AS location_name, l.city
+SELECT j.id, j.org_id, j.requisition_id, j.unit_id, j.location_id, j.workflow_id, j.slug, j.title, j.employment_type, j.description, j.requirements, j.status, j.published_at, j.closes_at, j.closed_at, j.created_by, j.version, j.created_at, j.updated_at, j.track, j.quota, u.code AS unit_code, u.name AS unit_name, l.code AS location_code, l.name AS location_name, l.city
 FROM job_openings j
 JOIN units u ON u.id = j.unit_id
 JOIN locations l ON l.id = j.location_id
@@ -255,6 +261,8 @@ type GetJobRow struct {
 	Version        int32      `json:"version"`
 	CreatedAt      time.Time  `json:"createdAt"`
 	UpdatedAt      time.Time  `json:"updatedAt"`
+	Track          string     `json:"track"`
+	Quota          int32      `json:"quota"`
 	UnitCode       string     `json:"unitCode"`
 	UnitName       string     `json:"unitName"`
 	LocationCode   string     `json:"locationCode"`
@@ -285,6 +293,8 @@ func (q *Queries) GetJob(ctx context.Context, id uuid.UUID) (GetJobRow, error) {
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Track,
+		&i.Quota,
 		&i.UnitCode,
 		&i.UnitName,
 		&i.LocationCode,
@@ -295,7 +305,7 @@ func (q *Queries) GetJob(ctx context.Context, id uuid.UUID) (GetJobRow, error) {
 }
 
 const getJobBySlug = `-- name: GetJobBySlug :one
-SELECT j.id, j.org_id, j.requisition_id, j.unit_id, j.location_id, j.workflow_id, j.slug, j.title, j.employment_type, j.description, j.requirements, j.status, j.published_at, j.closes_at, j.closed_at, j.created_by, j.version, j.created_at, j.updated_at, u.code AS unit_code, u.name AS unit_name, l.code AS location_code, l.name AS location_name, l.city
+SELECT j.id, j.org_id, j.requisition_id, j.unit_id, j.location_id, j.workflow_id, j.slug, j.title, j.employment_type, j.description, j.requirements, j.status, j.published_at, j.closes_at, j.closed_at, j.created_by, j.version, j.created_at, j.updated_at, j.track, j.quota, u.code AS unit_code, u.name AS unit_name, l.code AS location_code, l.name AS location_name, l.city
 FROM job_openings j
 JOIN units u ON u.id = j.unit_id
 JOIN locations l ON l.id = j.location_id
@@ -327,6 +337,8 @@ type GetJobBySlugRow struct {
 	Version        int32      `json:"version"`
 	CreatedAt      time.Time  `json:"createdAt"`
 	UpdatedAt      time.Time  `json:"updatedAt"`
+	Track          string     `json:"track"`
+	Quota          int32      `json:"quota"`
 	UnitCode       string     `json:"unitCode"`
 	UnitName       string     `json:"unitName"`
 	LocationCode   string     `json:"locationCode"`
@@ -357,6 +369,8 @@ func (q *Queries) GetJobBySlug(ctx context.Context, arg GetJobBySlugParams) (Get
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Track,
+		&i.Quota,
 		&i.UnitCode,
 		&i.UnitName,
 		&i.LocationCode,
@@ -688,7 +702,7 @@ func (q *Queries) ListOtherApplicationsOfCandidate(ctx context.Context, arg List
 }
 
 const listPublicJobs = `-- name: ListPublicJobs :many
-SELECT j.id, j.slug, j.title, j.employment_type, j.published_at, j.closes_at,
+SELECT j.id, j.slug, j.title, j.employment_type, j.track, j.published_at, j.closes_at,
        u.code AS unit_code, u.name AS unit_name, l.code AS location_code, l.name AS location_name, l.city
 FROM job_openings j
 JOIN units u ON u.id = j.unit_id
@@ -697,11 +711,12 @@ WHERE j.org_id = $1 AND j.status = 'published'
   AND ($2::text IS NULL OR u.code = $2)
   AND ($3::text IS NULL OR l.code = $3)
   AND ($4::text IS NULL OR j.employment_type = $4)
-  AND ($5::text IS NULL OR j.title ILIKE '%' || $5 || '%')
-  AND ($6::timestamptz IS NULL
-       OR (j.published_at, j.id) < ($6::timestamptz, $7::uuid))
+  AND ($5::text IS NULL OR j.track = $5)
+  AND ($6::text IS NULL OR j.title ILIKE '%' || $6 || '%')
+  AND ($7::timestamptz IS NULL
+       OR (j.published_at, j.id) < ($7::timestamptz, $8::uuid))
 ORDER BY j.published_at DESC, j.id DESC
-LIMIT $8::int
+LIMIT $9::int
 `
 
 type ListPublicJobsParams struct {
@@ -709,6 +724,7 @@ type ListPublicJobsParams struct {
 	UnitCode          *string    `json:"unitCode"`
 	LocationCode      *string    `json:"locationCode"`
 	EmploymentType    *string    `json:"employmentType"`
+	Track             *string    `json:"track"`
 	Q                 *string    `json:"q"`
 	CursorPublishedAt *time.Time `json:"cursorPublishedAt"`
 	CursorID          *uuid.UUID `json:"cursorId"`
@@ -720,6 +736,7 @@ type ListPublicJobsRow struct {
 	Slug           string     `json:"slug"`
 	Title          string     `json:"title"`
 	EmploymentType string     `json:"employmentType"`
+	Track          string     `json:"track"`
 	PublishedAt    *time.Time `json:"publishedAt"`
 	ClosesAt       *time.Time `json:"closesAt"`
 	UnitCode       string     `json:"unitCode"`
@@ -736,6 +753,7 @@ func (q *Queries) ListPublicJobs(ctx context.Context, arg ListPublicJobsParams) 
 		arg.UnitCode,
 		arg.LocationCode,
 		arg.EmploymentType,
+		arg.Track,
 		arg.Q,
 		arg.CursorPublishedAt,
 		arg.CursorID,
@@ -753,6 +771,7 @@ func (q *Queries) ListPublicJobs(ctx context.Context, arg ListPublicJobsParams) 
 			&i.Slug,
 			&i.Title,
 			&i.EmploymentType,
+			&i.Track,
 			&i.PublishedAt,
 			&i.ClosesAt,
 			&i.UnitCode,
@@ -787,10 +806,11 @@ WHERE a.org_id = $1
   AND ($7::text IS NULL OR a.stage_key = $7)
   AND ($8::bool IS NULL OR a.shortlisted = $8)
   AND ($9::uuid IS NULL OR a.recruiter_user_id = $9)
-  AND ($10::timestamptz IS NULL
-       OR (a.applied_at, a.id) < ($10::timestamptz, $11::uuid))
+  AND ($10::text IS NULL OR j.track = $10)
+  AND ($11::timestamptz IS NULL
+       OR (a.applied_at, a.id) < ($11::timestamptz, $12::uuid))
 ORDER BY a.applied_at DESC, a.id DESC
-LIMIT $12::int
+LIMIT $13::int
 `
 
 type ListStaffApplicationsParams struct {
@@ -803,6 +823,7 @@ type ListStaffApplicationsParams struct {
 	StageKey        *string     `json:"stageKey"`
 	Shortlisted     *bool       `json:"shortlisted"`
 	RecruiterUserID *uuid.UUID  `json:"recruiterUserId"`
+	Track           *string     `json:"track"`
 	CursorAppliedAt *time.Time  `json:"cursorAppliedAt"`
 	CursorID        *uuid.UUID  `json:"cursorId"`
 	PageSize        int32       `json:"pageSize"`
@@ -838,6 +859,7 @@ func (q *Queries) ListStaffApplications(ctx context.Context, arg ListStaffApplic
 		arg.StageKey,
 		arg.Shortlisted,
 		arg.RecruiterUserID,
+		arg.Track,
 		arg.CursorAppliedAt,
 		arg.CursorID,
 		arg.PageSize,
@@ -877,7 +899,7 @@ func (q *Queries) ListStaffApplications(ctx context.Context, arg ListStaffApplic
 }
 
 const listStaffJobs = `-- name: ListStaffJobs :many
-SELECT j.id, j.slug, j.title, j.employment_type, j.status, j.published_at, j.closes_at, j.unit_id, j.version,
+SELECT j.id, j.slug, j.title, j.employment_type, j.track, j.quota, j.status, j.published_at, j.closes_at, j.unit_id, j.version,
        u.name AS unit_name, l.name AS location_name,
        (SELECT count(*) FROM job_applications a WHERE a.job_id = j.id)::bigint AS application_count
 FROM job_openings j
@@ -901,6 +923,8 @@ type ListStaffJobsRow struct {
 	Slug             string     `json:"slug"`
 	Title            string     `json:"title"`
 	EmploymentType   string     `json:"employmentType"`
+	Track            string     `json:"track"`
+	Quota            int32      `json:"quota"`
 	Status           string     `json:"status"`
 	PublishedAt      *time.Time `json:"publishedAt"`
 	ClosesAt         *time.Time `json:"closesAt"`
@@ -930,6 +954,8 @@ func (q *Queries) ListStaffJobs(ctx context.Context, arg ListStaffJobsParams) ([
 			&i.Slug,
 			&i.Title,
 			&i.EmploymentType,
+			&i.Track,
+			&i.Quota,
 			&i.Status,
 			&i.PublishedAt,
 			&i.ClosesAt,
@@ -1107,7 +1133,7 @@ func (q *Queries) LockJobForApply(ctx context.Context, id uuid.UUID) (LockJobFor
 }
 
 const lockJobForUpdate = `-- name: LockJobForUpdate :one
-SELECT id, org_id, requisition_id, unit_id, location_id, workflow_id, slug, title, employment_type, description, requirements, status, published_at, closes_at, closed_at, created_by, version, created_at, updated_at FROM job_openings WHERE id = $1 FOR UPDATE
+SELECT id, org_id, requisition_id, unit_id, location_id, workflow_id, slug, title, employment_type, description, requirements, status, published_at, closes_at, closed_at, created_by, version, created_at, updated_at, track, quota FROM job_openings WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockJobForUpdate(ctx context.Context, id uuid.UUID) (JobOpening, error) {
@@ -1133,6 +1159,8 @@ func (q *Queries) LockJobForUpdate(ctx context.Context, id uuid.UUID) (JobOpenin
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Track,
+		&i.Quota,
 	)
 	return i, err
 }
@@ -1179,7 +1207,7 @@ UPDATE job_openings SET status = $1,
        closed_at = CASE WHEN $1 = 'closed' THEN now() ELSE NULL END,
        version = version + 1, updated_at = now()
 WHERE id = $2 AND version = $3
-RETURNING id, org_id, requisition_id, unit_id, location_id, workflow_id, slug, title, employment_type, description, requirements, status, published_at, closes_at, closed_at, created_by, version, created_at, updated_at
+RETURNING id, org_id, requisition_id, unit_id, location_id, workflow_id, slug, title, employment_type, description, requirements, status, published_at, closes_at, closed_at, created_by, version, created_at, updated_at, track, quota
 `
 
 type SetJobStatusParams struct {
@@ -1211,8 +1239,30 @@ func (q *Queries) SetJobStatus(ctx context.Context, arg SetJobStatusParams) (Job
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Track,
+		&i.Quota,
 	)
 	return i, err
+}
+
+const sumActiveJobQuota = `-- name: SumActiveJobQuota :one
+SELECT coalesce(sum(quota), 0)::bigint AS total FROM job_openings
+WHERE org_id = $1 AND requisition_id = $2 AND status IN ('draft', 'published')
+  AND ($3::uuid IS NULL OR id <> $3::uuid)
+`
+
+type SumActiveJobQuotaParams struct {
+	OrgID         uuid.UUID  `json:"orgId"`
+	RequisitionID *uuid.UUID `json:"requisitionId"`
+	ExcludeID     *uuid.UUID `json:"excludeId"`
+}
+
+// Total kuota lowongan draft/published dari satu requisition; closed tidak dihitung. exclude_id dilewati saat kuota sebuah lowongan diubah.
+func (q *Queries) SumActiveJobQuota(ctx context.Context, arg SumActiveJobQuotaParams) (int64, error) {
+	row := q.db.QueryRow(ctx, sumActiveJobQuota, arg.OrgID, arg.RequisitionID, arg.ExcludeID)
+	var total int64
+	err := row.Scan(&total)
+	return total, err
 }
 
 const updateApplicationState = `-- name: UpdateApplicationState :one
@@ -1257,7 +1307,7 @@ const updateJobContent = `-- name: UpdateJobContent :one
 UPDATE job_openings SET title = $3, employment_type = $4, description = $5, requirements = $6,
        location_id = $7, closes_at = $8, version = version + 1, updated_at = now()
 WHERE id = $1 AND version = $2
-RETURNING id, org_id, requisition_id, unit_id, location_id, workflow_id, slug, title, employment_type, description, requirements, status, published_at, closes_at, closed_at, created_by, version, created_at, updated_at
+RETURNING id, org_id, requisition_id, unit_id, location_id, workflow_id, slug, title, employment_type, description, requirements, status, published_at, closes_at, closed_at, created_by, version, created_at, updated_at, track, quota
 `
 
 type UpdateJobContentParams struct {
@@ -1303,6 +1353,49 @@ func (q *Queries) UpdateJobContent(ctx context.Context, arg UpdateJobContentPara
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Track,
+		&i.Quota,
+	)
+	return i, err
+}
+
+const updateJobQuota = `-- name: UpdateJobQuota :one
+UPDATE job_openings SET quota = $1, version = version + 1, updated_at = now()
+WHERE id = $2 AND version = $3
+RETURNING id, org_id, requisition_id, unit_id, location_id, workflow_id, slug, title, employment_type, description, requirements, status, published_at, closes_at, closed_at, created_by, version, created_at, updated_at, track, quota
+`
+
+type UpdateJobQuotaParams struct {
+	Quota           int32     `json:"quota"`
+	ID              uuid.UUID `json:"id"`
+	ExpectedVersion int32     `json:"expectedVersion"`
+}
+
+func (q *Queries) UpdateJobQuota(ctx context.Context, arg UpdateJobQuotaParams) (JobOpening, error) {
+	row := q.db.QueryRow(ctx, updateJobQuota, arg.Quota, arg.ID, arg.ExpectedVersion)
+	var i JobOpening
+	err := row.Scan(
+		&i.ID,
+		&i.OrgID,
+		&i.RequisitionID,
+		&i.UnitID,
+		&i.LocationID,
+		&i.WorkflowID,
+		&i.Slug,
+		&i.Title,
+		&i.EmploymentType,
+		&i.Description,
+		&i.Requirements,
+		&i.Status,
+		&i.PublishedAt,
+		&i.ClosesAt,
+		&i.ClosedAt,
+		&i.CreatedBy,
+		&i.Version,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Track,
+		&i.Quota,
 	)
 	return i, err
 }

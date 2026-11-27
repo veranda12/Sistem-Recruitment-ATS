@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"regexp"
 	"slices"
@@ -41,6 +42,7 @@ type publicJobDTO struct {
 	Title          string     `json:"title"`
 	EmploymentType string     `json:"employmentType"`
 	PublishedAt    *time.Time `json:"publishedAt"`
+	Track          string     `json:"track"`
 	ClosesAt       *time.Time `json:"closesAt"`
 	Unit           codeName   `json:"unit"`
 	Location       location   `json:"location"`
@@ -161,6 +163,11 @@ func (h *Handler) ListPublicJobs(c *gin.Context) {
 		platform.Fail(c, platform.ErrValidation(map[string]string{"type": "Jenis kerja tidak dikenal."}))
 		return
 	}
+	track := optStr(c, "track")
+	if track != nil && !slices.Contains(tracks, *track) {
+		platform.Fail(c, platform.ErrValidation(map[string]string{"track": "Track tidak dikenal."}))
+		return
+	}
 	q := optStr(c, "q")
 	if q != nil && len(*q) > 100 {
 		platform.Fail(c, platform.ErrValidation(map[string]string{"q": "Kata kunci maksimal 100 karakter."}))
@@ -172,7 +179,7 @@ func (h *Handler) ListPublicJobs(c *gin.Context) {
 		return
 	}
 	p := sqlc.ListPublicJobsParams{OrgID: h.OrgID, UnitCode: optStr(c, "unit"), LocationCode: optStr(c, "location"),
-		EmploymentType: et, Q: q, PageSize: size + 1}
+		EmploymentType: et, Track: track, Q: q, PageSize: size + 1}
 	if cur != nil {
 		p.CursorPublishedAt, p.CursorID = &cur.T, &cur.ID
 	}
@@ -190,7 +197,7 @@ func (h *Handler) ListPublicJobs(c *gin.Context) {
 			next = &s
 			break
 		}
-		items = append(items, publicJobDTO{ID: r.ID, Slug: r.Slug, Title: r.Title, EmploymentType: r.EmploymentType,
+		items = append(items, publicJobDTO{ID: r.ID, Slug: r.Slug, Title: r.Title, EmploymentType: r.EmploymentType, Track: r.Track,
 			PublishedAt: r.PublishedAt, ClosesAt: r.ClosesAt, Unit: codeName{r.UnitCode, r.UnitName},
 			Location: location{r.LocationCode, r.LocationName, r.City}})
 	}
@@ -212,7 +219,7 @@ func (h *Handler) GetPublicJob(c *gin.Context) {
 	}
 	open := j.Status == "published" && (j.ClosesAt == nil || j.ClosesAt.After(time.Now()))
 	c.JSON(http.StatusOK, gin.H{
-		"id": j.ID, "slug": j.Slug, "title": j.Title, "employmentType": j.EmploymentType,
+		"id": j.ID, "slug": j.Slug, "title": j.Title, "employmentType": j.EmploymentType, "track": j.Track,
 		"description": j.Description, "requirements": j.Requirements, "publishedAt": j.PublishedAt, "closesAt": j.ClosesAt,
 		"status": j.Status, "acceptingApplications": open,
 		"unit": codeName{j.UnitCode, j.UnitName}, "location": location{j.LocationCode, j.LocationName, j.City},
@@ -244,6 +251,8 @@ type jobReq struct {
 	ClosesAt       *time.Time `json:"closesAt"`
 	Version        int32      `json:"version"`
 	RequisitionID  *uuid.UUID `json:"requisitionId"`
+	Track          string     `json:"track"`
+	Quota          int32      `json:"quota"`
 }
 
 var slugRe = regexp.MustCompile(`^[a-z0-9-]{3,120}$`)
@@ -264,6 +273,12 @@ func (r jobReq) validate(create bool) map[string]string {
 	}
 	if r.ClosesAt != nil && r.ClosesAt.Before(time.Now()) {
 		f["closesAt"] = "Batas lamaran harus di masa depan."
+	}
+	if r.Quota < 1 {
+		f["quota"] = "Kuota minimal 1."
+	}
+	if r.Track != "" && !slices.Contains(tracks, r.Track) {
+		f["track"] = "Pilih track: OPERATOR, STAFF, atau MT_S1_D4."
 	}
 	return f
 }
@@ -327,11 +342,8 @@ func (h *Handler) CreateJob(c *gin.Context) {
 		platform.Fail(c, err)
 		return
 	}
-	if req.RequisitionID != nil && unit != nil {
-		r, err := h.Q.LockRequisition(ctx, *req.RequisitionID)
-		if err != nil || r.OrgID != h.OrgID || r.Status != "approved" || r.UnitID != unit.ID {
-			f["requisitionId"] = "Permintaan tenaga kerja harus sudah disetujui dan berada di unit yang sama."
-		}
+	if req.RequisitionID == nil && req.Track == "" {
+		f["track"] = "Pilih track lowongan."
 	}
 	if len(f) > 0 {
 		platform.Fail(c, platform.ErrValidation(f))
@@ -345,9 +357,26 @@ func (h *Handler) CreateJob(c *gin.Context) {
 	err = platform.WithTx(ctx, h.Pool, func(tx pgx.Tx) error {
 		q := h.Q.WithTx(tx)
 		var err error
+		// Track: lowongan dari requisition mewarisi track-nya bila kosong dan wajib sama bila diisi. Kuota dihitung di transaksi
+		// yang mengunci requisition, sehingga pembuatan lowongan paralel pada satu requisition berurutan.
+		track := req.Track
+		if req.RequisitionID != nil {
+			r, err := kunciRequisition(ctx, q, h.OrgID, unit.ID, *req.RequisitionID)
+			if err != nil {
+				return err
+			}
+			if track == "" {
+				track = r.Track
+			} else if track != r.Track {
+				return platform.ErrValidation(map[string]string{"track": "Track lowongan harus sama dengan track permintaan tenaga kerja (" + r.Track + ")."})
+			}
+			if err := cekKuotaRequisition(ctx, q, h.OrgID, r, req.Quota, nil); err != nil {
+				return err
+			}
+		}
 		job, err = q.CreateJob(ctx, sqlc.CreateJobParams{OrgID: h.OrgID, RequisitionID: req.RequisitionID, UnitID: unit.ID, LocationID: loc.ID, WorkflowID: wf.ID,
 			Slug: req.Slug, Title: strings.TrimSpace(req.Title), EmploymentType: req.EmploymentType, Description: req.Description,
-			Requirements: req.Requirements, ClosesAt: req.ClosesAt, CreatedBy: p.UserID})
+			Requirements: req.Requirements, ClosesAt: req.ClosesAt, CreatedBy: p.UserID, Track: track, Quota: req.Quota})
 		if platform.IsUniqueViolation(err, "job_openings_org_id_slug_key") {
 			return platform.ErrValidation(map[string]string{"slug": "Slug sudah dipakai lowongan lain."})
 		}
@@ -355,13 +384,110 @@ func (h *Handler) CreateJob(c *gin.Context) {
 			return err
 		}
 		return platform.WriteAudit(ctx, q, platform.AuditEntry{OrgID: h.OrgID, ActorID: &p.UserID, ActorKind: "staff",
-			Action: "job.create", TargetType: "job", TargetID: job.ID.String(), ScopeUnit: &unit.ID, RequestID: platform.RequestID(c)})
+			Action: "job.create", TargetType: "job", TargetID: job.ID.String(), ScopeUnit: &unit.ID, RequestID: platform.RequestID(c),
+			Detail: map[string]any{"track": track, "quota": req.Quota, "requisitionId": req.RequisitionID}})
 	})
 	if err != nil {
 		platform.Fail(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, job)
+}
+
+// kunciRequisition mengunci requisition lowongan dan memeriksa organisasi, status disetujui, dan unit yang sama.
+// Dipakai pembuatan lowongan dan ubah kuota agar aturannya sama. Harus dipanggil di dalam transaksi.
+func kunciRequisition(ctx context.Context, q *sqlc.Queries, orgID, unitID, reqID uuid.UUID) (sqlc.Requisition, error) {
+	r, err := q.LockRequisition(ctx, reqID)
+	if platform.IsNoRows(err) || (err == nil && (r.OrgID != orgID || r.Status != "approved" || r.UnitID != unitID)) {
+		return r, platform.ErrValidation(map[string]string{"requisitionId": "Permintaan tenaga kerja harus sudah disetujui dan berada di unit yang sama."})
+	}
+	return r, err
+}
+
+// cekKuotaRequisition memastikan total kuota lowongan draft dan published dalam requisition, ditambah kuota baru,
+// tidak melebihi headcount. excludeID dilewati saat kuota lowongan itu sendiri diubah. Dipanggil setelah kunciRequisition.
+func cekKuotaRequisition(ctx context.Context, q *sqlc.Queries, orgID uuid.UUID, r sqlc.Requisition, kuota int32, excludeID *uuid.UUID) error {
+	total, err := q.SumActiveJobQuota(ctx, sqlc.SumActiveJobQuotaParams{OrgID: orgID, RequisitionID: &r.ID, ExcludeID: excludeID})
+	if err != nil {
+		return err
+	}
+	if total+int64(kuota) > int64(r.Headcount) {
+		return platform.ErrValidation(map[string]string{"quota": fmt.Sprintf("Total kuota lowongan aktif %d ditambah %d melebihi kebutuhan %d.", total, kuota, r.Headcount)})
+	}
+	return nil
+}
+
+// PATCH /staff/jobs/:id: hanya kuota, dengan expectedVersion. Lowongan closed ditolak. Total kuota lowongan aktif
+// dalam satu requisition tidak boleh melebihi headcount; pengecekan di transaksi yang mengunci requisition.
+func (h *Handler) UpdateJobQuota(c *gin.Context) {
+	p := auth.Current(c)
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		platform.Fail(c, platform.ErrNotFound(""))
+		return
+	}
+	var req struct {
+		ExpectedVersion int32 `json:"expectedVersion"`
+		Quota           int32 `json:"quota"`
+	}
+	if err := platform.BindJSON(c, &req); err != nil {
+		platform.Fail(c, err)
+		return
+	}
+	if req.Quota < 1 {
+		platform.Fail(c, platform.ErrValidation(map[string]string{"quota": "Kuota minimal 1."}))
+		return
+	}
+	ctx := c.Request.Context()
+	var out sqlc.JobOpening
+	err = platform.WithTx(ctx, h.Pool, func(tx pgx.Tx) error {
+		q := h.Q.WithTx(tx)
+		j, err := q.LockJobForUpdate(ctx, id)
+		if platform.IsNoRows(err) || (err == nil && j.OrgID != h.OrgID) {
+			return platform.ErrNotFound("Lowongan tidak ditemukan.")
+		}
+		if err != nil {
+			return err
+		}
+		if !p.Can(auth.PermJobsManage, auth.Resource{Unit: j.UnitID, Job: &j.ID}) {
+			return platform.ErrNotFound("Lowongan tidak ditemukan.")
+		}
+		if j.Version != req.ExpectedVersion {
+			return platform.ErrConflict("stale_version", "Lowongan sudah diubah orang lain. Muat ulang.")
+		}
+		if j.Status == "closed" {
+			return platform.ErrValidation(map[string]string{"status": "Lowongan yang sudah ditutup tidak dapat diubah kuotanya."})
+		}
+		if j.Quota == req.Quota {
+			// Kuota tidak berubah: tidak menaikkan versi dan tidak menulis audit.
+			out = j
+			return nil
+		}
+		if j.RequisitionID != nil {
+			r, err := kunciRequisition(ctx, q, h.OrgID, j.UnitID, *j.RequisitionID)
+			if err != nil {
+				return err
+			}
+			if err := cekKuotaRequisition(ctx, q, h.OrgID, r, req.Quota, &j.ID); err != nil {
+				return err
+			}
+		}
+		out, err = q.UpdateJobQuota(ctx, sqlc.UpdateJobQuotaParams{ID: id, Quota: req.Quota, ExpectedVersion: req.ExpectedVersion})
+		if platform.IsNoRows(err) {
+			return platform.ErrConflict("stale_version", "Lowongan sudah diubah orang lain. Muat ulang.")
+		}
+		if err != nil {
+			return err
+		}
+		return platform.WriteAudit(ctx, q, platform.AuditEntry{OrgID: h.OrgID, ActorID: &p.UserID, ActorKind: "staff", Action: "job.quota_update",
+			TargetType: "job", TargetID: id.String(), ScopeUnit: &j.UnitID, RequestID: platform.RequestID(c),
+			Detail: map[string]any{"track": j.Track, "quotaFrom": j.Quota, "quotaTo": req.Quota}})
+	})
+	if err != nil {
+		platform.Fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, out)
 }
 
 type statusReq struct {

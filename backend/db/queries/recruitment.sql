@@ -6,7 +6,7 @@ SELECT * FROM locations WHERE org_id = $1 ORDER BY name;
 
 -- name: ListPublicJobs :many
 -- Keyset pagination stabil (published_at DESC, id DESC). Hanya status published.
-SELECT j.id, j.slug, j.title, j.employment_type, j.published_at, j.closes_at,
+SELECT j.id, j.slug, j.title, j.employment_type, j.track, j.published_at, j.closes_at,
        u.code AS unit_code, u.name AS unit_name, l.code AS location_code, l.name AS location_name, l.city
 FROM job_openings j
 JOIN units u ON u.id = j.unit_id
@@ -15,6 +15,7 @@ WHERE j.org_id = @org_id AND j.status = 'published'
   AND (sqlc.narg(unit_code)::text IS NULL OR u.code = sqlc.narg(unit_code))
   AND (sqlc.narg(location_code)::text IS NULL OR l.code = sqlc.narg(location_code))
   AND (sqlc.narg(employment_type)::text IS NULL OR j.employment_type = sqlc.narg(employment_type))
+  AND (sqlc.narg(track)::text IS NULL OR j.track = sqlc.narg(track))
   AND (sqlc.narg(q)::text IS NULL OR j.title ILIKE '%' || sqlc.narg(q) || '%')
   AND (sqlc.narg(cursor_published_at)::timestamptz IS NULL
        OR (j.published_at, j.id) < (sqlc.narg(cursor_published_at)::timestamptz, sqlc.narg(cursor_id)::uuid))
@@ -40,7 +41,7 @@ WHERE j.id = $1;
 SELECT id, org_id, unit_id, workflow_id, status, closes_at, now()::timestamptz AS db_now FROM job_openings WHERE id = $1 FOR SHARE;
 
 -- name: ListStaffJobs :many
-SELECT j.id, j.slug, j.title, j.employment_type, j.status, j.published_at, j.closes_at, j.unit_id, j.version,
+SELECT j.id, j.slug, j.title, j.employment_type, j.track, j.quota, j.status, j.published_at, j.closes_at, j.unit_id, j.version,
        u.name AS unit_name, l.name AS location_name,
        (SELECT count(*) FROM job_applications a WHERE a.job_id = j.id)::bigint AS application_count
 FROM job_openings j
@@ -52,8 +53,8 @@ ORDER BY j.created_at DESC, j.id DESC
 LIMIT 200;
 
 -- name: CreateJob :one
-INSERT INTO job_openings (org_id, requisition_id, unit_id, location_id, workflow_id, slug, title, employment_type, description, requirements, closes_at, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+INSERT INTO job_openings (org_id, requisition_id, unit_id, location_id, workflow_id, slug, title, employment_type, description, requirements, closes_at, created_by, track, quota)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 RETURNING *;
 
 -- name: UpdateJobContent :one
@@ -72,6 +73,17 @@ RETURNING *;
 
 -- name: LockJobForUpdate :one
 SELECT * FROM job_openings WHERE id = $1 FOR UPDATE;
+
+-- name: SumActiveJobQuota :one
+-- Total kuota lowongan draft/published dari satu requisition; closed tidak dihitung. exclude_id dilewati saat kuota sebuah lowongan diubah.
+SELECT coalesce(sum(quota), 0)::bigint AS total FROM job_openings
+WHERE org_id = @org_id AND requisition_id = @requisition_id AND status IN ('draft', 'published')
+  AND (sqlc.narg(exclude_id)::uuid IS NULL OR id <> sqlc.narg(exclude_id)::uuid);
+
+-- name: UpdateJobQuota :one
+UPDATE job_openings SET quota = @quota, version = version + 1, updated_at = now()
+WHERE id = @id AND version = @expected_version
+RETURNING *;
 
 -- name: InsertApplication :one
 INSERT INTO job_applications (org_id, job_id, candidate_user_id, unit_id, workflow_version_id, stage_key)
@@ -131,6 +143,7 @@ WHERE a.org_id = @org_id
   AND (sqlc.narg(stage_key)::text IS NULL OR a.stage_key = sqlc.narg(stage_key))
   AND (sqlc.narg(shortlisted)::bool IS NULL OR a.shortlisted = sqlc.narg(shortlisted))
   AND (sqlc.narg(recruiter_user_id)::uuid IS NULL OR a.recruiter_user_id = sqlc.narg(recruiter_user_id))
+  AND (sqlc.narg(track)::text IS NULL OR j.track = sqlc.narg(track))
   AND (sqlc.narg(cursor_applied_at)::timestamptz IS NULL
        OR (a.applied_at, a.id) < (sqlc.narg(cursor_applied_at)::timestamptz, sqlc.narg(cursor_id)::uuid))
 ORDER BY a.applied_at DESC, a.id DESC

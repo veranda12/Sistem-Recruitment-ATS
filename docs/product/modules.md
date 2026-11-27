@@ -6,14 +6,14 @@ Ringkas per modul: layar, aktor, precondition, API (relatif `/api/v1`, detail pa
 
 | Aspek | Isi |
 |---|---|
-| Layar | `/` beranda + daftar + filter (kata kunci, unit, lokasi, jenis kerja) di URL; `/lowongan/:slug` detail + CTA Lamar |
+| Layar | `/` beranda + daftar + filter (kata kunci, unit, lokasi, jenis kerja, track) di URL; label track di kartu dan detail; `/lowongan/:slug` detail + CTA Lamar |
 | Aktor | Publik, kandidat |
-| API | `GET /org`, `GET /jobs?unit&location&type&q&cursor&limit<=50`, `GET /jobs/{slug}` |
-| Data | `job_openings` (status `draft/published/closed`), indeks parsial lowongan terbit |
+| API | `GET /org`, `GET /jobs?unit&location&type&track&q&cursor&limit<=50`, `GET /jobs/{slug}` |
+| Data | `job_openings` (status `draft/published/closed`, `track`), indeks parsial lowongan terbit |
 | Akses | Hanya `published` dan `closed` (detail); draft = 404 |
 | Validasi | Filter allowlist (422 untuk nilai lain), kata kunci <= 100 karakter, cursor opaque |
 | Bersamaan | Cache publik TTL 30 s di Redis bila ada, diinvalidasi saat publish/close; status apply selalu diperiksa di transaksi |
-| Tes | `TestCandidateToRecruiterSlice`; E2E `portal karier: daftar, filter di URL...` |
+| Tes | `TestCandidateToRecruiterSlice`; E2E `portal karier: daftar, filter di URL...`; `TestPublicJobsTrackFilter`, `TestDraftJobTrackHiddenFromPublic`; E2E `track.spec.ts` (filter track di URL, ponsel 390 px) |
 
 ## Akun dan profil
 
@@ -31,14 +31,14 @@ Ringkas per modul: layar, aktor, precondition, API (relatif `/api/v1`, detail pa
 
 | Aspek | Isi |
 |---|---|
-| Layar | `/staf/permintaan`, `/staf/lowongan`, `/staf/lamaran` (tabel / kartu di ponsel), `/staf/lamaran/:id` (snapshot, histori, interview, scorecard, dokumen, tindakan) |
+| Layar | `/staf/permintaan` (track, alasan, line, target tanggal masuk), `/staf/lowongan` (track, kuota, pilih permintaan yang disetujui, ubah kuota), `/staf/lamaran` (tabel / kartu di ponsel, filter track), `/staf/lamaran/:id` (snapshot, histori, interview, scorecard, dokumen, tindakan) |
 | Aktor | HR Admin, Recruiter, Hiring Manager |
-| API | `GET|POST /requisitions`, `POST /requisitions/{id}/{submit|cancel|approve|reject}`, `GET|POST /staff/jobs`, `POST /staff/jobs/{id}/{publish|close}`, `GET /applications`, `GET /applications/{id}`, `POST /applications/{id}/transitions|approvals|reveal-identity|interviews|decision-notice`, `POST /interviews/{id}/reschedule|cancel|evaluations`, `GET /staff/interviews` |
-| Data | `requisitions`, `job_openings.requisition_id`, `job_applications` (version), `transition_history`, `approvals`, `interviews`, `interview_panelists` (exclusion constraint), `interview_changes`, `evaluations` |
+| API | `GET|POST /requisitions` (filter `unitCode`), `POST /requisitions/{id}/{submit|cancel|approve|reject}`, `GET|POST /staff/jobs` (track, quota, requisitionId), `PATCH /staff/jobs/{id}` (hanya kuota, `expectedVersion`), `POST /staff/jobs/{id}/{publish|close}`, `GET /applications?track=`, `GET /applications/{id}`, `POST /applications/{id}/transitions|approvals|reveal-identity|interviews|decision-notice`, `POST /interviews/{id}/reschedule|cancel|evaluations`, `GET /staff/interviews` |
+| Data | `requisitions` (track, line, target_join_date, reason_category; `UNIQUE (org_id, id, track)`), `job_openings` (track, quota; FK komposit ke requisition agar track sama), `job_openings.requisition_id`, `job_applications` (version), `transition_history`, `approvals`, `interviews`, `interview_panelists` (exclusion constraint), `interview_changes`, `evaluations` |
 | Akses | Scope unit/lowongan per permission; di luar scope = 404; HM hanya lowongan yang ditugaskan + requisition miliknya |
-| Validasi | Transisi: `expectedVersion`, edge harus ada di versi workflow lamaran, guard rule; tolak wajib alasan; interview: zona IANA, 15-480 menit, 1-10 interviewer aktif |
-| Bersamaan | Lamaran di-lock `FOR UPDATE`; versi basi 409; interviewer bentrok ditolak DB (termasuk serentak); lamaran tidak aktif membatalkan interview terjadwal; pemberitahuan keputusan sekali |
-| Tes | `TestInterviewsScorecardDecision`, `TestRequisitionApprovalAndJob`, `TestApprovalGuardsOnRealDB`; E2E `keputusan rekrutmen` |
+| Validasi | Transisi: `expectedVersion`, edge harus ada di versi workflow lamaran, guard rule; tolak wajib alasan; interview: zona IANA, 15-480 menit, 1-10 interviewer aktif; track dari allowlist (OPERATOR, STAFF, MT_S1_D4); total kuota lowongan draft/published per requisition tidak melebihi headcount (422 di aplikasi); lowongan closed tidak bisa diubah kuotanya; target tanggal masuk tidak boleh lewat saat diajukan (tanggal hari ini di zona organisasi) |
+| Bersamaan | Kuota dihitung setelah requisition di-lock `FOR UPDATE`, sehingga dua pembuatan lowongan paralel hanya satu yang berhasil; lamaran di-lock `FOR UPDATE`; versi basi 409; interviewer bentrok ditolak DB (termasuk serentak); lamaran tidak aktif membatalkan interview terjadwal; pemberitahuan keputusan sekali |
+| Tes | `TestInterviewsScorecardDecision`, `TestRequisitionApprovalAndJob`, `TestApprovalGuardsOnRealDB`; E2E `keputusan rekrutmen`; `TestTrackRequisitionCreateRead`, `TestJobInheritsRequisitionTrack`, `TestJobQuotaWithinHeadcount`, `TestJobQuotaRace`, `TestTrackScopeNotFound`, `TestTrackQuotaAudit`; E2E `track.spec.ts` (permintaan MT, disetujui, lowongan, batas kuota) |
 
 ## Workflow
 

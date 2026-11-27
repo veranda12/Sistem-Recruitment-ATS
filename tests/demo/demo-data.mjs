@@ -227,9 +227,9 @@ async function main() {
   const wid = w.apps["operator-produksi-karawang"];
   const tl = (await w.c.call("GET", `/me/applications/${wid}/timeline`)).body;
   if (tl.status === "active") await w.c.call("POST", `/me/applications/${wid}/withdraw`, { reason: "Sudah menerima tawaran di perusahaan lain", version: tl.version });
-  const r1 = (await hm.call("POST", "/requisitions", { unitCode: "OPS", locationCode: "KRW", title: "Teknisi Perawatan Mesin", headcount: 2, employmentType: "contract", justification: "Penambahan lini produksi 3 pada kuartal depan." })).body;
+  const r1 = (await hm.call("POST", "/requisitions", { unitCode: "OPS", locationCode: "KRW", title: "Teknisi Perawatan Mesin", headcount: 2, employmentType: "contract", justification: "Penambahan lini produksi 3 pada kuartal depan.", track: "STAFF", reasonCategory: "penambahan" })).body;
   await hm.call("POST", `/requisitions/${r1.id}/submit`, { version: r1.version });
-  const r2 = (await hm.call("POST", "/requisitions", { unitCode: "OPS", locationCode: "KRW", title: "Operator Forklift", headcount: 1, employmentType: "contract", justification: "Pengganti karyawan yang mutasi." })).body;
+  const r2 = (await hm.call("POST", "/requisitions", { unitCode: "OPS", locationCode: "KRW", title: "Operator Forklift", headcount: 1, employmentType: "contract", justification: "Pengganti karyawan yang mutasi.", track: "OPERATOR", reasonCategory: "penggantian" })).body;
   await hm.call("POST", `/requisitions/${r2.id}/submit`, { version: r2.version });
   await hrOps.call("POST", `/requisitions/${r2.id}/approve`, { version: r2.version + 1, note: "Sesuai anggaran tenaga kerja 2027" });
   console.log("Selesai.");

@@ -13,9 +13,10 @@ import (
 )
 
 const createRequisition = `-- name: CreateRequisition :one
-INSERT INTO requisitions (org_id, unit_id, location_id, title, headcount, employment_type, justification, requested_by, hiring_manager_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, org_id, unit_id, location_id, title, headcount, employment_type, justification, status, requested_by, hiring_manager_id, decided_by, decided_at, decision_note, version, created_at, updated_at
+INSERT INTO requisitions (org_id, unit_id, location_id, title, headcount, employment_type, justification, requested_by, hiring_manager_id,
+                          track, line, target_join_date, reason_category)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+RETURNING id, org_id, unit_id, location_id, title, headcount, employment_type, justification, status, requested_by, hiring_manager_id, decided_by, decided_at, decision_note, version, created_at, updated_at, track, line, target_join_date, reason_category
 `
 
 type CreateRequisitionParams struct {
@@ -28,6 +29,10 @@ type CreateRequisitionParams struct {
 	Justification   string     `json:"justification"`
 	RequestedBy     uuid.UUID  `json:"requestedBy"`
 	HiringManagerID *uuid.UUID `json:"hiringManagerId"`
+	Track           string     `json:"track"`
+	Line            *string    `json:"line"`
+	TargetJoinDate  *time.Time `json:"targetJoinDate"`
+	ReasonCategory  *string    `json:"reasonCategory"`
 }
 
 func (q *Queries) CreateRequisition(ctx context.Context, arg CreateRequisitionParams) (Requisition, error) {
@@ -41,6 +46,10 @@ func (q *Queries) CreateRequisition(ctx context.Context, arg CreateRequisitionPa
 		arg.Justification,
 		arg.RequestedBy,
 		arg.HiringManagerID,
+		arg.Track,
+		arg.Line,
+		arg.TargetJoinDate,
+		arg.ReasonCategory,
 	)
 	var i Requisition
 	err := row.Scan(
@@ -61,12 +70,16 @@ func (q *Queries) CreateRequisition(ctx context.Context, arg CreateRequisitionPa
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Track,
+		&i.Line,
+		&i.TargetJoinDate,
+		&i.ReasonCategory,
 	)
 	return i, err
 }
 
 const listRequisitions = `-- name: ListRequisitions :many
-SELECT r.id, r.org_id, r.unit_id, r.location_id, r.title, r.headcount, r.employment_type, r.justification, r.status, r.requested_by, r.hiring_manager_id, r.decided_by, r.decided_at, r.decision_note, r.version, r.created_at, r.updated_at, u.name AS unit_name, l.name AS location_name, rq.display_name AS requested_by_name, hm.display_name AS hiring_manager_name
+SELECT r.id, r.org_id, r.unit_id, r.location_id, r.title, r.headcount, r.employment_type, r.justification, r.status, r.requested_by, r.hiring_manager_id, r.decided_by, r.decided_at, r.decision_note, r.version, r.created_at, r.updated_at, r.track, r.line, r.target_join_date, r.reason_category, u.name AS unit_name, l.name AS location_name, rq.display_name AS requested_by_name, hm.display_name AS hiring_manager_name
 FROM requisitions r
 JOIN units u ON u.id = r.unit_id
 JOIN locations l ON l.id = r.location_id
@@ -74,15 +87,17 @@ JOIN users rq ON rq.id = r.requested_by
 LEFT JOIN users hm ON hm.id = r.hiring_manager_id
 WHERE r.org_id = $1
   AND ($2::bool OR r.unit_id = ANY($3::uuid[]) OR r.requested_by = $4 OR r.hiring_manager_id = $4)
+  AND ($5::text IS NULL OR u.code = $5)
 ORDER BY r.created_at DESC
 LIMIT 200
 `
 
 type ListRequisitionsParams struct {
-	OrgID   uuid.UUID   `json:"orgId"`
-	OrgWide bool        `json:"orgWide"`
-	UnitIds []uuid.UUID `json:"unitIds"`
-	UserID  uuid.UUID   `json:"userId"`
+	OrgID    uuid.UUID   `json:"orgId"`
+	OrgWide  bool        `json:"orgWide"`
+	UnitIds  []uuid.UUID `json:"unitIds"`
+	UserID   uuid.UUID   `json:"userId"`
+	UnitCode *string     `json:"unitCode"`
 }
 
 type ListRequisitionsRow struct {
@@ -103,6 +118,10 @@ type ListRequisitionsRow struct {
 	Version           int32      `json:"version"`
 	CreatedAt         time.Time  `json:"createdAt"`
 	UpdatedAt         time.Time  `json:"updatedAt"`
+	Track             string     `json:"track"`
+	Line              *string    `json:"line"`
+	TargetJoinDate    *time.Time `json:"targetJoinDate"`
+	ReasonCategory    *string    `json:"reasonCategory"`
 	UnitName          string     `json:"unitName"`
 	LocationName      string     `json:"locationName"`
 	RequestedByName   string     `json:"requestedByName"`
@@ -110,12 +129,14 @@ type ListRequisitionsRow struct {
 }
 
 // Scope unit/organisasi dari requisitions.read, ditambah requisition milik sendiri (pemohon atau hiring manager).
+// unit_code opsional dicocokkan lewat join ke units (ID unit). Filter ini hanya mempersempit hasil di dalam scope.
 func (q *Queries) ListRequisitions(ctx context.Context, arg ListRequisitionsParams) ([]ListRequisitionsRow, error) {
 	rows, err := q.db.Query(ctx, listRequisitions,
 		arg.OrgID,
 		arg.OrgWide,
 		arg.UnitIds,
 		arg.UserID,
+		arg.UnitCode,
 	)
 	if err != nil {
 		return nil, err
@@ -142,6 +163,10 @@ func (q *Queries) ListRequisitions(ctx context.Context, arg ListRequisitionsPara
 			&i.Version,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Track,
+			&i.Line,
+			&i.TargetJoinDate,
+			&i.ReasonCategory,
 			&i.UnitName,
 			&i.LocationName,
 			&i.RequestedByName,
@@ -158,7 +183,7 @@ func (q *Queries) ListRequisitions(ctx context.Context, arg ListRequisitionsPara
 }
 
 const lockRequisition = `-- name: LockRequisition :one
-SELECT id, org_id, unit_id, location_id, title, headcount, employment_type, justification, status, requested_by, hiring_manager_id, decided_by, decided_at, decision_note, version, created_at, updated_at FROM requisitions WHERE id = $1 FOR UPDATE
+SELECT id, org_id, unit_id, location_id, title, headcount, employment_type, justification, status, requested_by, hiring_manager_id, decided_by, decided_at, decision_note, version, created_at, updated_at, track, line, target_join_date, reason_category FROM requisitions WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockRequisition(ctx context.Context, id uuid.UUID) (Requisition, error) {
@@ -182,6 +207,10 @@ func (q *Queries) LockRequisition(ctx context.Context, id uuid.UUID) (Requisitio
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Track,
+		&i.Line,
+		&i.TargetJoinDate,
+		&i.ReasonCategory,
 	)
 	return i, err
 }
@@ -191,7 +220,7 @@ UPDATE requisitions SET status = $1, decided_by = CASE WHEN $1 IN ('approved', '
        decided_at = CASE WHEN $1 IN ('approved', 'rejected') THEN now() ELSE decided_at END,
        decision_note = $3, version = version + 1, updated_at = now()
 WHERE id = $4 AND version = $5
-RETURNING id, org_id, unit_id, location_id, title, headcount, employment_type, justification, status, requested_by, hiring_manager_id, decided_by, decided_at, decision_note, version, created_at, updated_at
+RETURNING id, org_id, unit_id, location_id, title, headcount, employment_type, justification, status, requested_by, hiring_manager_id, decided_by, decided_at, decision_note, version, created_at, updated_at, track, line, target_join_date, reason_category
 `
 
 type SetRequisitionStatusParams struct {
@@ -229,6 +258,10 @@ func (q *Queries) SetRequisitionStatus(ctx context.Context, arg SetRequisitionSt
 		&i.Version,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Track,
+		&i.Line,
+		&i.TargetJoinDate,
+		&i.ReasonCategory,
 	)
 	return i, err
 }

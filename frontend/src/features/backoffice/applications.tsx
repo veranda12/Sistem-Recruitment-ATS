@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { ApiError, get, post, type Schemas } from "../../lib/api";
-import { fmtDate, fmtDateTime, statusLabel } from "../../lib/format";
+import { fmtDate, fmtDateTime, statusLabel, trackLabel } from "../../lib/format";
 import { useSession } from "../../lib/session";
 import { useQuery } from "../../lib/useQuery";
 import { kindLabel, openDocument, scanLabel } from "../candidate/documents";
@@ -41,10 +41,12 @@ const viewTab = (active: boolean) =>
 function ApplicationList() {
   const [params, setParams] = useSearchParams();
   const status = params.get("status") ?? "";
+  const track = params.get("track") ?? "";
   // Penanganan: semua, shortlist, atau lamaran yang ditugaskan ke pengguna ini.
   const handling = params.get("shortlisted") === "true" ? "shortlisted" : params.get("recruiter") === "me" ? "mine" : "";
   const filters: Record<string, string> = {};
   if (status) filters.status = status;
+  if (track) filters.track = track;
   if (handling === "shortlisted") filters.shortlisted = "true";
   if (handling === "mine") filters.recruiter = "me";
   const qs = new URLSearchParams(filters).toString();
@@ -63,6 +65,17 @@ function ApplicationList() {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-end gap-3 rounded-md border border-line bg-surface p-3">
+        <label className="flex flex-col gap-1 text-sm font-semibold">
+          Track
+          <Select value={track} onChange={(e) => setFilter({ ...filters, track: e.target.value })}>
+            <option value="">Semua track</option>
+            {Object.entries(trackLabel).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v}
+              </option>
+            ))}
+          </Select>
+        </label>
         <label className="flex flex-col gap-1 text-sm font-semibold">
           Status
           <Select value={status} onChange={(e) => setFilter({ ...filters, status: e.target.value })}>
